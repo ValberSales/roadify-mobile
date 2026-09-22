@@ -27,9 +27,6 @@
 
 O **Roadify Mobile** é uma solução móvel desenvolvida em Flutter projetada para democratizar e baratear o monitoramento contínuo de rodovias e vias urbanas. Ao transformar smartphones comerciais acoplados ao para-brisa em estações inerciais e de geolocalização, a plataforma viabiliza a triagem preventiva de irregularidades asfálticas em larga escala.
 
-> ⚠️ **Diretriz de Domínio (Sem IRI Oficial):**  
-> O Roadify **não substitui perfilômetros a laser regulamentados** e não gera IRI (International Roughness Index) normatizado. A aplicação calcula um **índice proprietário relativo de severidade** em 5 faixas (*Excelente*, *Boa*, *Média*, *Ruim* e *Muito Ruim*), identificando com precisão os trechos degradados que justificam o direcionamento de ensaios oficiais com perfilômetros de alto custo.
-
 ---
 
 ## 🎨 Design System & Ergonomia
@@ -38,12 +35,6 @@ Projetado especificamente para as condições adversas de iluminação no interi
 
 * ☀️ **Daylight Light Mode (Padrão de Alto Contraste):** Fundo branco puro (`#FFFFFF`) e cinza suave (`#F8FAFC`), contraste tipográfico elevado (`GoogleFonts.inter`) e identidade visual em **Verde Floresta / Petróleo** (`#134E3F`) com acentos em **Verde Limão** (`#A3E635`).
 * 💊 **Pill-Shaped Floating Dock (Estilo Galaxy OneUI & iOS):** Barra de navegação inferior flutuante com cantos arredondados (`32px`), elevação suave e efeito de vidro translúcido (*frosted glass* via `BackdropFilter`), garantindo ergonomia para alcance com o polegar.
-* 🚦 **Escala Semântica de Qualidade do Pavimento:**
-  * 🟢 **Excelente:** `#10B981` (Verde Esmeralda)
-  * 🟢 **Boa:** `#34D399` (Verde Claro)
-  * 🟡 **Média / Regular:** `#F59E0B` (Amarelo Âmbar)
-  * 🟠 **Ruim:** `#F97316` (Laranja)
-  * 🔴 **Muito Ruim / Crítica:** `#EF4444` (Vermelho) $\rightarrow$ *Indica trecho que exige vistoria com perfilômetro a laser.*
 
 ---
 
@@ -123,7 +114,7 @@ O desenvolvimento é distribuído entre 5 integrantes com responsabilidades pont
 | **Lucas** | Desenvolvedor Fullstack | **`coleta`** | Wizard de parâmetros da medição, odômetro, cockpit HUD de condução, Isolates de aquisição inercial contínua. |
 | **Allan** | Desenvolvedor Fullstack | **`sensores`** | Nível Bolha Digital (mira gráfica, tolerância de alinhamento e tara de ângulos) e gráficos osciloscópicos ao vivo. |
 | **Humberto** | Desenvolvedor Fullstack | **`dados`** | Gestão de gravações locais, serviço `CsvExportFilterService` (Drift $\rightarrow$ CSV `;`), compactação ZIP e upload via API RESTful. |
-| **Tiago** | Feature Owner (Antigravity) | **`auth_config`** | Telas de Login, Cadastro, Termos de Uso, Configurações Gerais (seletor Claro/Escuro/Sistema, endpoints de API e i18n). |
+| **Tiago** | Desenvolvedor Fullstack | **`auth_config`** | Telas de Login, Cadastro, Termos de Uso, Configurações Gerais (seletor Claro/Escuro/Sistema, endpoints de API e i18n). |
 
 ---
 
