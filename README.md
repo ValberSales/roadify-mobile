@@ -138,8 +138,8 @@ O desenvolvimento é distribuído entre 5 integrantes com responsabilidades pont
 
 1. **Clonar o Repositório:**
    ```bash
-   git clone https://github.com/seu-usuario/projeto-oficina-roadify.git
-   cd projeto-oficina-roadify/roadify_app
+   git clone https://github.com/ValberSales/roadify-mobile.git
+   cd roadify-mobile/roadify_app
    ```
 
 2. **Instalar Dependências:**
