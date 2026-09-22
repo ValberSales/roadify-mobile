@@ -1,0 +1,32 @@
+# ==============================================================================
+# Roadify - Root .gitignore
+# ==============================================================================
+
+# Arquivos de sistema do macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+.Spotlight-V100
+.Trashes
+
+# Pastas e projetos legados
+/appFlutter/
+/appJava/
+/*.pdf
+
+# Documentos internos de requisitos e planejamento
+/REQUISITOS_SISTEMA_ROADIFY.md
+/REQUISITOS_FUNCIONAIS_E_SISTEMICOS.md
+
+# Configurações de IDEs e editores na raiz
+.idea/
+.vscode/
+*.iml
+*.ipr
+*.iws
+
+# Arquivos temporários e logs
+*.log
+*.tmp
+*.bak
