@@ -12,6 +12,9 @@ class ConfiguracaoColeta {
     required this.taxaGpsHz,
     required this.intervaloMetros,
   }) : sensoresSelecionados = Set.unmodifiable(sensoresSelecionados);
+
+  /// Frequência de amostragem do sensor acelerômetro em Hz.
+  int get taxaAcelerometroHz => taxaInercialHz;
 }
 
 abstract interface class ColetaViewModel {

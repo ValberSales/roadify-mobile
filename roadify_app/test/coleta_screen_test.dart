@@ -80,4 +80,62 @@ void main() {
       findsOneWidget,
     );
   });
+
+  testWidgets('exibe presets de frequência para acelerômetro e GPS, permitindo valores customizados', (
+    tester,
+  ) async {
+    final viewModel = _RecordingColetaViewModel();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: ColetaScreen(viewModel: viewModel),
+      ),
+    );
+
+    // 1. Verifica presença dos botões pre-configurados do acelerômetro: 100, 200, 300, 400, 500 Hz e Outro
+    expect(find.byKey(const ValueKey('chip-acc-100')), findsOneWidget);
+    expect(find.byKey(const ValueKey('chip-acc-200')), findsOneWidget);
+    expect(find.byKey(const ValueKey('chip-acc-300')), findsOneWidget);
+    expect(find.byKey(const ValueKey('chip-acc-400')), findsOneWidget);
+    expect(find.byKey(const ValueKey('chip-acc-500')), findsOneWidget);
+    expect(find.byKey(const ValueKey('chip-acc-outro')), findsOneWidget);
+
+    // 2. Verifica presença dos botões pre-configurados do GPS: 1, 2, 5, 10 Hz e Outro
+    expect(find.byKey(const ValueKey('chip-gps-1')), findsOneWidget);
+    expect(find.byKey(const ValueKey('chip-gps-2')), findsOneWidget);
+    expect(find.byKey(const ValueKey('chip-gps-5')), findsOneWidget);
+    expect(find.byKey(const ValueKey('chip-gps-10')), findsOneWidget);
+    expect(find.byKey(const ValueKey('chip-gps-outro')), findsOneWidget);
+
+    // 3. Testa seleção de preset de acelerômetro 400 Hz e GPS 5 Hz
+    final chipAcc400 = find.byKey(const ValueKey('chip-acc-400'));
+    await tester.ensureVisible(chipAcc400);
+    await tester.tap(chipAcc400);
+
+    final chipGps5 = find.byKey(const ValueKey('chip-gps-5'));
+    await tester.ensureVisible(chipGps5);
+    await tester.tap(chipGps5);
+    await tester.pump();
+
+    // 4. Testa botão "Outro..." do acelerômetro e digitação de frequência personalizada (ex: 250 Hz)
+    final chipAccOutro = find.byKey(const ValueKey('chip-acc-outro'));
+    await tester.ensureVisible(chipAccOutro);
+    await tester.tap(chipAccOutro);
+    await tester.pump();
+
+    final inputAccCustom = find.byKey(const ValueKey('input-acc-custom'));
+    await tester.ensureVisible(inputAccCustom);
+    await tester.enterText(inputAccCustom, '250');
+    await tester.pump();
+
+    // 5. Inicia coleta e valida configuração enviada
+    await tester.ensureVisible(find.text('Prosseguir para gravação'));
+    await tester.tap(find.text('Prosseguir para gravação'));
+    await tester.pumpAndSettle();
+
+    expect(viewModel.requestedConfiguration?.taxaInercialHz, 250);
+    expect(viewModel.requestedConfiguration?.taxaAcelerometroHz, 250);
+    expect(viewModel.requestedConfiguration?.taxaGpsHz, 5);
+  });
 }

@@ -53,6 +53,10 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
   final double _freeStoragePercent = 84.5;
   final double _freeStorageGb = 42.1;
 
+  // --- Registro Fotográfico de Ocorrências com Geotagging ---
+  final List<_RegistroFoto> _fotosCapturadas = [];
+  bool _flashAtivo = false;
+
   bool _isFinalizing = false;
 
   @override
@@ -162,13 +166,138 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
   }
 
+  void _capturarFoto() {
+    final nextId = _fotosCapturadas.length + 1;
+    final now = DateTime.now();
+    // Coordenadas simuladas com progressão ao longo da via
+    final lat = -23.550520 - (nextId * 0.00028);
+    final long = -46.633308 + (nextId * 0.00019);
+    final odo = 14250.0 + (_elapsed.inSeconds * 0.012);
+
+    final novaFoto = _RegistroFoto(
+      id: nextId,
+      timestamp: now,
+      latitude: lat,
+      longitude: long,
+      odometroKm: double.parse(odo.toStringAsFixed(2)),
+    );
+
+    setState(() {
+      _fotosCapturadas.add(novaFoto);
+      _flashAtivo = true;
+    });
+
+    Future.delayed(const Duration(milliseconds: 140), () {
+      if (mounted) setState(() => _flashAtivo = false);
+    });
+
+    ScaffoldMessenger.of(context).hideCurrentSnackBar();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        duration: const Duration(seconds: 2),
+        behavior: SnackBarBehavior.floating,
+        content: Row(
+          children: [
+            const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                'Foto #$nextId registrada com geotagging (${novaFoto.latitude.toStringAsFixed(4)}, ${novaFoto.longitude.toStringAsFixed(4)})',
+                style: const TextStyle(fontWeight: FontWeight.w600),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _exibirDetalhesFoto(_RegistroFoto foto) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Row(
+          children: [
+            const Icon(Icons.place_rounded, color: Colors.teal),
+            const SizedBox(width: 8),
+            Text('Foto #${foto.id} (Geotag)'),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 120,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                color: Colors.black12,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: Colors.grey.shade400),
+              ),
+              child: const Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.camera_alt_rounded, size: 36, color: Colors.grey),
+                  SizedBox(height: 6),
+                  Text(
+                    'Registro Fotográfico de Pavimento',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: Colors.black54,
+                    ),
+                  ),
+                  Text(
+                    'Câmera Principal • Alta Resolução',
+                    style: TextStyle(fontSize: 10, color: Colors.black45),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              'Latitude: ${foto.latitude.toStringAsFixed(6)}',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            Text(
+              'Longitude: ${foto.longitude.toStringAsFixed(6)}',
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+            Text('Odômetro estimado: ${foto.odometroKm.toStringAsFixed(2)} km'),
+            Text(
+              'Horário: ${foto.timestamp.hour.toString().padLeft(2, '0')}:${foto.timestamp.minute.toString().padLeft(2, '0')}:${foto.timestamp.second.toString().padLeft(2, '0')}',
+            ),
+            const SizedBox(height: 8),
+            const Text(
+              'Metadados EXIF com Geotagging prontos para sincronização.',
+              style: TextStyle(
+                fontSize: 11,
+                fontStyle: FontStyle.italic,
+                color: Colors.grey,
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
+    );
+  }
+
   Future<void> _confirmarFinalizacao() async {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Finalizar Coleta?'),
-        content: const Text(
-          'Deseja encerrar este ensaio? Os dados de aceleração e telemetria serão salvos no banco de dados local.',
+        content: Text(
+          _fotosCapturadas.isNotEmpty
+              ? 'Deseja encerrar este ensaio? Foram registradas ${_fotosCapturadas.length} fotos com geotagging. Os dados de aceleração e telemetria serão salvos no banco local.'
+              : 'Deseja encerrar este ensaio? Os dados de aceleração e telemetria serão salvos no banco de dados local.',
         ),
         actions: [
           TextButton(
@@ -207,6 +336,10 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
         final now = DateTime.now();
         final distanceEstimate = (_elapsed.inSeconds * 0.012).clamp(0.1, 999.0);
 
+        final fotosDescricao = _fotosCapturadas.isNotEmpty
+            ? ' • ${_fotosCapturadas.length} fotos geotagged'
+            : '';
+
         await dao.insertRun(
           RunsTableCompanion.insert(
             title: Value('Ensaio Pista • ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}'),
@@ -214,7 +347,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
             odometer: const Value(14250.0),
             distanceKm: Value(double.parse(distanceEstimate.toStringAsFixed(2))),
             isSynced: const Value(false),
-            notes: Value('Coleta com ${widget.configuracao.taxaInercialHz} Hz e ${widget.configuracao.taxaGpsHz} Hz GPS'),
+            notes: Value('Coleta com ${widget.configuracao.taxaInercialHz} Hz e ${widget.configuracao.taxaGpsHz} Hz GPS$fotosDescricao'),
           ),
         );
       }
@@ -270,316 +403,518 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
           ),
         ],
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.fromLTRB(
-            AppDimensions.space20,
-            AppDimensions.space12,
-            AppDimensions.space20,
-            AppDimensions.space24,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // --- 1. CRONÔMETRO DECORRIDO ---
-              Container(
-                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  borderRadius: AppDimensions.borderRadiusCard,
-                  border: Border.all(color: colors.outlineVariant),
-                ),
-                child: Column(
-                  children: [
-                    Text(
-                      'TEMPO DECORRIDO',
-                      style: typography.labelMedium?.copyWith(
-                        letterSpacing: 1.2,
-                        color: colors.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      _formatDuration(_elapsed),
-                      style: typography.displaySmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 1.5,
-                        fontFeatures: const [FontFeature.tabularFigures()],
-                      ),
-                    ),
-                  ],
-                ),
+      body: Stack(
+        children: [
+          SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.fromLTRB(
+                AppDimensions.space20,
+                AppDimensions.space12,
+                AppDimensions.space20,
+                AppDimensions.space24,
               ),
-
-              const SizedBox(height: AppDimensions.space16),
-
-              // --- 2. CONFIGURAÇÃO SELECIONADA (Taxa Inercial, GPS, Sensores) ---
-              Container(
-                padding: const EdgeInsets.all(AppDimensions.space16),
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  borderRadius: AppDimensions.borderRadiusCard,
-                  border: Border.all(color: colors.outlineVariant),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.tune_rounded, size: 18, color: colors.primary),
-                        const SizedBox(width: 8),
-                        Text(
-                          'Parâmetros da Coleta',
-                          style: typography.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _ParamBadge(
-                            label: 'Acelerômetro',
-                            value: '${widget.configuracao.taxaInercialHz} Hz',
-                            icon: Icons.speed_rounded,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _ParamBadge(
-                            label: 'Taxa GPS',
-                            value: '${widget.configuracao.taxaGpsHz} Hz',
-                            icon: Icons.gps_fixed_rounded,
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: _ParamBadge(
-                            label: 'Intervalo',
-                            value: '${widget.configuracao.intervaloMetros.toStringAsFixed(0)} m',
-                            icon: Icons.straighten_rounded,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Wrap(
-                      spacing: 6,
-                      runSpacing: 6,
-                      children: widget.configuracao.sensoresSelecionados.map((s) {
-                        return Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          decoration: BoxDecoration(
-                            color: colors.primary.withValues(alpha: 0.1),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(
-                                _iconForSensor(s),
-                                size: 14,
-                                color: colors.primary,
-                              ),
-                              const SizedBox(width: 4),
-                              Text(
-                                _nameForSensor(s),
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w600,
-                                  color: colors.primary,
-                                ),
-                              ),
-                            ],
-                          ),
-                        );
-                      }).toList(),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: AppDimensions.space16),
-
-              // --- 3. DIAGNÓSTICO: ARMAZENAMENTO E TEMPERATURA ---
-              Row(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Tamanho do arquivo e Armazenamento
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(AppDimensions.space16),
-                      decoration: BoxDecoration(
-                        color: colors.surface,
-                        borderRadius: AppDimensions.borderRadiusCard,
-                        border: Border.all(color: colors.outlineVariant),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Icon(Icons.sd_storage_outlined, size: 16, color: colors.primary),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  'Arquivo / Espaço',
-                                  style: typography.labelSmall?.copyWith(fontWeight: FontWeight.w700),
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ),
-                            ],
+                  // --- 1. CRONÔMETRO DECORRIDO ---
+                  Container(
+                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                    decoration: BoxDecoration(
+                      color: colors.surface,
+                      borderRadius: AppDimensions.borderRadiusCard,
+                      border: Border.all(color: colors.outlineVariant),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          'TEMPO DECORRIDO',
+                          style: typography.labelMedium?.copyWith(
+                            letterSpacing: 1.2,
+                            color: colors.onSurfaceVariant,
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            _formatFileSize(_fileSizeBytes),
-                            style: typography.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          _formatDuration(_elapsed),
+                          style: typography.displaySmall?.copyWith(
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 1.5,
+                            fontFeatures: const [FontFeature.tabularFigures()],
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            '$_freeStoragePercent% livre ($_freeStorageGb GB)',
-                            style: typography.bodySmall?.copyWith(fontSize: 11),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  // Temperatura do Telefone
-                  Expanded(
-                    child: Container(
-                      padding: const EdgeInsets.all(AppDimensions.space16),
-                      decoration: BoxDecoration(
-                        color: colors.surface,
-                        borderRadius: AppDimensions.borderRadiusCard,
-                        border: Border.all(color: colors.outlineVariant),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+
+                  const SizedBox(height: AppDimensions.space16),
+
+                  // --- 2. CONFIGURAÇÃO SELECIONADA (Taxa Inercial, GPS, Sensores) ---
+                  Container(
+                    padding: const EdgeInsets.all(AppDimensions.space16),
+                    decoration: BoxDecoration(
+                      color: colors.surface,
+                      borderRadius: AppDimensions.borderRadiusCard,
+                      border: Border.all(color: colors.outlineVariant),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.tune_rounded, size: 18, color: colors.primary),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Parâmetros da Coleta',
+                              style: typography.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _ParamBadge(
+                                label: 'Acelerômetro',
+                                value: '${widget.configuracao.taxaInercialHz} Hz',
+                                icon: Icons.speed_rounded,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _ParamBadge(
+                                label: 'Taxa GPS',
+                                value: '${widget.configuracao.taxaGpsHz} Hz',
+                                icon: Icons.gps_fixed_rounded,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _ParamBadge(
+                                label: 'Intervalo',
+                                value: '${widget.configuracao.intervaloMetros.toStringAsFixed(0)} m',
+                                icon: Icons.straighten_rounded,
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 6,
+                          runSpacing: 6,
+                          children: widget.configuracao.sensoresSelecionados.map((s) {
+                            return Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: colors.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  Icon(
+                                    _iconForSensor(s),
+                                    size: 14,
+                                    color: colors.primary,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _nameForSensor(s),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600,
+                                      color: colors.primary,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: AppDimensions.space16),
+
+                  // --- 3. DIAGNÓSTICO: ARMAZENAMENTO E TEMPERATURA ---
+                  Row(
+                    children: [
+                      // Tamanho do arquivo e Armazenamento
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(AppDimensions.space16),
+                          decoration: BoxDecoration(
+                            color: colors.surface,
+                            borderRadius: AppDimensions.borderRadiusCard,
+                            border: Border.all(color: colors.outlineVariant),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              const Icon(Icons.thermostat_rounded, size: 16, color: Colors.teal),
-                              const SizedBox(width: 6),
-                              Expanded(
-                                child: Text(
-                                  'Temperatura',
-                                  style: typography.labelSmall?.copyWith(fontWeight: FontWeight.w700),
-                                  overflow: TextOverflow.ellipsis,
+                              Row(
+                                children: [
+                                  Icon(Icons.sd_storage_outlined, size: 16, color: colors.primary),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'Arquivo / Espaço',
+                                      style: typography.labelSmall?.copyWith(fontWeight: FontWeight.w700),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                _formatFileSize(_fileSizeBytes),
+                                style: typography.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                '$_freeStoragePercent% livre ($_freeStorageGb GB)',
+                                style: typography.bodySmall?.copyWith(fontSize: 11),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      // Temperatura do Telefone
+                      Expanded(
+                        child: Container(
+                          padding: const EdgeInsets.all(AppDimensions.space16),
+                          decoration: BoxDecoration(
+                            color: colors.surface,
+                            borderRadius: AppDimensions.borderRadiusCard,
+                            border: Border.all(color: colors.outlineVariant),
+                          ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                children: [
+                                  const Icon(Icons.thermostat_rounded, size: 16, color: Colors.teal),
+                                  const SizedBox(width: 6),
+                                  Expanded(
+                                    child: Text(
+                                      'Temperatura',
+                                      style: typography.labelSmall?.copyWith(fontWeight: FontWeight.w700),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                '${_phoneTemperatureC.toStringAsFixed(1)} °C',
+                                style: typography.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Normal / Seguro',
+                                style: typography.bodySmall?.copyWith(
+                                  fontSize: 11,
+                                  color: Colors.teal,
+                                  fontWeight: FontWeight.w600,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
-                          Text(
-                            '${_phoneTemperatureC.toStringAsFixed(1)} °C',
-                            style: typography.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                        ),
+                      ),
+                    ],
+                  ),
+
+                  const SizedBox(height: AppDimensions.space16),
+
+                  // --- 4. GRÁFICO EM TEMPO REAL DO ACELERÔMETRO ---
+                  Container(
+                    padding: const EdgeInsets.all(AppDimensions.space16),
+                    decoration: BoxDecoration(
+                      color: colors.surface,
+                      borderRadius: AppDimensions.borderRadiusCard,
+                      border: Border.all(color: colors.outlineVariant),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.show_chart_rounded, size: 18, color: colors.primary),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Acelerômetro ao Vivo',
+                                  style: typography.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                              ],
+                            ),
+                            // Valores numéricos instantâneos
+                            Row(
+                              children: [
+                                _AxisValueBadge(label: 'X', value: _currentX, color: const Color(0xFF10B981)),
+                                const SizedBox(width: 6),
+                                _AxisValueBadge(label: 'Y', value: _currentY, color: const Color(0xFF06B6D4)),
+                                const SizedBox(width: 6),
+                                _AxisValueBadge(label: 'Z', value: _currentZ, color: const Color(0xFFF59E0B)),
+                              ],
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          height: 150,
+                          width: double.infinity,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: CustomPaint(
+                              painter: _OscilloscopePainter(
+                                bufferX: _bufferX,
+                                bufferY: _bufferY,
+                                bufferZ: _bufferZ,
+                                colorX: const Color(0xFF10B981),
+                                colorY: const Color(0xFF06B6D4),
+                                colorZ: const Color(0xFFF59E0B),
+                                gridColor: colors.outlineVariant.withValues(alpha: 0.5),
+                                backgroundColor: context.isDarkMode
+                                    ? const Color(0xFF0D1F18)
+                                    : const Color(0xFFF1F5F3),
+                              ),
+                            ),
                           ),
-                          const SizedBox(height: 2),
-                          Text(
-                            'Normal / Seguro',
-                            style: typography.bodySmall?.copyWith(
-                              fontSize: 11,
-                              color: Colors.teal,
-                              fontWeight: FontWeight.w600,
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: AppDimensions.space16),
+
+                  // --- 5. REGISTRO FOTOGRÁFICO DE OCORRÊNCIAS / BURACOS NA VIA (CÂMERA COM GEOTAGGING) ---
+                  Container(
+                    padding: const EdgeInsets.all(AppDimensions.space16),
+                    decoration: BoxDecoration(
+                      color: colors.surface,
+                      borderRadius: AppDimensions.borderRadiusCard,
+                      border: Border.all(
+                        color: _fotosCapturadas.isNotEmpty
+                            ? colors.primary.withValues(alpha: 0.5)
+                            : colors.outlineVariant,
+                        width: _fotosCapturadas.isNotEmpty ? 1.6 : 1.0,
+                      ),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(Icons.add_a_photo_rounded, size: 18, color: colors.primary),
+                                const SizedBox(width: 8),
+                                Text(
+                                  'Registro Fotográfico de Ocorrências',
+                                  style: typography.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                              ],
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: _fotosCapturadas.isEmpty
+                                    ? colors.surfaceContainerHighest
+                                    : colors.primary.withValues(alpha: 0.15),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Text(
+                                '${_fotosCapturadas.length} ${_fotosCapturadas.length == 1 ? 'foto' : 'fotos'}',
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w700,
+                                  color: _fotosCapturadas.isEmpty
+                                      ? colors.onSurfaceVariant
+                                      : colors.primary,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        // BOTÃO GRANDE PARA TIRAR FOTO AO TOCAR
+                        Material(
+                          color: colors.primary,
+                          borderRadius: AppDimensions.borderRadiusCard,
+                          elevation: 2,
+                          child: InkWell(
+                            key: const ValueKey('botao-capturar-foto'),
+                            onTap: _capturarFoto,
+                            borderRadius: AppDimensions.borderRadiusCard,
+                            splashColor: Colors.white.withValues(alpha: 0.3),
+                            highlightColor: Colors.white.withValues(alpha: 0.15),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                              decoration: BoxDecoration(
+                                borderRadius: AppDimensions.borderRadiusCard,
+                                border: Border.all(
+                                  color: Colors.white.withValues(alpha: 0.25),
+                                  width: 1.5,
+                                ),
+                              ),
+                              child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    width: 56,
+                                    height: 56,
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      color: Colors.white.withValues(alpha: 0.2),
+                                      border: Border.all(color: Colors.white, width: 2.5),
+                                    ),
+                                    child: const Icon(
+                                      Icons.camera_alt_rounded,
+                                      color: Colors.white,
+                                      size: 30,
+                                    ),
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text(
+                                          'TIRAR FOTO DA VIA',
+                                          style: TextStyle(
+                                            color: Colors.white,
+                                            fontWeight: FontWeight.w800,
+                                            fontSize: 16,
+                                            letterSpacing: 0.8,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Câmera Principal • Geotagging GPS Ativo',
+                                          style: TextStyle(
+                                            color: Colors.white.withValues(alpha: 0.9),
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.w600,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          'Toque para registrar buracos e anomalias na pista',
+                                          style: TextStyle(
+                                            color: Colors.white.withValues(alpha: 0.75),
+                                            fontSize: 11,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                        if (_fotosCapturadas.isNotEmpty) ...[
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            height: 48,
+                            child: ListView.separated(
+                              scrollDirection: Axis.horizontal,
+                              itemCount: _fotosCapturadas.length,
+                              separatorBuilder: (_, _) => const SizedBox(width: 8),
+                              itemBuilder: (context, index) {
+                                final foto = _fotosCapturadas[index];
+                                final hora =
+                                    '${foto.timestamp.hour.toString().padLeft(2, '0')}:${foto.timestamp.minute.toString().padLeft(2, '0')}:${foto.timestamp.second.toString().padLeft(2, '0')}';
+                                return InkWell(
+                                  onTap: () => _exibirDetalhesFoto(foto),
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    decoration: BoxDecoration(
+                                      color: colors.primary.withValues(alpha: 0.08),
+                                      borderRadius: BorderRadius.circular(8),
+                                      border: Border.all(
+                                        color: colors.primary.withValues(alpha: 0.25),
+                                      ),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(Icons.photo_camera_rounded, size: 16, color: Colors.teal),
+                                        const SizedBox(width: 6),
+                                        Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              'Foto #${foto.id} • $hora',
+                                              style: const TextStyle(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                              ),
+                                            ),
+                                            Text(
+                                              'GPS: ${foto.latitude.toStringAsFixed(4)}, ${foto.longitude.toStringAsFixed(4)}',
+                                              style: TextStyle(
+                                                fontSize: 9,
+                                                color: colors.onSurfaceVariant,
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              },
                             ),
                           ),
                         ],
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: AppDimensions.space24),
+
+                  // --- 6. BOTÃO PARA FINALIZAR COLETA ---
+                  SizedBox(
+                    width: double.infinity,
+                    height: AppDimensions.buttonHeight,
+                    child: FilledButton.icon(
+                      style: FilledButton.styleFrom(
+                        backgroundColor: colors.error,
+                        foregroundColor: colors.onError,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: AppDimensions.borderRadiusMedium,
+                        ),
+                      ),
+                      onPressed: _isFinalizing ? null : _confirmarFinalizacao,
+                      icon: const Icon(Icons.stop_circle_rounded, size: 22),
+                      label: const Text(
+                        'Finalizar Coleta',
+                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
                       ),
                     ),
                   ),
                 ],
               ),
-
-              const SizedBox(height: AppDimensions.space16),
-
-              // --- 4. GRÁFICO EM TEMPO REAL DO ACELERÔMETRO ---
-              Container(
-                padding: const EdgeInsets.all(AppDimensions.space16),
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  borderRadius: AppDimensions.borderRadiusCard,
-                  border: Border.all(color: colors.outlineVariant),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.show_chart_rounded, size: 18, color: colors.primary),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Acelerômetro ao Vivo',
-                              style: typography.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                            ),
-                          ],
-                        ),
-                        // Valores numéricos instantâneos
-                        Row(
-                          children: [
-                            _AxisValueBadge(label: 'X', value: _currentX, color: const Color(0xFF10B981)),
-                            const SizedBox(width: 6),
-                            _AxisValueBadge(label: 'Y', value: _currentY, color: const Color(0xFF06B6D4)),
-                            const SizedBox(width: 6),
-                            _AxisValueBadge(label: 'Z', value: _currentZ, color: const Color(0xFFF59E0B)),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      height: 150,
-                      width: double.infinity,
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8),
-                        child: CustomPaint(
-                          painter: _OscilloscopePainter(
-                            bufferX: _bufferX,
-                            bufferY: _bufferY,
-                            bufferZ: _bufferZ,
-                            colorX: const Color(0xFF10B981),
-                            colorY: const Color(0xFF06B6D4),
-                            colorZ: const Color(0xFFF59E0B),
-                            gridColor: colors.outlineVariant.withValues(alpha: 0.5),
-                            backgroundColor: context.isDarkMode
-                                ? const Color(0xFF0D1F18)
-                                : const Color(0xFFF1F5F3),
-                          ),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              const SizedBox(height: AppDimensions.space24),
-
-              // --- 5. BOTÃO PARA FINALIZAR COLETA ---
-              SizedBox(
-                width: double.infinity,
-                height: AppDimensions.buttonHeight,
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: colors.error,
-                    foregroundColor: colors.onError,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: AppDimensions.borderRadiusMedium,
-                    ),
-                  ),
-                  onPressed: _isFinalizing ? null : _confirmarFinalizacao,
-                  icon: const Icon(Icons.stop_circle_rounded, size: 22),
-                  label: const Text(
-                    'Finalizar Coleta',
-                    style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
-                  ),
-                ),
-              ),
-            ],
+            ),
           ),
-        ),
+          if (_flashAtivo)
+            Positioned.fill(
+              child: IgnorePointer(
+                child: Container(
+                  color: Colors.white.withValues(alpha: 0.65),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -768,4 +1103,21 @@ class _OscilloscopePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _OscilloscopePainter oldDelegate) => true;
+}
+
+/// Registro de foto capturada em pista com dados de geotagging (protótipo).
+class _RegistroFoto {
+  final int id;
+  final DateTime timestamp;
+  final double latitude;
+  final double longitude;
+  final double odometroKm;
+
+  const _RegistroFoto({
+    required this.id,
+    required this.timestamp,
+    required this.latitude,
+    required this.longitude,
+    required this.odometroKm,
+  });
 }

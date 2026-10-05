@@ -48,14 +48,51 @@ void main() {
     // 5. Verifica gráfico ao vivo do acelerômetro
     expect(find.text('Acelerômetro ao Vivo'), findsOneWidget);
 
-    // 6. Verifica botão de finalizar coleta e diálogo de confirmação
+    // 6. Verifica botão grande de capturar foto (registro de patologias na via)
+    final botaoFoto = find.byKey(const ValueKey('botao-capturar-foto'));
+    expect(botaoFoto, findsOneWidget);
+    expect(find.text('TIRAR FOTO DA VIA'), findsOneWidget);
+    expect(find.text('0 fotos'), findsOneWidget);
+
+    // Toca no botão grande para registrar a foto #1
+    await tester.ensureVisible(botaoFoto);
+    await tester.tap(botaoFoto);
+    await tester.pump();
+
+    // Verifica que exibiu SnackBar de geotagging e contador atualizou para 1 foto
+    expect(find.text('1 foto'), findsOneWidget);
+    expect(find.textContaining('Foto #1 registrada com geotagging'), findsOneWidget);
+
+    // Toca no botão grande novamente para registrar foto #2
+    await tester.tap(botaoFoto);
+    await tester.pump();
+    expect(find.text('2 fotos'), findsOneWidget);
+
+    // Abre os detalhes da Foto #1 tocando na miniatura/tag
+    final chipFoto1 = find.textContaining('Foto #1');
+    expect(chipFoto1, findsOneWidget);
+    await tester.tap(chipFoto1);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Foto #1 (Geotag)'), findsOneWidget);
+    expect(find.textContaining('Latitude:'), findsOneWidget);
+    expect(find.textContaining('Longitude:'), findsOneWidget);
+    await tester.tap(find.text('Fechar'));
+    await tester.pumpAndSettle();
+
+    // 7. Verifica botão de finalizar coleta e diálogo de confirmação
+    ScaffoldMessenger.of(tester.element(find.byType(Scaffold))).hideCurrentSnackBar();
+    await tester.pump(const Duration(milliseconds: 300));
+
     final finalizarButton = find.text('Finalizar Coleta');
     expect(finalizarButton, findsOneWidget);
     await tester.ensureVisible(finalizarButton);
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.tap(finalizarButton);
     await tester.pump();
 
     expect(find.text('Finalizar Coleta?'), findsOneWidget);
+    expect(find.textContaining('Foram registradas 2 fotos com geotagging'), findsOneWidget);
     expect(find.text('Finalizar e Salvar'), findsOneWidget);
 
     // Confirma encerramento

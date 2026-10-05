@@ -77,6 +77,13 @@ class _ColetaScreenState extends State<ColetaScreen> {
       _intervaloMetrosController.text.trim().replaceAll(',', '.'),
     );
     if (taxaGps == null || intervaloMetros == null) return;
+    if (_taxaAquisicaoHz <= 0) {
+      setState(() {
+        _erroSelecaoSensores =
+            'Informe uma frequência válida para o acelerômetro.';
+      });
+      return;
+    }
 
     final configuracao = ConfiguracaoColeta(
       sensoresSelecionados: _sensoresSelecionados,
