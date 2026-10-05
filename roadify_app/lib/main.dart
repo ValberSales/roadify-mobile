@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'core/di/setup_locator.dart';
 import 'core/navigation/pill_dock_scaffold.dart';
 import 'core/theme/app_theme.dart';
 import 'core/theme/theme_controller.dart';
@@ -19,6 +20,8 @@ void main() {
       systemNavigationBarColor: Colors.transparent,
     ),
   );
+
+  setupLocators();
 
   runApp(const RoadifyApp());
 }
