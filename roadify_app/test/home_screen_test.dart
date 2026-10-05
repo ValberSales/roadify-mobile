@@ -47,4 +47,28 @@ void main() {
     await tester.pump();
     expect(find.byIcon(Icons.cloud_done_rounded), findsNWidgets(3));
   });
+
+  testWidgets('HomeScreen: card de armazenamento não transborda (sem overflow) em tela de celular estreita (320px)', (tester) async {
+    tester.view.physicalSize = const Size(320 * 2.0, 640 * 2.0);
+    tester.view.devicePixelRatio = 2.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final controller = ThemeController();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: HomeScreen(
+          themeController: controller,
+          onStartCollection: () {},
+        ),
+      ),
+    );
+
+    // Renderiza e verifica que os textos estão presentes sem estourar overflow
+    expect(find.text('Armazenamento do Aparelho'), findsOneWidget);
+    expect(find.text('143,3 MB usados'), findsOneWidget);
+    expect(find.text('42 GB disponíveis'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

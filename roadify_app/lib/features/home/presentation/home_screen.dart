@@ -136,40 +136,47 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(AppDimensions.space8),
-                            decoration: BoxDecoration(
-                              color: colors.primary,
-                              borderRadius: BorderRadius.circular(10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(AppDimensions.space8),
+                              decoration: BoxDecoration(
+                                color: colors.primary,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.alt_route_rounded,
+                                color: Colors.white,
+                                size: 20,
+                              ),
                             ),
-                            child: const Icon(
-                              Icons.alt_route_rounded,
-                              color: Colors.white,
-                              size: 20,
+                            const SizedBox(width: AppDimensions.space12),
+                            Flexible(
+                              child: Text(
+                                'Roadify',
+                                style: typography.headlineMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                  color: colors.primary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                          ),
-                          const SizedBox(width: AppDimensions.space12),
-                          Text(
-                            'Roadify',
-                            style: typography.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              color: colors.primary,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: AppDimensions.space4),
-                      Text(
-                        'Coletor de Dados de Pavimento',
-                        style: typography.bodySmall,
-                      ),
-                    ],
+                          ],
+                        ),
+                        const SizedBox(height: AppDimensions.space4),
+                        Text(
+                          'Coletor de Dados de Pavimento',
+                          style: typography.bodySmall,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(width: AppDimensions.space8),
                   IconButton.filledTonal(
                     tooltip: 'Alternar Tema Claro / Escuro',
                     onPressed: () => widget.themeController.toggleTheme(),
@@ -209,22 +216,25 @@ class _HomeScreenState extends State<HomeScreen> {
                   children: [
                     Row(
                       children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: AppDimensions.space8,
-                            vertical: AppDimensions.space4,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: const Text(
-                            'VEÍCULO: TOYOTA HILUX (ABC-1234)',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              letterSpacing: 0.5,
+                        Flexible(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: AppDimensions.space8,
+                              vertical: AppDimensions.space4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withValues(alpha: 0.2),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: const Text(
+                              'VEÍCULO: TOYOTA HILUX (ABC-1234)',
+                              style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                                letterSpacing: 0.5,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ),
@@ -287,23 +297,24 @@ class _HomeScreenState extends State<HomeScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Row(
-                          children: [
-                            Icon(Icons.storage_rounded, size: 20, color: colors.primary),
-                            const SizedBox(width: AppDimensions.space8),
-                            Text('Armazenamento do Aparelho', style: typography.titleMedium),
-                          ],
-                        ),
-                        Text(
-                          '143,3 MB usados',
-                          style: typography.labelMedium?.copyWith(
-                            color: colors.primary,
-                            fontWeight: FontWeight.w700,
+                        Icon(Icons.storage_rounded, size: 20, color: colors.primary),
+                        const SizedBox(width: AppDimensions.space8),
+                        Expanded(
+                          child: Text(
+                            'Armazenamento do Aparelho',
+                            style: typography.titleMedium,
                           ),
                         ),
                       ],
+                    ),
+                    const SizedBox(height: AppDimensions.space8),
+                    Text(
+                      '143,3 MB usados',
+                      style: typography.labelMedium?.copyWith(
+                        color: colors.primary,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                     const SizedBox(height: AppDimensions.space12),
                     ClipRRect(
@@ -319,8 +330,22 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Text('4 coletas armazenadas', style: typography.bodySmall),
-                        Text('42 GB disponíveis', style: typography.bodySmall),
+                        Flexible(
+                          child: Text(
+                            '4 coletas armazenadas',
+                            style: typography.bodySmall,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                        const SizedBox(width: AppDimensions.space8),
+                        Flexible(
+                          child: Text(
+                            '42 GB disponíveis',
+                            style: typography.bodySmall,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.end,
+                          ),
+                        ),
                       ],
                     ),
                   ],
@@ -333,10 +358,14 @@ class _HomeScreenState extends State<HomeScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    'Últimas Coletas',
-                    style: typography.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  Expanded(
+                    child: Text(
+                      'Últimas Coletas',
+                      style: typography.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
+                  const SizedBox(width: AppDimensions.space8),
                   Text(
                     'Recentes',
                     style: typography.bodySmall?.copyWith(color: colors.primary),
