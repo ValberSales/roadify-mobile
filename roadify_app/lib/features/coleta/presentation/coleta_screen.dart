@@ -4,6 +4,7 @@ import 'package:roadify_app/features/coleta/presentation/widgets/info_footer_wid
 import 'package:roadify_app/features/coleta/presentation/widgets/parameters_section_widget.dart';
 import 'package:roadify_app/features/coleta/viewmodels/coleta_viewmodel.dart';
 import '../../../core/theme/app_dimensions.dart';
+import 'gravacao_screen.dart';
 
 class ColetaScreen extends StatefulWidget {
   final ColetaViewModel? viewModel;
@@ -77,16 +78,16 @@ class _ColetaScreenState extends State<ColetaScreen> {
     );
     if (taxaGps == null || intervaloMetros == null) return;
 
+    final configuracao = ConfiguracaoColeta(
+      sensoresSelecionados: _sensoresSelecionados,
+      taxaInercialHz: _taxaAquisicaoHz,
+      taxaGpsHz: taxaGps,
+      intervaloMetros: intervaloMetros,
+    );
+
     setState(() => _isStartingRecording = true);
     try {
-      await _viewModel.prosseguirParaGravacao(
-        configuracao: ConfiguracaoColeta(
-          sensoresSelecionados: _sensoresSelecionados,
-          taxaInercialHz: _taxaAquisicaoHz,
-          taxaGpsHz: taxaGps,
-          intervaloMetros: intervaloMetros,
-        ),
-      );
+      await _viewModel.prosseguirParaGravacao(configuracao: configuracao);
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
@@ -94,6 +95,12 @@ class _ColetaScreenState extends State<ColetaScreen> {
           content: Text(
             'Coleta simulada preparada com ${_sensoresSelecionados.length} sensores.',
           ),
+        ),
+      );
+
+      await Navigator.of(context).push(
+        MaterialPageRoute(
+          builder: (_) => GravacaoScreen(configuracao: configuracao),
         ),
       );
     } catch (error) {
