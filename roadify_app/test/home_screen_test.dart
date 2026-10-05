@@ -71,4 +71,43 @@ void main() {
     expect(find.text('42 GB disponíveis'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('HomeScreen: botão Iniciar Coleta em Pista possui alto contraste e ícone visível nos modos claro e escuro', (tester) async {
+    bool iniciouColeta = false;
+    final controller = ThemeController();
+
+    // 1. Modo Claro
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.light(),
+        home: HomeScreen(
+          themeController: controller,
+          onStartCollection: () => iniciouColeta = true,
+        ),
+      ),
+    );
+
+    final botaoIniciar = find.text('Iniciar Coleta em Pista');
+    expect(botaoIniciar, findsOneWidget);
+    expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+
+    await tester.tap(botaoIniciar);
+    await tester.pump();
+    expect(iniciouColeta, isTrue);
+
+    // 2. Modo Escuro
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(),
+        home: HomeScreen(
+          themeController: controller,
+          onStartCollection: () {},
+        ),
+      ),
+    );
+
+    expect(find.text('Iniciar Coleta em Pista'), findsOneWidget);
+    expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }

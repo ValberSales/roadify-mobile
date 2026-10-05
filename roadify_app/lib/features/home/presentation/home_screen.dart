@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/daos/run_dao.dart';
 import '../../../core/di/setup_locator.dart';
+import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../../core/theme/theme_extensions.dart';
@@ -118,6 +119,13 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final typography = context.typography;
+    final isDark = context.isDarkMode;
+
+    // Cores de alto contraste para o botão principal de coleta em pista
+    final buttonBg = isDark ? AppColors.limeAccent : Colors.white;
+    final buttonFg = isDark ? AppColors.backgroundDark : AppColors.primary;
+    final iconBadgeBg = isDark ? AppColors.backgroundDark : AppColors.primary;
+    final iconBadgeFg = isDark ? AppColors.limeAccent : Colors.white;
 
     return Scaffold(
       body: SafeArea(
@@ -263,18 +271,35 @@ class _HomeScreenState extends State<HomeScreen> {
                       height: AppDimensions.buttonHeight,
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: colors.surface,
-                          foregroundColor: colors.primary,
-                          elevation: 0,
+                          backgroundColor: buttonBg,
+                          foregroundColor: buttonFg,
+                          elevation: 2,
+                          shadowColor: Colors.black.withValues(alpha: 0.25),
                           shape: RoundedRectangleBorder(
                             borderRadius: AppDimensions.borderRadiusMedium,
                           ),
                         ),
                         onPressed: widget.onStartCollection,
-                        icon: const Icon(Icons.play_arrow_rounded, size: 22),
-                        label: const Text(
+                        icon: Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            color: iconBadgeBg,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(
+                            Icons.play_arrow_rounded,
+                            size: 18,
+                            color: iconBadgeFg,
+                          ),
+                        ),
+                        label: Text(
                           'Iniciar Coleta em Pista',
-                          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: 15,
+                            color: buttonFg,
+                            letterSpacing: 0.3,
+                          ),
                         ),
                       ),
                     ),
