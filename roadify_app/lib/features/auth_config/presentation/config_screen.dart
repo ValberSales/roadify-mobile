@@ -76,28 +76,39 @@ class ConfigScreen extends StatelessWidget {
                     style: typography.bodySmall,
                   ),
                   const SizedBox(height: AppDimensions.space16),
-                  SegmentedButton<ThemeMode>(
-                    segments: const [
-                      ButtonSegment(
-                        value: ThemeMode.light,
-                        label: Text('Claro'),
-                        icon: Icon(Icons.light_mode_rounded),
+                  Center(
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ListenableBuilder(
+                        listenable: themeController,
+                        builder: (context, _) {
+                          return SegmentedButton<ThemeMode>(
+                            showSelectedIcon: false,
+                            segments: const [
+                              ButtonSegment(
+                                value: ThemeMode.light,
+                                label: Text('Claro'),
+                                icon: Icon(Icons.light_mode_rounded),
+                              ),
+                              ButtonSegment(
+                                value: ThemeMode.dark,
+                                label: Text('Escuro'),
+                                icon: Icon(Icons.dark_mode_rounded),
+                              ),
+                              ButtonSegment(
+                                value: ThemeMode.system,
+                                label: Text('Sistema'),
+                                icon: Icon(Icons.brightness_auto_rounded),
+                              ),
+                            ],
+                            selected: {themeController.themeMode},
+                            onSelectionChanged: (newSelection) {
+                              themeController.setThemeMode(newSelection.first);
+                            },
+                          );
+                        },
                       ),
-                      ButtonSegment(
-                        value: ThemeMode.dark,
-                        label: Text('Escuro'),
-                        icon: Icon(Icons.dark_mode_rounded),
-                      ),
-                      ButtonSegment(
-                        value: ThemeMode.system,
-                        label: Text('Sistema'),
-                        icon: Icon(Icons.brightness_auto_rounded),
-                      ),
-                    ],
-                    selected: {themeController.themeMode},
-                    onSelectionChanged: (newSelection) {
-                      themeController.setThemeMode(newSelection.first);
-                    },
+                    ),
                   ),
                 ],
               ),
