@@ -10,12 +10,12 @@ class VehicleListWidget extends StatelessWidget {
   final Function(Vehicle)? onDeleteTap;
 
   const VehicleListWidget({
-    Key? key,
+    super.key,
     required this.vehicles,
     required this.onVehicleTap,
     this.onEditTap,
     this.onDeleteTap,
-  }) : super(key: key);
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +39,7 @@ class VehicleListWidget extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 24, left: 16, right: 16, top: 8),
       itemCount: vehicles.length,
       // 2. LAYOUT: Espaçamento no lugar de linhas divisórias secas
-      separatorBuilder: (_, __) => const SizedBox(height: 12),
+      separatorBuilder: (_, _) => const SizedBox(height: 12),
       itemBuilder: (context, index) {
         final vehicle = vehicles[index];
 
@@ -50,10 +50,10 @@ class VehicleListWidget extends StatelessWidget {
             decoration: BoxDecoration(
               color: colors.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colors.outlineVariant.withOpacity(0.5)),
+              border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.5)),
               boxShadow: [
                 BoxShadow(
-                  color: colors.shadow.withOpacity(0.04),
+                  color: colors.shadow.withValues(alpha: 0.04),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),

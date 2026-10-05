@@ -1,5 +1,6 @@
 import 'package:get_it/get_it.dart';
 import 'package:roadify_app/core/database/app_database.dart';
+import 'package:roadify_app/core/database/daos/run_dao.dart';
 import 'package:roadify_app/core/database/daos/vehicle_dao.dart';
 import 'package:roadify_app/features/veiculos/viewmodels/vehicle_viewmodel.dart';
 
@@ -15,7 +16,11 @@ void setupLocators() {
     () => getIt<AppDatabase>().vehicleDao,
   );
 
+  getIt.registerLazySingleton<RunDao>(
+    () => getIt<AppDatabase>().runDao,
+  );
+
   getIt.registerLazySingleton<VehicleViewModel>(
-  () => VehicleViewModel(getIt<VehicleDao>()),
-);
+    () => VehicleViewModel(getIt<VehicleDao>()),
+  );
 }

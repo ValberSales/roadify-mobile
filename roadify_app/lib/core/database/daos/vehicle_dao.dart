@@ -6,7 +6,7 @@ part 'vehicle_dao.g.dart';
 
 @DriftAccessor(tables: [Vehicles])
 class VehicleDao extends DatabaseAccessor<AppDatabase> with _$VehicleDaoMixin {
-  VehicleDao(AppDatabase db) : super(db);
+  VehicleDao(super.db);
 
   Stream<List<Vehicle>> watchAllActiveVehicles() {
     return (select(vehicles)..where((v) => v.isActive.equals(true))).watch();
