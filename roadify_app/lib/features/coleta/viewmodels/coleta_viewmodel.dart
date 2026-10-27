@@ -56,6 +56,9 @@ class ConfiguracaoColeta {
   final int taxaGpsHz;
   final double intervaloMetros;
   final OptionalSensorSettings sensoresOpcionais;
+  final String? nomeColeta;
+  final int? vehicleId;
+  final double odometroInicial;
 
   ConfiguracaoColeta({
     required Set<SensorColeta> sensoresSelecionados,
@@ -63,6 +66,9 @@ class ConfiguracaoColeta {
     required this.taxaGpsHz,
     required this.intervaloMetros,
     this.sensoresOpcionais = const OptionalSensorSettings(),
+    this.nomeColeta,
+    this.vehicleId,
+    this.odometroInicial = 0,
   }) : sensoresSelecionados = Set.unmodifiable(sensoresSelecionados);
 
   /// Frequência de amostragem do sensor acelerômetro em Hz.

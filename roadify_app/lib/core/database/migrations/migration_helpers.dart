@@ -29,9 +29,22 @@ class DatabaseMigrationHelper {
   Future<void> _executeMigrationStep(Migrator m, int targetVersion) async {
     switch (targetVersion) {
       case 2:
-        // Exemplo: se no futuro forem adicionadas novas tabelas ou colunas:
-        // await m.createTable(db.runsTable);
-        // await m.addColumn(db.runsTable, db.runsTable.notes);
+        await m.addColumn(db.runsTable, db.runsTable.endedAt);
+        await m.addColumn(db.runsTable, db.runsTable.durationSeconds);
+        await m.addColumn(db.runsTable, db.runsTable.configurationJson);
+        await m.addColumn(db.runsTable, db.runsTable.deviceManufacturer);
+        await m.addColumn(db.runsTable, db.runsTable.deviceModel);
+        await m.addColumn(db.runsTable, db.runsTable.initialBatteryPercent);
+        await m.addColumn(
+          db.runsTable,
+          db.runsTable.initialBatteryTemperatureC,
+        );
+        await m.addColumn(db.runsTable, db.runsTable.accelerometerSampleCount);
+        await m.addColumn(db.runsTable, db.runsTable.gpsPointCount);
+        await m.addColumn(db.runsTable, db.runsTable.mediaCount);
+        await m.createTable(db.sensorReadingsTable);
+        await m.createTable(db.gpsPointsTable);
+        await m.createTable(db.mediaRecordsTable);
         break;
       default:
         break;

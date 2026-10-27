@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "br.edu.utfpr.roadify.roadify_app"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 37
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

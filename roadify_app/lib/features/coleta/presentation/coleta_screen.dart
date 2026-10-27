@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:roadify_app/features/coleta/presentation/widgets/info_section_widget.dart';
 import 'package:roadify_app/features/coleta/presentation/widgets/parameters_section_widget.dart';
 import 'package:roadify_app/features/coleta/presentation/widgets/section_divider.dart';
+import 'package:roadify_app/features/coleta/services/collection_permission_service.dart';
 import 'package:roadify_app/features/coleta/viewmodels/coleta_viewmodel.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/theme_extensions.dart';
@@ -9,8 +10,9 @@ import '../../gravacao/gravacao_screen.dart';
 
 class ColetaScreen extends StatefulWidget {
   final ColetaViewModel? viewModel;
+  final CollectionPermissionService? permissionService;
 
-  const ColetaScreen({super.key, this.viewModel});
+  const ColetaScreen({super.key, this.viewModel, this.permissionService});
 
   @override
   State<ColetaScreen> createState() => _ColetaScreenState();
@@ -19,6 +21,7 @@ class ColetaScreen extends StatefulWidget {
 class _ColetaScreenState extends State<ColetaScreen> {
   final _formKey = GlobalKey<FormState>();
   late final ColetaViewModel _viewModel;
+  late final CollectionPermissionService _permissionService;
   final Set<SensorColeta> _sensoresSelecionados = {
     SensorColeta.acelerometro,
     SensorColeta.gps,
@@ -30,11 +33,17 @@ class _ColetaScreenState extends State<ColetaScreen> {
   int _taxaAquisicaoHz = 100;
   String? _erroSelecaoSensores;
   bool _isStartingRecording = false;
+  CollectionIdentification _identification = const CollectionIdentification(
+    name: '',
+    vehicle: null,
+  );
 
   @override
   void initState() {
     super.initState();
     _viewModel = widget.viewModel ?? MockColetaViewModel();
+    _permissionService =
+        widget.permissionService ?? CollectionPermissionService();
     _frequenciaGpsController = TextEditingController(text: '10');
     _intervaloMetrosController = TextEditingController(text: '20');
   }
@@ -94,17 +103,22 @@ class _ColetaScreenState extends State<ColetaScreen> {
       taxaGpsHz: taxaGps,
       intervaloMetros: intervaloMetros,
       sensoresOpcionais: _optionalSensorSettings,
+      nomeColeta: _identification.name,
+      vehicleId: _identification.vehicle?.id,
+      odometroInicial: _identification.vehicle?.defaultOdometer ?? 0,
     );
 
     setState(() => _isStartingRecording = true);
     try {
+      await _permissionService.requestForSensors(_sensoresSelecionados);
+      if (!mounted) return;
       await _viewModel.prosseguirParaGravacao(configuracao: configuracao);
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Coleta simulada preparada com ${_sensoresSelecionados.length} sensores.',
+            'Coleta preparada com ${_sensoresSelecionados.length} sensores.',
           ),
         ),
       );
@@ -114,6 +128,32 @@ class _ColetaScreenState extends State<ColetaScreen> {
           builder: (_) => GravacaoScreen(configuracao: configuracao),
         ),
       );
+    } on CollectionPermissionException catch (error) {
+      if (!mounted) return;
+      final openSettings = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          icon: const Icon(Icons.lock_outline_rounded),
+          title: const Text('Permissões necessárias'),
+          content: Text(error.message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('Voltar'),
+            ),
+            if (error.canOpenSettings)
+              FilledButton(
+                onPressed: () => Navigator.pop(dialogContext, true),
+                child: const Text('Abrir configurações'),
+              ),
+          ],
+        ),
+      );
+      if (openSettings == true) {
+        await _permissionService.openSettings(
+          locationService: error.opensLocationSettings,
+        );
+      }
     } catch (error) {
       if (!mounted) return;
 
@@ -156,7 +196,11 @@ class _ColetaScreenState extends State<ColetaScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const IdentificacaoSectionWidget(),
+                IdentificacaoSectionWidget(
+                  onChanged: (identification) {
+                    _identification = identification;
+                  },
+                ),
                 const SizedBox(height: AppDimensions.space20),
                 const SectionDivider(icon: Icons.tune_rounded),
                 const SizedBox(height: AppDimensions.space20),

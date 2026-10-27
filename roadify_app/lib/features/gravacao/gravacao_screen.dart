@@ -1,65 +1,111 @@
 import 'dart:async';
-import 'dart:math' as math;
+import 'dart:io';
+import 'package:battery_plus/battery_plus.dart';
+import 'package:camera/camera.dart';
+import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:path/path.dart' as path;
+import 'package:path_provider/path_provider.dart';
+import 'package:record/record.dart';
+import 'package:wakelock_plus/wakelock_plus.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import '../../core/database/app_database.dart';
-import '../../core/database/daos/run_dao.dart';
 import '../../core/di/setup_locator.dart';
 import '../../core/theme/app_dimensions.dart';
 import '../../core/theme/theme_extensions.dart';
 import '../coleta/viewmodels/coleta_viewmodel.dart';
-import 'package:drift/drift.dart' show Value;
+import 'services/recording_repository.dart';
+import 'widgets/audio_recording_indicator.dart';
+import 'widgets/camera_capture_controls.dart';
 
 /// Tela de Gravação e Telemetria em Pista (Cockpit HUD — RF04).
 ///
-/// Apresenta em tempo real:
-/// 1. Parâmetros configurados (taxa inercial, GPS, espaçamento e sensores ativos).
-/// 2. Cronômetro de tempo decorrido.
-/// 3. Tamanho estimado do arquivo de dados e porcentagem de armazenamento restante.
-/// 4. Temperatura do telefone e indicador térmico.
-/// 5. Gráfico osciloscópico contínuo do acelerômetro (buffer circular X, Y, Z).
-/// 6. Botão de encerramento seguro com persistência no Drift SQLite.
+/// Captures configured device streams, batches readings into Drift, and keeps
+/// the acquisition state and available media visible to the operator.
 class GravacaoScreen extends StatefulWidget {
   final ConfiguracaoColeta configuracao;
+  final RecordingRepository? repository;
+  final bool captureDeviceSensors;
 
-  const GravacaoScreen({super.key, required this.configuracao});
+  const GravacaoScreen({
+    super.key,
+    required this.configuracao,
+    this.repository,
+    this.captureDeviceSensors = true,
+  });
 
   @override
   State<GravacaoScreen> createState() => _GravacaoScreenState();
 }
 
 class _GravacaoScreenState extends State<GravacaoScreen> {
-  // --- Cronômetro ---
   late final Stopwatch _stopwatch;
+  final Stopwatch _audioStopwatch = Stopwatch();
+  final Stopwatch _videoStopwatch = Stopwatch();
+  RecordingRepository get _repository =>
+      widget.repository ?? RecordingRepository(getIt<AppDatabase>());
+  int? _runId;
   Timer? _tickerTimer;
+  Timer? _batchTimer;
+  Timer? _sensorWatchdogTimer;
   Duration _elapsed = Duration.zero;
+  Duration _audioElapsed = Duration.zero;
+  Duration _videoElapsed = Duration.zero;
 
-  // --- Sensores e Osciloscópio ---
   StreamSubscription<AccelerometerEvent>? _sensorSubscription;
-  final int _maxBufferSize = 60; // Buffer circular conforme RNF04.2
+  StreamSubscription<GyroscopeEvent>? _gyroscopeSubscription;
+  StreamSubscription<Position>? _gpsSubscription;
+  StreamSubscription<Amplitude>? _audioAmplitudeSubscription;
+  final int _maxBufferSize = 60;
   final List<double> _bufferX = [];
   final List<double> _bufferY = [];
   final List<double> _bufferZ = [];
+  final List<RecordedSensorSample> _pendingSensorSamples = [];
+  final List<RecordedGpsPoint> _pendingGpsPoints = [];
   double _currentX = 0.0;
   double _currentY = 0.0;
   double _currentZ = 9.81;
+  double? _gyroscopeX;
+  double? _gyroscopeY;
+  double? _gyroscopeZ;
+  Position? _lastPosition;
+  DateTime? _lastGpsSampleAt;
+  double _lastGpsStoredAtDistanceMeters = 0;
+  double _distanceMeters = 0;
+  int _sensorSampleCount = 0;
+  int _gpsPointCount = 0;
+  int _mediaCount = 0;
+  bool _isStarting = true;
+  bool _startInProgress = false;
+  bool _isRecording = false;
+  bool _isFlushing = false;
+  String? _recordingError;
+  String? _metadataWarning;
+  String? _optionalSensorWarning;
+  String? _mediaError;
+  CameraController? _cameraController;
+  AudioRecorder? _audioRecorder;
+  bool _isRecordingVideo = false;
+  bool _isRecordingAudio = false;
+  bool _isCapturingMedia = false;
+  Timer? _cameraDurationTimer;
+  Timer? _audioDurationTimer;
+  Timer? _automaticCameraTimer;
+  Timer? _automaticAudioTimer;
+  double? _nextCameraDistanceMeters;
+  double? _nextAudioDistanceMeters;
+  double _audioAmplitudeDb = -60;
 
-  // --- Telemetria e Diagnóstico ---
-  double _fileSizeBytes = 0.0;
-  final double _phoneTemperatureC = 33.8;
-  final double _freeStoragePercent = 84.5;
-  final double _freeStorageGb = 42.1;
-
-  // --- Registro Fotográfico de Ocorrências com Geotagging ---
+  // Media capture is tracked independently from sensor samples.
   final List<_RegistroFoto> _fotosCapturadas = [];
-  bool _flashAtivo = false;
-
   bool _isFinalizing = false;
+  bool _isFinalized = false;
 
   @override
   void initState() {
     super.initState();
-    _stopwatch = Stopwatch()..start();
+    _stopwatch = Stopwatch();
 
     // Inicializa buffers circulares com zeros
     for (var i = 0; i < _maxBufferSize; i++) {
@@ -68,89 +114,727 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
       _bufferZ.add(9.81);
     }
 
-    _initSensorStream();
-    _initTicker();
+    unawaited(_startRecording());
   }
 
-  void _initTicker() {
-    _tickerTimer = Timer.periodic(const Duration(milliseconds: 100), (timer) {
-      if (!mounted) return;
-      setState(() {
-        _elapsed = _stopwatch.elapsed;
-        // Taxa estimada de escrita: ~48 KB/s a 100 Hz, ~96 KB/s a 200 Hz
-        final bytesPerSec = (widget.configuracao.taxaInercialHz * 480.0);
-        _fileSizeBytes = (_elapsed.inMilliseconds / 1000.0) * bytesPerSec;
-      });
-    });
-  }
-
-  void _initSensorStream() {
-    try {
-      _sensorSubscription = accelerometerEventStream().listen(
-        (event) {
-          if (!mounted) return;
-          _addSample(event.x, event.y, event.z);
-        },
-        onError: (_) {
-          _fallbackSimulatedSensors();
-        },
-        cancelOnError: false,
+  void _validateCaptureConfiguration() {
+    final config = widget.configuracao;
+    if (!config.sensoresSelecionados.contains(SensorColeta.acelerometro) ||
+        !config.sensoresSelecionados.contains(SensorColeta.gps)) {
+      throw StateError('Acelerômetro e GPS são obrigatórios para gravar.');
+    }
+    if (config.taxaInercialHz < 50 || config.taxaInercialHz > 500) {
+      throw StateError(
+        'A frequência do acelerômetro deve estar entre 50 e 500 Hz.',
       );
-
-      _fallbackCheckTimer = Timer(const Duration(milliseconds: 1200), () {
-        if (mounted && _bufferX.every((v) => v == 0.0)) {
-          _fallbackSimulatedSensors();
-        }
-      });
-    } catch (_) {
-      _fallbackSimulatedSensors();
+    }
+    if (config.taxaGpsHz < 1 || config.taxaGpsHz > 10) {
+      throw StateError('A frequência do GPS deve estar entre 1 e 10 Hz.');
+    }
+    if (!config.intervaloMetros.isFinite || config.intervaloMetros <= 0) {
+      throw StateError(
+        'O intervalo de gravação deve ser uma distância positiva.',
+      );
+    }
+    if (config.sensoresSelecionados.contains(SensorColeta.giroscopio) &&
+        (config.sensoresOpcionais.gyroscopeFrequencyHz < 50 ||
+            config.sensoresOpcionais.gyroscopeFrequencyHz > 500)) {
+      throw StateError(
+        'A frequência do giroscópio deve estar entre 50 e 500 Hz.',
+      );
+    }
+    if (config.sensoresSelecionados.contains(SensorColeta.camera)) {
+      final camera = config.sensoresOpcionais.camera;
+      if (camera.mediaType != CameraMediaType.photos &&
+          (camera.videoDurationSeconds < 1 ||
+              camera.videoDurationSeconds > 120)) {
+        throw StateError(
+          'A duração máxima do vídeo deve ser de 1 a 120 segundos.',
+        );
+      }
+      if (camera.automatic) {
+        _validateAutomaticInterval(camera.interval, camera.intervalUnit);
+      }
+    }
+    if (config.sensoresSelecionados.contains(SensorColeta.audio)) {
+      final audio = config.sensoresOpcionais.audio;
+      if (audio.durationSeconds < 1 || audio.durationSeconds > 300) {
+        throw StateError(
+          'A duração máxima do áudio deve ser de 1 a 300 segundos.',
+        );
+      }
+      if (audio.automatic) {
+        _validateAutomaticInterval(audio.interval, audio.intervalUnit);
+      }
     }
   }
 
-  Timer? _mockSensorTimer;
-  Timer? _fallbackCheckTimer;
-  double _mockPhase = 0.0;
-
-  void _fallbackSimulatedSensors() {
-    if (_mockSensorTimer != null) return;
-    _mockSensorTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
-      if (!mounted) return;
-      _mockPhase += 0.15;
-      final x =
-          math.sin(_mockPhase) * 1.2 + (math.Random().nextDouble() - 0.5) * 0.4;
-      final y =
-          math.cos(_mockPhase * 0.8) * 0.8 +
-          (math.Random().nextDouble() - 0.5) * 0.3;
-      final z =
-          9.81 +
-          math.sin(_mockPhase * 1.5) * 1.5 +
-          (math.Random().nextDouble() - 0.5) * 0.5;
-      _addSample(x, y, z);
-    });
+  void _validateAutomaticInterval(int interval, CaptureIntervalUnit unit) {
+    final (minimum, maximum) = switch (unit) {
+      CaptureIntervalUnit.minutes => (1, 59),
+      CaptureIntervalUnit.hours => (1, 24),
+      CaptureIntervalUnit.meters => (1, 9999),
+      CaptureIntervalUnit.kilometers => (1, 999),
+    };
+    if (interval < minimum || interval > maximum) {
+      throw StateError(
+        'O intervalo automático deve estar entre $minimum e $maximum ${_intervalLabel(unit)}.',
+      );
+    }
   }
 
-  void _addSample(double x, double y, double z) {
-    setState(() {
-      _currentX = x;
-      _currentY = y;
-      _currentZ = z;
+  Future<void> _startRecording() async {
+    if (_startInProgress || _runId != null) return;
+    _startInProgress = true;
+    if (mounted) {
+      setState(() {
+        _isStarting = true;
+        _recordingError = null;
+        _metadataWarning = null;
+        _optionalSensorWarning = null;
+      });
+    }
+    try {
+      _validateCaptureConfiguration();
+      String? manufacturer;
+      String? model;
+      int? batteryPercent;
+      if (widget.captureDeviceSensors) {
+        await _ensureLocationPermission();
+        try {
+          final device = await DeviceInfoPlugin().deviceInfo;
+          manufacturer = Platform.isIOS
+              ? 'Apple'
+              : device.data['manufacturer']?.toString();
+          model = device.data['model']?.toString();
+        } catch (error) {
+          _metadataWarning =
+              'Fabricante/modelo do aparelho indisponíveis: $error';
+        }
+        try {
+          batteryPercent = await Battery().batteryLevel;
+        } catch (error) {
+          _metadataWarning = [
+            if (_metadataWarning != null) _metadataWarning,
+            'Nível de bateria indisponível: $error',
+          ].join(' ');
+        }
+      }
 
-      _bufferX.add(x);
-      _bufferY.add(y);
-      _bufferZ.add(z);
+      final startedAt = DateTime.now();
+      _runId = await _repository.startRun(
+        configuration: widget.configuracao,
+        startedAt: startedAt,
+        manufacturer: manufacturer,
+        model: model,
+        batteryPercent: batteryPercent,
+      );
 
-      if (_bufferX.length > _maxBufferSize) _bufferX.removeAt(0);
-      if (_bufferY.length > _maxBufferSize) _bufferY.removeAt(0);
-      if (_bufferZ.length > _maxBufferSize) _bufferZ.removeAt(0);
+      if (widget.captureDeviceSensors) {
+        await WakelockPlus.enable();
+        _startSensorStreams();
+        _startGpsStream();
+        unawaited(_initializeOptionalMedia());
+      }
+
+      _stopwatch.start();
+      _batchTimer = Timer.periodic(
+        const Duration(seconds: 1),
+        (_) => unawaited(_flushPendingSamples()),
+      );
+      _tickerTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
+        if (!mounted) return;
+        setState(() {
+          _elapsed = _stopwatch.elapsed;
+          if (_isRecordingAudio) _audioElapsed = _audioStopwatch.elapsed;
+          if (_isRecordingVideo) _videoElapsed = _videoStopwatch.elapsed;
+        });
+      });
+      _startInProgress = false;
+      if (mounted) {
+        setState(() {
+          _isStarting = false;
+          _isRecording = true;
+        });
+      }
+    } catch (error) {
+      _startInProgress = false;
+      if (!mounted) return;
+      setState(() {
+        _isStarting = false;
+        _recordingError = 'Não foi possível iniciar a coleta: $error';
+      });
+    }
+  }
+
+  Future<void> _ensureLocationPermission() async {
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      throw StateError('Ative o serviço de localização para iniciar a coleta.');
+    }
+
+    var permission = await Geolocator.checkPermission();
+    if (permission == LocationPermission.denied) {
+      permission = await Geolocator.requestPermission();
+    }
+    if (permission == LocationPermission.denied) {
+      throw StateError('A permissão de localização foi negada.');
+    }
+    if (permission == LocationPermission.deniedForever) {
+      throw StateError(
+        'A permissão de localização está bloqueada. Habilite-a nas configurações do dispositivo.',
+      );
+    }
+  }
+
+  void _startSensorStreams() {
+    _sensorWatchdogTimer = Timer(const Duration(seconds: 5), () {
+      if (_sensorSampleCount == 0) {
+        _handleStreamFailure(
+          'O acelerômetro não forneceu leituras. Verifique a disponibilidade do sensor.',
+        );
+      }
     });
+    final accelPeriod = Duration(
+      microseconds: (1000000 / widget.configuracao.taxaInercialHz).round(),
+    );
+    _sensorSubscription = accelerometerEventStream(samplingPeriod: accelPeriod)
+        .listen(
+          _onAccelerometer,
+          onError: (Object error) =>
+              _handleStreamFailure('Falha ao ler o acelerômetro: $error'),
+          onDone: () => _handleStreamFailure(
+            'O fluxo do acelerômetro foi encerrado inesperadamente.',
+          ),
+          cancelOnError: true,
+        );
+
+    if (widget.configuracao.sensoresSelecionados.contains(
+      SensorColeta.giroscopio,
+    )) {
+      final gyroPeriod = Duration(
+        microseconds:
+            (1000000 /
+                    widget.configuracao.sensoresOpcionais.gyroscopeFrequencyHz)
+                .round(),
+      );
+      _gyroscopeSubscription = gyroscopeEventStream(samplingPeriod: gyroPeriod)
+          .listen(
+            (event) {
+              _gyroscopeX = event.x;
+              _gyroscopeY = event.y;
+              _gyroscopeZ = event.z;
+            },
+            onError: (Object error) => _handleOptionalSensorFailure(
+              'Giroscópio indisponível; a coleta inercial continua: $error',
+            ),
+            onDone: () => _handleOptionalSensorFailure(
+              'O fluxo do giroscópio foi encerrado; a coleta inercial continua.',
+            ),
+            cancelOnError: true,
+          );
+    }
+  }
+
+  void _onAccelerometer(AccelerometerEvent event) {
+    if (!mounted || !_isRecording && !_isStarting) return;
+    _sensorWatchdogTimer?.cancel();
+    final now = DateTime.now().toUtc();
+    _currentX = event.x;
+    _currentY = event.y;
+    _currentZ = event.z;
+    _bufferX.add(event.x);
+    _bufferY.add(event.y);
+    _bufferZ.add(event.z);
+    if (_bufferX.length > _maxBufferSize) {
+      _bufferX.removeAt(0);
+      _bufferY.removeAt(0);
+      _bufferZ.removeAt(0);
+    }
+
+    _pendingSensorSamples.add(
+      RecordedSensorSample(
+        recordedAt: now,
+        accelerometerX: event.x,
+        accelerometerY: event.y,
+        accelerometerZ: event.z,
+        gyroscopeX: _gyroscopeX,
+        gyroscopeY: _gyroscopeY,
+        gyroscopeZ: _gyroscopeZ,
+      ),
+    );
+    _sensorSampleCount++;
+    if (_pendingSensorSamples.length + _pendingGpsPoints.length >= 1000) {
+      _handleStreamFailure(
+        'O banco local não está acompanhando a aquisição. A captura foi pausada para preservar as amostras pendentes.',
+      );
+    }
+  }
+
+  void _startGpsStream() {
+    final accuracy = LocationAccuracy.best;
+    final interval = Duration(
+      microseconds: (1000000 / widget.configuracao.taxaGpsHz).round(),
+    );
+    final LocationSettings locationSettings;
+    if (Platform.isAndroid) {
+      locationSettings = AndroidSettings(
+        accuracy: accuracy,
+        distanceFilter: 0,
+        intervalDuration: interval,
+      );
+    } else if (Platform.isIOS) {
+      locationSettings = AppleSettings(
+        accuracy: accuracy,
+        distanceFilter: 0,
+        activityType: ActivityType.automotiveNavigation,
+        pauseLocationUpdatesAutomatically: false,
+        allowBackgroundLocationUpdates: false,
+      );
+    } else {
+      locationSettings = LocationSettings(
+        accuracy: accuracy,
+        distanceFilter: 0,
+      );
+    }
+    _gpsSubscription =
+        Geolocator.getPositionStream(locationSettings: locationSettings).listen(
+          _onPosition,
+          onError: (Object error) =>
+              _handleStreamFailure('Falha ao receber dados do GPS: $error'),
+          onDone: () => _handleStreamFailure(
+            'O fluxo do GPS foi encerrado inesperadamente.',
+          ),
+          cancelOnError: true,
+        );
+  }
+
+  void _onPosition(Position position) {
+    if (!mounted || !_isRecording && !_isStarting) return;
+    final now = DateTime.now().toUtc();
+    final minInterval = Duration(
+      microseconds: (1000000 / widget.configuracao.taxaGpsHz).round(),
+    );
+    if (_lastGpsSampleAt != null &&
+        now.difference(_lastGpsSampleAt!) < minInterval) {
+      return;
+    }
+
+    final previous = _lastPosition;
+    if (previous != null) {
+      final segmentMeters = Geolocator.distanceBetween(
+        previous.latitude,
+        previous.longitude,
+        position.latitude,
+        position.longitude,
+      );
+      if (segmentMeters.isFinite && segmentMeters > 0 && segmentMeters < 200) {
+        _distanceMeters += segmentMeters;
+      }
+    }
+    _lastPosition = position;
+    _lastGpsSampleAt = now;
+    final minimumDistanceMeters = widget.configuracao.intervaloMetros;
+    if (_gpsPointCount == 0 ||
+        _distanceMeters - _lastGpsStoredAtDistanceMeters >=
+            minimumDistanceMeters) {
+      _pendingGpsPoints.add(
+        RecordedGpsPoint(
+          recordedAt: now,
+          latitude: position.latitude,
+          longitude: position.longitude,
+          altitudeMeters: position.altitude,
+          speedMetersPerSecond: position.speed,
+          headingDegrees: position.heading,
+          accuracyMeters: position.accuracy,
+        ),
+      );
+      _gpsPointCount++;
+      _lastGpsStoredAtDistanceMeters = _distanceMeters;
+    }
+
+    final cameraDistance = _nextCameraDistanceMeters;
+    if (cameraDistance != null && _distanceMeters >= cameraDistance) {
+      _nextCameraDistanceMeters =
+          cameraDistance +
+          _distanceIntervalMeters(
+            widget.configuracao.sensoresOpcionais.camera.interval,
+            widget.configuracao.sensoresOpcionais.camera.intervalUnit,
+          );
+      unawaited(_captureCameraMedia(automatic: true));
+    }
+    final audioDistance = _nextAudioDistanceMeters;
+    if (audioDistance != null && _distanceMeters >= audioDistance) {
+      _nextAudioDistanceMeters =
+          audioDistance +
+          _distanceIntervalMeters(
+            widget.configuracao.sensoresOpcionais.audio.interval,
+            widget.configuracao.sensoresOpcionais.audio.intervalUnit,
+          );
+      unawaited(_captureAudio());
+    }
+  }
+
+  Future<void> _initializeOptionalMedia() async {
+    final config = widget.configuracao;
+    if (config.sensoresSelecionados.contains(SensorColeta.camera)) {
+      try {
+        final cameras = await availableCameras();
+        final requestedDirection =
+            config.sensoresOpcionais.camera.facing == CameraFacing.front
+            ? CameraLensDirection.front
+            : CameraLensDirection.back;
+        final matchingCameras = cameras.where(
+          (item) => item.lensDirection == requestedDirection,
+        );
+        if (matchingCameras.isEmpty) {
+          throw StateError('A câmera selecionada não está disponível.');
+        }
+        final controller = CameraController(
+          matchingCameras.first,
+          ResolutionPreset.medium,
+          enableAudio: config.sensoresSelecionados.contains(SensorColeta.audio),
+        );
+        await controller.initialize();
+        if (!mounted) {
+          await controller.dispose();
+          return;
+        }
+        setState(() {
+          _cameraController = controller;
+          _mediaError = null;
+        });
+        _scheduleAutomaticCameraCapture();
+      } catch (error) {
+        if (mounted) {
+          setState(() => _mediaError = 'Câmera indisponível: $error');
+        }
+      }
+    }
+
+    if (config.sensoresSelecionados.contains(SensorColeta.audio)) {
+      try {
+        _audioRecorder = AudioRecorder();
+        _scheduleAutomaticAudioCapture();
+      } catch (error) {
+        if (mounted) {
+          setState(() => _mediaError = 'Áudio indisponível: $error');
+        }
+      }
+    }
+  }
+
+  void _scheduleAutomaticCameraCapture() {
+    final settings = widget.configuracao.sensoresOpcionais.camera;
+    if (!settings.automatic) return;
+    if (settings.intervalUnit == CaptureIntervalUnit.meters ||
+        settings.intervalUnit == CaptureIntervalUnit.kilometers) {
+      _nextCameraDistanceMeters = _distanceIntervalMeters(
+        settings.interval,
+        settings.intervalUnit,
+      );
+      return;
+    }
+    _automaticCameraTimer = Timer.periodic(
+      _timeInterval(settings.interval, settings.intervalUnit),
+      (_) => unawaited(_captureCameraMedia(automatic: true)),
+    );
+  }
+
+  void _scheduleAutomaticAudioCapture() {
+    final settings = widget.configuracao.sensoresOpcionais.audio;
+    if (!settings.automatic) return;
+    if (settings.intervalUnit == CaptureIntervalUnit.meters ||
+        settings.intervalUnit == CaptureIntervalUnit.kilometers) {
+      _nextAudioDistanceMeters = _distanceIntervalMeters(
+        settings.interval,
+        settings.intervalUnit,
+      );
+      return;
+    }
+    _automaticAudioTimer = Timer.periodic(
+      _timeInterval(settings.interval, settings.intervalUnit),
+      (_) => unawaited(_captureAudio()),
+    );
+  }
+
+  Duration _timeInterval(int amount, CaptureIntervalUnit unit) =>
+      switch (unit) {
+        CaptureIntervalUnit.minutes => Duration(minutes: amount),
+        CaptureIntervalUnit.hours => Duration(hours: amount),
+        CaptureIntervalUnit.meters ||
+        CaptureIntervalUnit.kilometers => Duration.zero,
+      };
+
+  double _distanceIntervalMeters(int amount, CaptureIntervalUnit unit) =>
+      unit == CaptureIntervalUnit.kilometers
+      ? amount * 1000
+      : amount.toDouble();
+
+  Future<void> _captureCameraMedia({
+    bool automatic = false,
+    bool video = false,
+  }) async {
+    if (automatic && _isRecordingVideo) return;
+    if (_isCapturingMedia || _runId == null) return;
+    final controller = _cameraController;
+    if (controller == null || !controller.value.isInitialized) {
+      _showMediaError(_mediaError ?? 'A câmera ainda não está pronta.');
+      return;
+    }
+
+    _isCapturingMedia = true;
+    try {
+      final mediaType = widget.configuracao.sensoresOpcionais.camera.mediaType;
+      final takeVideo =
+          _isRecordingVideo ||
+          video ||
+          mediaType == CameraMediaType.videos ||
+          (automatic && mediaType == CameraMediaType.videos);
+      if (takeVideo) {
+        if (_isRecordingVideo) {
+          _cameraDurationTimer?.cancel();
+          _videoStopwatch.stop();
+          final file = await controller.stopVideoRecording();
+          _isRecordingVideo = false;
+          await _saveMediaFile(file, 'video');
+        } else {
+          await controller.startVideoRecording();
+          _isRecordingVideo = true;
+          _videoElapsed = Duration.zero;
+          _videoStopwatch
+            ..reset()
+            ..start();
+          _cameraDurationTimer = Timer(
+            Duration(
+              seconds: widget
+                  .configuracao
+                  .sensoresOpcionais
+                  .camera
+                  .videoDurationSeconds,
+            ),
+            () => unawaited(_stopVideoRecording()),
+          );
+        }
+      } else {
+        final file = await controller.takePicture();
+        await _saveMediaFile(file, 'photo');
+      }
+      if (mounted) setState(() {});
+    } catch (error) {
+      _showMediaError('Falha ao capturar mídia: $error');
+    } finally {
+      _isCapturingMedia = false;
+    }
+  }
+
+  void _alternarVideo() => unawaited(_captureCameraMedia(video: true));
+
+  Future<void> _stopVideoRecording({bool propagate = false}) async {
+    final controller = _cameraController;
+    if (controller == null || !_isRecordingVideo) return;
+    try {
+      _cameraDurationTimer?.cancel();
+      _videoStopwatch.stop();
+      final file = await controller.stopVideoRecording();
+      _isRecordingVideo = false;
+      await _saveMediaFile(file, 'video');
+      if (mounted) setState(() => _videoElapsed = _videoStopwatch.elapsed);
+    } catch (error) {
+      _showMediaError('Falha ao finalizar o vídeo: $error');
+      if (propagate) rethrow;
+    }
+  }
+
+  Future<void> _captureAudio() async {
+    if (_isRecordingAudio || _runId == null || _audioRecorder == null) return;
+    try {
+      if (!await _audioRecorder!.hasPermission()) {
+        throw StateError('Permissão do microfone não concedida.');
+      }
+      final directory = await _mediaDirectory();
+      final audioPath = path.join(
+        directory.path,
+        'audio_${DateTime.now().toUtc().millisecondsSinceEpoch}.m4a',
+      );
+      await _audioRecorder!.start(
+        const RecordConfig(encoder: AudioEncoder.aacLc),
+        path: audioPath,
+      );
+      _isRecordingAudio = true;
+      _audioElapsed = Duration.zero;
+      _audioAmplitudeDb = -60;
+      _audioStopwatch
+        ..reset()
+        ..start();
+      _audioAmplitudeSubscription = _audioRecorder!
+          .onAmplitudeChanged(const Duration(milliseconds: 200))
+          .listen(
+            (amplitude) {
+              if (!mounted || !_isRecordingAudio) return;
+              setState(() => _audioAmplitudeDb = amplitude.current);
+            },
+            onError: (Object error) =>
+                _showMediaError('Falha ao medir o nível de áudio: $error'),
+          );
+      _audioDurationTimer?.cancel();
+      _audioDurationTimer = Timer(
+        Duration(
+          seconds: widget.configuracao.sensoresOpcionais.audio.durationSeconds,
+        ),
+        () => unawaited(_stopAudioRecording()),
+      );
+      if (mounted) setState(() {});
+    } catch (error) {
+      _showMediaError('Falha ao iniciar a gravação de áudio: $error');
+    }
+  }
+
+  Future<void> _stopAudioRecording({bool propagate = false}) async {
+    if (!_isRecordingAudio || _audioRecorder == null) return;
+    try {
+      _audioDurationTimer?.cancel();
+      _audioStopwatch.stop();
+      await _audioAmplitudeSubscription?.cancel();
+      _audioAmplitudeSubscription = null;
+      final filePath = await _audioRecorder!.stop();
+      _isRecordingAudio = false;
+      if (filePath != null) {
+        await _saveMediaFile(XFile(filePath), 'audio');
+      }
+      if (mounted) setState(() {});
+    } catch (error) {
+      _showMediaError('Falha ao finalizar o áudio: $error');
+      if (propagate) rethrow;
+    }
+  }
+
+  Future<void> _saveMediaFile(XFile file, String type) async {
+    final directory = await _mediaDirectory();
+    final timestamp = DateTime.now().toUtc();
+    final extension = path.extension(file.path);
+    final savedFile = await File(file.path).copy(
+      path.join(
+        directory.path,
+        '${type}_${timestamp.millisecondsSinceEpoch}$extension',
+      ),
+    );
+    final position = _lastPosition;
+    final mediaId = await _repository.saveMedia(
+      runId: _runId!,
+      mediaType: type,
+      filePath: savedFile.path,
+      recordedAt: timestamp,
+      latitude: position?.latitude,
+      longitude: position?.longitude,
+    );
+    if (path.normalize(file.path) != path.normalize(savedFile.path)) {
+      await File(file.path).delete();
+    }
+    _mediaCount++;
+    if (type == 'photo' && mounted) {
+      setState(() {
+        _fotosCapturadas.add(
+          _RegistroFoto(
+            id: mediaId,
+            timestamp: timestamp,
+            latitude: position?.latitude,
+            longitude: position?.longitude,
+            odometroKm:
+                widget.configuracao.odometroInicial + _distanceMeters / 1000,
+            filePath: savedFile.path,
+          ),
+        );
+      });
+    }
+  }
+
+  Future<Directory> _mediaDirectory() async {
+    final documents = await getApplicationDocumentsDirectory();
+    final directory = Directory(
+      path.join(documents.path, 'roadify', 'runs', _runId.toString()),
+    );
+    await directory.create(recursive: true);
+    return directory;
+  }
+
+  void _showMediaError(String message) {
+    if (!mounted) return;
+    setState(() => _mediaError = message);
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  void _handleStreamFailure(String message) {
+    if (!mounted) return;
+    _sensorWatchdogTimer?.cancel();
+    setState(() {
+      _recordingError = message;
+      _isRecording = false;
+    });
+    _stopwatch.stop();
+    _tickerTimer?.cancel();
+    _batchTimer?.cancel();
+    unawaited(_cancelSensorStreams());
+  }
+
+  void _handleOptionalSensorFailure(String message) {
+    if (!mounted || !_isRecording && !_isStarting) return;
+    setState(() => _optionalSensorWarning = message);
+    unawaited(_gyroscopeSubscription?.cancel());
+    _gyroscopeSubscription = null;
+  }
+
+  Future<void> _cancelSensorStreams() async {
+    await _sensorSubscription?.cancel();
+    await _gyroscopeSubscription?.cancel();
+    await _gpsSubscription?.cancel();
+    _sensorSubscription = null;
+    _gyroscopeSubscription = null;
+    _gpsSubscription = null;
+  }
+
+  Future<void> _flushPendingSamples({bool propagate = false}) async {
+    if (_isFlushing || _runId == null) return;
+    if (_pendingSensorSamples.isEmpty && _pendingGpsPoints.isEmpty) return;
+    _isFlushing = true;
+    final samples = List<RecordedSensorSample>.of(_pendingSensorSamples);
+    final points = List<RecordedGpsPoint>.of(_pendingGpsPoints);
+    _pendingSensorSamples.clear();
+    _pendingGpsPoints.clear();
+    try {
+      await _repository.saveBatch(
+        runId: _runId!,
+        sensorSamples: samples,
+        gpsPoints: points,
+        sensorSampleCount: _sensorSampleCount,
+        gpsPointCount: _gpsPointCount,
+        distanceKm: _distanceMeters / 1000,
+      );
+    } catch (error) {
+      _pendingSensorSamples.insertAll(0, samples);
+      _pendingGpsPoints.insertAll(0, points);
+      _handleStreamFailure('Falha ao salvar um lote local: $error');
+      if (propagate) rethrow;
+    } finally {
+      _isFlushing = false;
+    }
   }
 
   @override
   void dispose() {
     _tickerTimer?.cancel();
-    _mockSensorTimer?.cancel();
-    _fallbackCheckTimer?.cancel();
-    _sensorSubscription?.cancel();
+    _batchTimer?.cancel();
+    _sensorWatchdogTimer?.cancel();
+    _cameraDurationTimer?.cancel();
+    _audioDurationTimer?.cancel();
+    _automaticCameraTimer?.cancel();
+    _automaticAudioTimer?.cancel();
+    unawaited(_audioAmplitudeSubscription?.cancel());
+    unawaited(_cancelSensorStreams());
+    unawaited(_cameraController?.dispose());
+    unawaited(_audioRecorder?.dispose());
+    if (widget.captureDeviceSensors) unawaited(WakelockPlus.disable());
     _stopwatch.stop();
     super.dispose();
   }
@@ -160,13 +844,6 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
     final minutes = (d.inMinutes % 60).toString().padLeft(2, '0');
     final seconds = (d.inSeconds % 60).toString().padLeft(2, '0');
     return '$hours:$minutes:$seconds';
-  }
-
-  String _formatFileSize(double bytes) {
-    if (bytes < 1024 * 1024) {
-      return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    }
-    return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
   }
 
   String _intervalLabel(CaptureIntervalUnit unit) => switch (unit) {
@@ -216,51 +893,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
     return details.join(' • ');
   }
 
-  void _capturarFoto() {
-    final nextId = _fotosCapturadas.length + 1;
-    final now = DateTime.now();
-    // Coordenadas simuladas com progressão ao longo da via
-    final lat = -23.550520 - (nextId * 0.00028);
-    final long = -46.633308 + (nextId * 0.00019);
-    final odo = 14250.0 + (_elapsed.inSeconds * 0.012);
-
-    final novaFoto = _RegistroFoto(
-      id: nextId,
-      timestamp: now,
-      latitude: lat,
-      longitude: long,
-      odometroKm: double.parse(odo.toStringAsFixed(2)),
-    );
-
-    setState(() {
-      _fotosCapturadas.add(novaFoto);
-      _flashAtivo = true;
-    });
-
-    Future.delayed(const Duration(milliseconds: 140), () {
-      if (mounted) setState(() => _flashAtivo = false);
-    });
-
-    ScaffoldMessenger.of(context).hideCurrentSnackBar();
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        duration: const Duration(seconds: 2),
-        behavior: SnackBarBehavior.floating,
-        content: Row(
-          children: [
-            const Icon(Icons.camera_alt_rounded, color: Colors.white, size: 20),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Text(
-                'Foto #$nextId registrada com geotagging (${novaFoto.latitude.toStringAsFixed(4)}, ${novaFoto.longitude.toStringAsFixed(4)})',
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
+  void _capturarFoto() => unawaited(_captureCameraMedia());
 
   void _exibirDetalhesFoto(_RegistroFoto foto) {
     showDialog(
@@ -285,33 +918,25 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: Colors.grey.shade400),
               ),
-              child: const Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.camera_alt_rounded, size: 36, color: Colors.grey),
-                  SizedBox(height: 6),
-                  Text(
-                    'Registro Fotográfico de Pavimento',
-                    style: TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: Colors.black54,
-                    ),
-                  ),
-                  Text(
-                    'Câmera Principal • Alta Resolução',
-                    style: TextStyle(fontSize: 10, color: Colors.black45),
-                  ),
-                ],
+              child: Image.file(
+                File(foto.filePath),
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) => const Center(
+                  child: Icon(Icons.broken_image_outlined, size: 36),
+                ),
               ),
             ),
             const SizedBox(height: 12),
             Text(
-              'Latitude: ${foto.latitude.toStringAsFixed(6)}',
+              foto.latitude == null
+                  ? 'Latitude: sem posição GPS disponível'
+                  : 'Latitude: ${foto.latitude!.toStringAsFixed(6)}',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             Text(
-              'Longitude: ${foto.longitude.toStringAsFixed(6)}',
+              foto.longitude == null
+                  ? 'Longitude: sem posição GPS disponível'
+                  : 'Longitude: ${foto.longitude!.toStringAsFixed(6)}',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
             Text(
@@ -321,8 +946,8 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
               'Horário: ${foto.timestamp.hour.toString().padLeft(2, '0')}:${foto.timestamp.minute.toString().padLeft(2, '0')}:${foto.timestamp.second.toString().padLeft(2, '0')}',
             ),
             const SizedBox(height: 8),
-            const Text(
-              'Metadados EXIF com Geotagging prontos para sincronização.',
+            Text(
+              'Arquivo: ${path.basename(foto.filePath)}',
               style: TextStyle(
                 fontSize: 11,
                 fontStyle: FontStyle.italic,
@@ -347,9 +972,8 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
       builder: (ctx) => AlertDialog(
         title: const Text('Finalizar Coleta?'),
         content: Text(
-          _fotosCapturadas.isNotEmpty
-              ? 'Deseja encerrar este ensaio? Foram registradas ${_fotosCapturadas.length} fotos com geotagging. Os dados de aceleração e telemetria serão salvos no banco local.'
-              : 'Deseja encerrar este ensaio? Os dados de aceleração e telemetria serão salvos no banco de dados local.',
+          'Deseja encerrar este ensaio? Serão salvos $_sensorSampleCount amostras inerciais, '
+          '$_gpsPointCount pontos GPS e $_mediaCount arquivos de mídia no armazenamento local.',
         ),
         actions: [
           TextButton(
@@ -375,58 +999,49 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
   }
 
   Future<void> _salvarEFechar() async {
-    setState(() => _isFinalizing = true);
+    if (_isStarting || _runId == null) return;
     _stopwatch.stop();
+    _isRecording = false;
+    setState(() => _isFinalizing = true);
     _tickerTimer?.cancel();
-    _mockSensorTimer?.cancel();
-    _sensorSubscription?.cancel();
+    _batchTimer?.cancel();
+    _automaticCameraTimer?.cancel();
+    _automaticAudioTimer?.cancel();
 
     try {
-      // Salva no Drift se o RunDao estiver injetado no GetIt
-      if (getIt.isRegistered<RunDao>()) {
-        final dao = getIt<RunDao>();
-        final now = DateTime.now();
-        final distanceEstimate = (_elapsed.inSeconds * 0.012).clamp(0.1, 999.0);
-
-        final fotosDescricao = _fotosCapturadas.isNotEmpty
-            ? ' • ${_fotosCapturadas.length} fotos geotagged'
-            : '';
-        final optionalSettingsSummary = _collectionSettingsSummary();
-
-        await dao.insertRun(
-          RunsTableCompanion.insert(
-            title: Value(
-              'Ensaio Pista • ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
-            ),
-            recordedAt: Value(now),
-            odometer: const Value(14250.0),
-            distanceKm: Value(
-              double.parse(distanceEstimate.toStringAsFixed(2)),
-            ),
-            isSynced: const Value(false),
-            notes: Value(
-              'Coleta com ${widget.configuracao.taxaInercialHz} Hz e '
-              '${widget.configuracao.taxaGpsHz} Hz GPS$fotosDescricao'
-              '${optionalSettingsSummary.isEmpty ? '' : ' • $optionalSettingsSummary'}',
-            ),
-          ),
-        );
+      await _cancelSensorStreams();
+      if (_isRecordingVideo) await _stopVideoRecording(propagate: true);
+      if (_isRecordingAudio) await _stopAudioRecording(propagate: true);
+      while (_isFlushing) {
+        await Future<void>.delayed(const Duration(milliseconds: 10));
       }
-    } catch (_) {
-      // Falha graciosa mantendo fluxo
+      await _flushPendingSamples(propagate: true);
+      await _repository.finishRun(
+        runId: _runId!,
+        endedAt: DateTime.now(),
+        duration: _elapsed,
+        distanceKm: _distanceMeters / 1000,
+        sensorSampleCount: _sensorSampleCount,
+        gpsPointCount: _gpsPointCount,
+        mediaCount: _mediaCount,
+      );
+      _isFinalized = true;
+      if (widget.captureDeviceSensors) await WakelockPlus.disable();
+      await _cameraController?.dispose();
+      await _audioRecorder?.dispose();
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _isFinalizing = false;
+        _recordingError = 'Não foi possível salvar a coleta: $error';
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(_recordingError!)));
+      return;
     }
 
     if (!mounted) return;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text(
-          'Ensaio finalizado e gravado com sucesso no banco de dados!',
-        ),
-        backgroundColor: Colors.green,
-      ),
-    );
-
     Navigator.of(context).pop();
   }
 
@@ -435,393 +1050,462 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
     final colors = context.colors;
     final typography = context.typography;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Coleta em Andamento'),
-        automaticallyImplyLeading: false,
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Row(
-              children: [
-                Container(
-                  width: 10,
-                  height: 10,
-                  decoration: const BoxDecoration(
-                    color: Colors.red,
-                    shape: BoxShape.circle,
-                  ),
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  'GRAVANDO',
-                  style: typography.labelMedium?.copyWith(
-                    color: Colors.red,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: 0.8,
-                  ),
-                ),
-              ],
+    return PopScope<Object?>(
+      canPop: (_runId == null && !_startInProgress) || _isFinalized,
+      onPopInvokedWithResult: (didPop, result) {
+        if (!didPop && mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Finalize ou salve a coleta antes de sair.'),
             ),
-          ),
-        ],
-      ),
-      body: Stack(
-        children: [
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.fromLTRB(
-                AppDimensions.space20,
-                AppDimensions.space12,
-                AppDimensions.space20,
-                AppDimensions.space24,
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
+          );
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Coleta em Andamento'),
+          automaticallyImplyLeading: false,
+          actions: [
+            Padding(
+              padding: const EdgeInsets.only(right: 16),
+              child: Row(
                 children: [
-                  // --- 1. CRONÔMETRO DECORRIDO ---
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      vertical: 20,
-                      horizontal: 16,
-                    ),
+                    width: 10,
+                    height: 10,
                     decoration: BoxDecoration(
-                      color: colors.surface,
-                      borderRadius: AppDimensions.borderRadiusCard,
-                      border: Border.all(color: colors.outlineVariant),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(
-                          'TEMPO DECORRIDO',
-                          style: typography.labelMedium?.copyWith(
-                            letterSpacing: 1.2,
-                            color: colors.onSurfaceVariant,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          _formatDuration(_elapsed),
-                          style: typography.displaySmall?.copyWith(
-                            fontWeight: FontWeight.w800,
-                            letterSpacing: 1.5,
-                            fontFeatures: const [FontFeature.tabularFigures()],
-                          ),
-                        ),
-                      ],
+                      color: _isRecording
+                          ? Colors.red
+                          : _recordingError != null
+                          ? colors.error
+                          : Colors.amber,
+                      shape: BoxShape.circle,
                     ),
                   ),
-
-                  const SizedBox(height: AppDimensions.space16),
-
-                  // --- 2. CONFIGURAÇÃO SELECIONADA (Taxa Inercial, GPS, Sensores) ---
-                  Container(
-                    padding: const EdgeInsets.all(AppDimensions.space16),
-                    decoration: BoxDecoration(
-                      color: colors.surface,
-                      borderRadius: AppDimensions.borderRadiusCard,
-                      border: Border.all(color: colors.outlineVariant),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(
-                              Icons.tune_rounded,
-                              size: 18,
-                              color: colors.primary,
-                            ),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Parâmetros da Coleta',
-                              style: typography.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _ParamBadge(
-                                label: 'Acelerômetro',
-                                value:
-                                    '${widget.configuracao.taxaInercialHz} Hz',
-                                icon: Icons.speed_rounded,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _ParamBadge(
-                                label: 'Taxa GPS',
-                                value: '${widget.configuracao.taxaGpsHz} Hz',
-                                icon: Icons.gps_fixed_rounded,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _ParamBadge(
-                                label: 'Intervalo',
-                                value:
-                                    '${widget.configuracao.intervaloMetros.toStringAsFixed(0)} m',
-                                icon: Icons.straighten_rounded,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Wrap(
-                          spacing: 6,
-                          runSpacing: 6,
-                          children: widget.configuracao.sensoresSelecionados
-                              .map((s) {
-                                return Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 8,
-                                    vertical: 4,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: colors.primary.withValues(
-                                      alpha: 0.1,
-                                    ),
-                                    borderRadius: BorderRadius.circular(6),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      Icon(
-                                        _iconForSensor(s),
-                                        size: 14,
-                                        color: colors.primary,
-                                      ),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        _nameForSensor(s),
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                          color: colors.primary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                );
-                              })
-                              .toList(),
-                        ),
-                        if (_collectionSettingsSummary().isNotEmpty) ...[
-                          const SizedBox(height: 8),
-                          Text(
-                            _collectionSettingsSummary(),
-                            key: const ValueKey('optional-capture-settings'),
-                            style: typography.bodySmall?.copyWith(
-                              color: colors.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                      ],
+                  const SizedBox(width: 6),
+                  Text(
+                    _isRecording
+                        ? 'GRAVANDO'
+                        : _isStarting
+                        ? 'PREPARANDO'
+                        : 'PAUSADA',
+                    style: typography.labelMedium?.copyWith(
+                      color: _isRecording
+                          ? Colors.red
+                          : _recordingError != null
+                          ? colors.error
+                          : Colors.amber.shade900,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.8,
                     ),
                   ),
-
-                  const SizedBox(height: AppDimensions.space16),
-
-                  // --- 3. DIAGNÓSTICO: ARMAZENAMENTO E TEMPERATURA ---
-                  Row(
+                ],
+              ),
+            ),
+          ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(76),
+            child: Container(
+              key: const ValueKey('sticky-recording-telemetry'),
+              width: double.infinity,
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Row(
+                children: [
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Tamanho do arquivo e Armazenamento
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(AppDimensions.space16),
-                          decoration: BoxDecoration(
-                            color: colors.surface,
-                            borderRadius: AppDimensions.borderRadiusCard,
-                            border: Border.all(color: colors.outlineVariant),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Icon(
-                                    Icons.sd_storage_outlined,
-                                    size: 16,
-                                    color: colors.primary,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      'Arquivo / Espaço',
-                                      style: typography.labelSmall?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                _formatFileSize(_fileSizeBytes),
-                                style: typography.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                '$_freeStoragePercent% livre ($_freeStorageGb GB)',
-                                style: typography.bodySmall?.copyWith(
-                                  fontSize: 11,
-                                ),
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ],
-                          ),
+                      Text(
+                        'TEMPO DECORRIDO',
+                        style: typography.labelSmall?.copyWith(
+                          color: colors.onSurfaceVariant,
+                          letterSpacing: 0.8,
                         ),
                       ),
-                      const SizedBox(width: 12),
-                      // Temperatura do Telefone
-                      Expanded(
-                        child: Container(
-                          padding: const EdgeInsets.all(AppDimensions.space16),
-                          decoration: BoxDecoration(
-                            color: colors.surface,
-                            borderRadius: AppDimensions.borderRadiusCard,
-                            border: Border.all(color: colors.outlineVariant),
-                          ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  const Icon(
-                                    Icons.thermostat_rounded,
-                                    size: 16,
-                                    color: Colors.teal,
-                                  ),
-                                  const SizedBox(width: 6),
-                                  Expanded(
-                                    child: Text(
-                                      'Temperatura',
-                                      style: typography.labelSmall?.copyWith(
-                                        fontWeight: FontWeight.w700,
-                                      ),
-                                      overflow: TextOverflow.ellipsis,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(height: 8),
-                              Text(
-                                '${_phoneTemperatureC.toStringAsFixed(1)} °C',
-                                style: typography.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.w800,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Normal / Seguro',
-                                style: typography.bodySmall?.copyWith(
-                                  fontSize: 11,
-                                  color: Colors.teal,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
-                            ],
-                          ),
+                      Text(
+                        _formatDuration(_elapsed),
+                        key: const ValueKey('elapsed-time-sticky'),
+                        style: typography.headlineMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                          fontFeatures: const [FontFeature.tabularFigures()],
                         ),
                       ),
                     ],
                   ),
-
-                  const SizedBox(height: AppDimensions.space16),
-
-                  // --- 4. GRÁFICO EM TEMPO REAL DO ACELERÔMETRO ---
-                  Container(
-                    padding: const EdgeInsets.all(AppDimensions.space16),
-                    decoration: BoxDecoration(
-                      color: colors.surface,
-                      borderRadius: AppDimensions.borderRadiusCard,
-                      border: Border.all(color: colors.outlineVariant),
+                  const Spacer(),
+                  _StickyMetric(
+                    label: 'VELOCIDADE',
+                    value: _lastPosition?.speed.isFinite == true
+                        ? '${((_lastPosition!.speed * 3.6).round())} km/h'
+                        : '-- km/h',
+                    icon: Icons.speed_rounded,
+                  ),
+                  const SizedBox(width: 14),
+                  _StickyMetric(
+                    label: 'DISTÂNCIA',
+                    value: '${(_distanceMeters / 1000).toStringAsFixed(2)} km',
+                    icon: Icons.route_rounded,
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        body: SafeArea(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(
+              AppDimensions.space20,
+              AppDimensions.space12,
+              AppDimensions.space20,
+              AppDimensions.space24,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_recordingError != null) ...[
+                  Card(
+                    color: colors.errorContainer,
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppDimensions.space12),
+                      child: Text(
+                        _recordingError!,
+                        style: TextStyle(color: colors.onErrorContainer),
+                      ),
                     ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  ),
+                  const SizedBox(height: AppDimensions.space12),
+                ],
+                if (_metadataWarning != null) ...[
+                  Card(
+                    color: colors.tertiaryContainer,
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppDimensions.space12),
+                      child: Text(
+                        _metadataWarning!,
+                        style: TextStyle(color: colors.onTertiaryContainer),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.space12),
+                ],
+                if (_optionalSensorWarning != null) ...[
+                  Card(
+                    color: colors.tertiaryContainer,
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppDimensions.space12),
+                      child: Text(
+                        _optionalSensorWarning!,
+                        style: TextStyle(color: colors.onTertiaryContainer),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.space12),
+                ],
+                // --- CONFIGURAÇÃO POR SENSOR ---
+                Container(
+                  padding: const EdgeInsets.all(AppDimensions.space16),
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    borderRadius: AppDimensions.borderRadiusCard,
+                    border: Border.all(color: colors.outlineVariant),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.tune_rounded,
+                            size: 18,
+                            color: colors.primary,
+                          ),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Sensores e parâmetros',
+                            style: typography.titleSmall?.copyWith(
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: AppDimensions.space8,
+                        runSpacing: AppDimensions.space8,
+                        children: [
+                          _ParamBadge(
+                            label: 'Acelerômetro',
+                            value: '${widget.configuracao.taxaInercialHz} Hz',
+                            icon: Icons.speed_rounded,
+                          ),
+                          _ParamBadge(
+                            label: 'GPS',
+                            value:
+                                '${widget.configuracao.taxaGpsHz} Hz • a cada '
+                                '${widget.configuracao.intervaloMetros.toStringAsFixed(0)} m',
+                            icon: Icons.gps_fixed_rounded,
+                          ),
+                          if (widget.configuracao.sensoresSelecionados.contains(
+                            SensorColeta.giroscopio,
+                          ))
+                            _ParamBadge(
+                              label: 'Giroscópio',
+                              value:
+                                  '${widget.configuracao.sensoresOpcionais.gyroscopeFrequencyHz} Hz',
+                              icon: Icons.screen_rotation_rounded,
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 6,
+                        runSpacing: 6,
+                        children: widget.configuracao.sensoresSelecionados.map((
+                          s,
+                        ) {
+                          return Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: colors.primary.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  _iconForSensor(s),
+                                  size: 14,
+                                  color: colors.primary,
+                                ),
+                                const SizedBox(width: 4),
+                                Text(
+                                  _nameForSensor(s),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: colors.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          );
+                        }).toList(),
+                      ),
+                      if (_collectionSettingsSummary().isNotEmpty) ...[
+                        const SizedBox(height: 8),
+                        Text(
+                          _collectionSettingsSummary(),
+                          key: const ValueKey('optional-capture-settings'),
+                          style: typography.bodySmall?.copyWith(
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+
+                const SizedBox(height: AppDimensions.space16),
+
+                // --- 3. STATUS REAL DA AQUISIÇÃO ---
+                Row(
+                  children: [
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(AppDimensions.space16),
+                        decoration: BoxDecoration(
+                          color: colors.surface,
+                          borderRadius: AppDimensions.borderRadiusCard,
+                          border: Border.all(color: colors.outlineVariant),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Row(
                               children: [
                                 Icon(
                                   Icons.show_chart_rounded,
-                                  size: 18,
+                                  size: 16,
                                   color: colors.primary,
                                 ),
-                                const SizedBox(width: 8),
-                                Text(
-                                  'Acelerômetro ao Vivo',
-                                  style: typography.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w700,
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'Amostras',
+                                    style: typography.labelSmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                               ],
                             ),
-                            // Valores numéricos instantâneos
-                            Row(
-                              children: [
-                                _AxisValueBadge(
-                                  label: 'X',
-                                  value: _currentX,
-                                  color: const Color(0xFF10B981),
-                                ),
-                                const SizedBox(width: 6),
-                                _AxisValueBadge(
-                                  label: 'Y',
-                                  value: _currentY,
-                                  color: const Color(0xFF06B6D4),
-                                ),
-                                const SizedBox(width: 6),
-                                _AxisValueBadge(
-                                  label: 'Z',
-                                  value: _currentZ,
-                                  color: const Color(0xFFF59E0B),
-                                ),
-                              ],
+                            const SizedBox(height: 8),
+                            Text(
+                              '$_sensorSampleCount',
+                              style: typography.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              'acelerômetro${widget.configuracao.sensoresSelecionados.contains(SensorColeta.giroscopio) ? ' + giroscópio' : ''}',
+                              style: typography.bodySmall?.copyWith(
+                                fontSize: 11,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
                         ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          height: 150,
-                          width: double.infinity,
-                          child: ClipRRect(
-                            borderRadius: BorderRadius.circular(8),
-                            child: CustomPaint(
-                              painter: _OscilloscopePainter(
-                                bufferX: _bufferX,
-                                bufferY: _bufferY,
-                                bufferZ: _bufferZ,
-                                colorX: const Color(0xFF10B981),
-                                colorY: const Color(0xFF06B6D4),
-                                colorZ: const Color(0xFFF59E0B),
-                                gridColor: colors.outlineVariant.withValues(
-                                  alpha: 0.5,
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Container(
+                        padding: const EdgeInsets.all(AppDimensions.space16),
+                        decoration: BoxDecoration(
+                          color: colors.surface,
+                          borderRadius: AppDimensions.borderRadiusCard,
+                          border: Border.all(color: colors.outlineVariant),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                Icon(
+                                  Icons.gps_fixed_rounded,
+                                  size: 16,
+                                  color: colors.primary,
                                 ),
-                                backgroundColor: context.isDarkMode
-                                    ? const Color(0xFF0D1F18)
-                                    : const Color(0xFFF1F5F3),
+                                const SizedBox(width: 6),
+                                Expanded(
+                                  child: Text(
+                                    'Pontos GPS',
+                                    style: typography.labelSmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 8),
+                            Text(
+                              '$_gpsPointCount',
+                              style: typography.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
                               ),
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '${(_distanceMeters / 1000).toStringAsFixed(2)} km',
+                              style: typography.bodySmall?.copyWith(
+                                fontSize: 11,
+                                color: colors.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+
+                const SizedBox(height: AppDimensions.space16),
+
+                // --- 4. GRÁFICO EM TEMPO REAL DO ACELERÔMETRO ---
+                Container(
+                  padding: const EdgeInsets.all(AppDimensions.space16),
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    borderRadius: AppDimensions.borderRadiusCard,
+                    border: Border.all(color: colors.outlineVariant),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Row(
+                            children: [
+                              Icon(
+                                Icons.show_chart_rounded,
+                                size: 18,
+                                color: colors.primary,
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                'Acelerômetro ao Vivo',
+                                style: typography.titleSmall?.copyWith(
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                            ],
+                          ),
+                          // Valores numéricos instantâneos
+                          Row(
+                            children: [
+                              _AxisValueBadge(
+                                label: 'X',
+                                value: _currentX,
+                                color: const Color(0xFF10B981),
+                              ),
+                              const SizedBox(width: 6),
+                              _AxisValueBadge(
+                                label: 'Y',
+                                value: _currentY,
+                                color: const Color(0xFF06B6D4),
+                              ),
+                              const SizedBox(width: 6),
+                              _AxisValueBadge(
+                                label: 'Z',
+                                value: _currentZ,
+                                color: const Color(0xFFF59E0B),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      SizedBox(
+                        height: 150,
+                        width: double.infinity,
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8),
+                          child: CustomPaint(
+                            painter: _OscilloscopePainter(
+                              bufferX: _bufferX,
+                              bufferY: _bufferY,
+                              bufferZ: _bufferZ,
+                              colorX: const Color(0xFF10B981),
+                              colorY: const Color(0xFF06B6D4),
+                              colorZ: const Color(0xFFF59E0B),
+                              gridColor: colors.outlineVariant.withValues(
+                                alpha: 0.5,
+                              ),
+                              backgroundColor: context.isDarkMode
+                                  ? const Color(0xFF0D1F18)
+                                  : const Color(0xFFF1F5F3),
                             ),
                           ),
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
                   ),
+                ),
 
-                  const SizedBox(height: AppDimensions.space16),
+                const SizedBox(height: AppDimensions.space16),
 
-                  // --- 5. REGISTRO FOTOGRÁFICO DE OCORRÊNCIAS / BURACOS NA VIA (CÂMERA COM GEOTAGGING) ---
+                // --- 5. MÍDIA DA COLETA ---
+                if (widget.configuracao.sensoresSelecionados.contains(
+                  SensorColeta.camera,
+                )) ...[
                   Container(
                     padding: const EdgeInsets.all(AppDimensions.space16),
                     decoration: BoxDecoration(
@@ -849,7 +1533,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                                 ),
                                 const SizedBox(width: 8),
                                 Text(
-                                  'Registro Fotográfico de Ocorrências',
+                                  'Câmera • Foto e vídeo',
                                   style: typography.titleSmall?.copyWith(
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -868,7 +1552,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: Text(
-                                '${_fotosCapturadas.length} ${_fotosCapturadas.length == 1 ? 'foto' : 'fotos'}',
+                                '$_mediaCount ${_mediaCount == 1 ? 'arquivo' : 'arquivos'}',
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
@@ -881,96 +1565,24 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                           ],
                         ),
                         const SizedBox(height: 12),
-                        // BOTÃO GRANDE PARA TIRAR FOTO AO TOCAR
-                        Material(
-                          color: colors.primary,
-                          borderRadius: AppDimensions.borderRadiusCard,
-                          elevation: 2,
-                          child: InkWell(
-                            key: const ValueKey('botao-capturar-foto'),
-                            onTap: _capturarFoto,
-                            borderRadius: AppDimensions.borderRadiusCard,
-                            splashColor: Colors.white.withValues(alpha: 0.3),
-                            highlightColor: Colors.white.withValues(
-                              alpha: 0.15,
-                            ),
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                vertical: 18,
-                                horizontal: 16,
-                              ),
-                              decoration: BoxDecoration(
-                                borderRadius: AppDimensions.borderRadiusCard,
-                                border: Border.all(
-                                  color: Colors.white.withValues(alpha: 0.25),
-                                  width: 1.5,
-                                ),
-                              ),
-                              child: Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Container(
-                                    width: 56,
-                                    height: 56,
-                                    decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: Colors.white.withValues(
-                                        alpha: 0.2,
-                                      ),
-                                      border: Border.all(
-                                        color: Colors.white,
-                                        width: 2.5,
-                                      ),
-                                    ),
-                                    child: const Icon(
-                                      Icons.camera_alt_rounded,
-                                      color: Colors.white,
-                                      size: 30,
-                                    ),
-                                  ),
-                                  const SizedBox(width: 16),
-                                  Expanded(
-                                    child: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const Text(
-                                          'TIRAR FOTO DA VIA',
-                                          style: TextStyle(
-                                            color: Colors.white,
-                                            fontWeight: FontWeight.w800,
-                                            fontSize: 16,
-                                            letterSpacing: 0.8,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          'Câmera Principal • Geotagging GPS Ativo',
-                                          style: TextStyle(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.9,
-                                            ),
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.w600,
-                                          ),
-                                        ),
-                                        const SizedBox(height: 2),
-                                        Text(
-                                          'Toque para registrar buracos e anomalias na pista',
-                                          style: TextStyle(
-                                            color: Colors.white.withValues(
-                                              alpha: 0.75,
-                                            ),
-                                            fontSize: 11,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
+                        CameraCaptureControls(
+                          controller: _cameraController,
+                          mediaType: widget
+                              .configuracao
+                              .sensoresOpcionais
+                              .camera
+                              .mediaType,
+                          isVideoRecording: _isRecordingVideo,
+                          isBusy: _isCapturingMedia,
+                          videoElapsed: _videoElapsed,
+                          videoDurationSeconds: widget
+                              .configuracao
+                              .sensoresOpcionais
+                              .camera
+                              .videoDurationSeconds,
+                          errorMessage: _mediaError,
+                          onTakePhoto: _capturarFoto,
+                          onToggleVideo: _alternarVideo,
                         ),
                         if (_fotosCapturadas.isNotEmpty) ...[
                           const SizedBox(height: 12),
@@ -1027,7 +1639,10 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                                               ),
                                             ),
                                             Text(
-                                              'GPS: ${foto.latitude.toStringAsFixed(4)}, ${foto.longitude.toStringAsFixed(4)}',
+                                              foto.latitude == null ||
+                                                      foto.longitude == null
+                                                  ? 'GPS: indisponível'
+                                                  : 'GPS: ${foto.latitude!.toStringAsFixed(4)}, ${foto.longitude!.toStringAsFixed(4)}',
                                               style: TextStyle(
                                                 fontSize: 9,
                                                 color: colors.onSurfaceVariant,
@@ -1046,43 +1661,106 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                       ],
                     ),
                   ),
+                ],
 
-                  const SizedBox(height: AppDimensions.space24),
-
-                  // --- 6. BOTÃO PARA FINALIZAR COLETA ---
-                  SizedBox(
-                    width: double.infinity,
-                    height: AppDimensions.buttonHeight,
-                    child: FilledButton.icon(
-                      style: FilledButton.styleFrom(
-                        backgroundColor: colors.error,
-                        foregroundColor: colors.onError,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: AppDimensions.borderRadiusMedium,
+                if (widget.configuracao.sensoresSelecionados.contains(
+                  SensorColeta.audio,
+                )) ...[
+                  const SizedBox(height: AppDimensions.space16),
+                  Container(
+                    padding: const EdgeInsets.all(AppDimensions.space16),
+                    decoration: BoxDecoration(
+                      color: colors.surface,
+                      borderRadius: AppDimensions.borderRadiusCard,
+                      border: Border.all(color: colors.outlineVariant),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        AudioRecordingIndicator(
+                          isRecording: _isRecordingAudio,
+                          elapsed: _audioElapsed,
+                          maxDurationSeconds: widget
+                              .configuracao
+                              .sensoresOpcionais
+                              .audio
+                              .durationSeconds,
+                          amplitudeDb: _audioAmplitudeDb,
                         ),
-                      ),
-                      onPressed: _isFinalizing ? null : _confirmarFinalizacao,
-                      icon: const Icon(Icons.stop_circle_rounded, size: 22),
-                      label: const Text(
-                        'Finalizar Coleta',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          fontSize: 16,
+                        const SizedBox(height: 10),
+                        FilledButton.icon(
+                          key: const ValueKey('toggle-audio-recording'),
+                          onPressed: _isRecordingAudio
+                              ? () => unawaited(_stopAudioRecording())
+                              : () => unawaited(_captureAudio()),
+                          icon: Icon(
+                            _isRecordingAudio ? Icons.stop_rounded : Icons.mic,
+                          ),
+                          label: Text(
+                            _isRecordingAudio
+                                ? 'Parar áudio'
+                                : 'Iniciar gravação de áudio',
+                          ),
+                          style: FilledButton.styleFrom(
+                            backgroundColor: _isRecordingAudio
+                                ? colors.error
+                                : colors.primary,
+                          ),
                         ),
-                      ),
+                        if (_mediaError != null) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            _mediaError!,
+                            style: TextStyle(color: colors.error),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 ],
-              ),
+
+                const SizedBox(height: AppDimensions.space24),
+
+                // --- 6. BOTÃO PARA FINALIZAR COLETA ---
+                SizedBox(
+                  width: double.infinity,
+                  height: AppDimensions.buttonHeight,
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: colors.error,
+                      foregroundColor: colors.onError,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: AppDimensions.borderRadiusMedium,
+                      ),
+                    ),
+                    onPressed: _isFinalizing || _isStarting
+                        ? null
+                        : _runId == null
+                        ? _startRecording
+                        : _confirmarFinalizacao,
+                    icon: Icon(
+                      _runId == null
+                          ? Icons.refresh_rounded
+                          : Icons.stop_circle_rounded,
+                      size: 22,
+                    ),
+                    label: Text(
+                      _runId == null
+                          ? 'Tentar iniciar novamente'
+                          : _recordingError == null
+                          ? 'Finalizar Coleta'
+                          : 'Salvar dados parciais',
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
-          if (_flashAtivo)
-            Positioned.fill(
-              child: IgnorePointer(
-                child: Container(color: Colors.white.withValues(alpha: 0.65)),
-              ),
-            ),
-        ],
+        ),
       ),
     );
   }
@@ -1134,28 +1812,75 @@ class _ParamBadge extends StatelessWidget {
     final colors = context.colors;
     final typography = context.typography;
 
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
-      decoration: BoxDecoration(
-        color: colors.surfaceContainerHighest.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(8),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 168),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 8),
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHighest.withValues(alpha: 0.3),
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, size: 16, color: colors.primary),
+            const SizedBox(height: 4),
+            Text(
+              value,
+              style: typography.labelLarge?.copyWith(
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            Text(
+              label,
+              style: typography.bodySmall?.copyWith(fontSize: 10),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
       ),
-      child: Column(
-        children: [
-          Icon(icon, size: 16, color: colors.primary),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: typography.labelLarge?.copyWith(fontWeight: FontWeight.w700),
-          ),
-          Text(
-            label,
-            style: typography.bodySmall?.copyWith(fontSize: 10),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
+    );
+  }
+}
+
+class _StickyMetric extends StatelessWidget {
+  final String label;
+  final String value;
+  final IconData icon;
+
+  const _StickyMetric({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final typography = context.typography;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 13, color: colors.primary),
+            const SizedBox(width: 4),
+            Text(
+              label,
+              style: typography.labelSmall?.copyWith(
+                fontSize: 9,
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        Text(
+          value,
+          style: typography.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+        ),
+      ],
     );
   }
 }
@@ -1278,13 +2003,14 @@ class _OscilloscopePainter extends CustomPainter {
   bool shouldRepaint(covariant _OscilloscopePainter oldDelegate) => true;
 }
 
-/// Registro de foto capturada em pista com dados de geotagging (protótipo).
+/// Foto armazenada localmente junto aos metadados de captura.
 class _RegistroFoto {
   final int id;
   final DateTime timestamp;
-  final double latitude;
-  final double longitude;
+  final double? latitude;
+  final double? longitude;
   final double odometroKm;
+  final String filePath;
 
   const _RegistroFoto({
     required this.id,
@@ -1292,5 +2018,6 @@ class _RegistroFoto {
     required this.latitude,
     required this.longitude,
     required this.odometroKm,
+    required this.filePath,
   });
 }

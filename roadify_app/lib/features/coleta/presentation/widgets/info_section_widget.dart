@@ -10,7 +10,9 @@ import 'package:roadify_app/features/veiculos/viewmodels/vehicle_viewmodel.dart'
 import '../../../../core/theme/app_dimensions.dart';
 
 class IdentificacaoSectionWidget extends StatefulWidget {
-  const IdentificacaoSectionWidget({super.key});
+  final ValueChanged<CollectionIdentification> onChanged;
+
+  const IdentificacaoSectionWidget({super.key, required this.onChanged});
 
   @override
   State<IdentificacaoSectionWidget> createState() =>
@@ -27,13 +29,25 @@ class _IdentificacaoSectionWidgetState
     super.initState();
     _collectionNameController = TextEditingController(
       text: _formatDateTime(DateTime.now()),
-    );
+    )..addListener(_notifyChanged);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _notifyChanged());
   }
 
   @override
   void dispose() {
+    _collectionNameController.removeListener(_notifyChanged);
     _collectionNameController.dispose();
     super.dispose();
+  }
+
+  void _notifyChanged() {
+    if (!mounted) return;
+    widget.onChanged(
+      CollectionIdentification(
+        name: _collectionNameController.text.trim(),
+        vehicle: _selectedVehicle,
+      ),
+    );
   }
 
   static String _formatDateTime(DateTime dateTime) {
@@ -170,6 +184,7 @@ class _IdentificacaoSectionWidgetState
                         onVehicleSelected: (selectedVehicle) {
                           setState(() => _selectedVehicle = selectedVehicle);
                           fieldState.didChange(selectedVehicle);
+                          _notifyChanged();
                         },
                       ),
                       icon: const Icon(Icons.directions_car_rounded),
@@ -190,6 +205,7 @@ class _IdentificacaoSectionWidgetState
                       onVehicleSelected: (selectedVehicle) {
                         setState(() => _selectedVehicle = selectedVehicle);
                         fieldState.didChange(selectedVehicle);
+                        _notifyChanged();
                       },
                     ),
                   ),
@@ -212,4 +228,11 @@ class _IdentificacaoSectionWidgetState
       ],
     );
   }
+}
+
+class CollectionIdentification {
+  final String name;
+  final Vehicle? vehicle;
+
+  const CollectionIdentification({required this.name, required this.vehicle});
 }
