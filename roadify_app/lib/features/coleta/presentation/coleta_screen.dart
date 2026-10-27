@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:roadify_app/features/coleta/presentation/widgets/info_section_widget.dart';
-import 'package:roadify_app/features/coleta/presentation/widgets/info_footer_widget.dart';
 import 'package:roadify_app/features/coleta/presentation/widgets/parameters_section_widget.dart';
+import 'package:roadify_app/features/coleta/presentation/widgets/section_divider.dart';
 import 'package:roadify_app/features/coleta/viewmodels/coleta_viewmodel.dart';
 import '../../../core/theme/app_dimensions.dart';
-import 'gravacao_screen.dart';
+import '../../../core/theme/theme_extensions.dart';
+import '../../gravacao/gravacao_screen.dart';
 
 class ColetaScreen extends StatefulWidget {
   final ColetaViewModel? viewModel;
@@ -24,6 +25,8 @@ class _ColetaScreenState extends State<ColetaScreen> {
   };
   late final TextEditingController _frequenciaGpsController;
   late final TextEditingController _intervaloMetrosController;
+  OptionalSensorSettings _optionalSensorSettings =
+      const OptionalSensorSettings();
   int _taxaAquisicaoHz = 100;
   String? _erroSelecaoSensores;
   bool _isStartingRecording = false;
@@ -90,6 +93,7 @@ class _ColetaScreenState extends State<ColetaScreen> {
       taxaInercialHz: _taxaAquisicaoHz,
       taxaGpsHz: taxaGps,
       intervaloMetros: intervaloMetros,
+      sensoresOpcionais: _optionalSensorSettings,
     );
 
     setState(() => _isStartingRecording = true);
@@ -124,11 +128,22 @@ class _ColetaScreenState extends State<ColetaScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Nova Coleta'), centerTitle: false),
+      appBar: AppBar(
+        toolbarHeight: 76,
+        title: Text(
+          'Nova coleta',
+          style: context.typography.headlineSmall?.copyWith(
+            color: context.colors.primary,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+        centerTitle: false,
+      ),
       body: SafeArea(
         bottom: false,
         child: Form(
           key: _formKey,
+          autovalidateMode: AutovalidateMode.onUserInteraction,
           child: SingleChildScrollView(
             padding: const EdgeInsets.fromLTRB(
               AppDimensions.space20,
@@ -141,8 +156,10 @@ class _ColetaScreenState extends State<ColetaScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const IdentificacaoSectionWidget(), // Componente extraído
-                const SizedBox(height: AppDimensions.space24),
+                const IdentificacaoSectionWidget(),
+                const SizedBox(height: AppDimensions.space20),
+                const SectionDivider(icon: Icons.tune_rounded),
+                const SizedBox(height: AppDimensions.space20),
                 ParametersSectionWidget(
                   sensoresSelecionados: _sensoresSelecionados,
                   onSensorChanged: _alternarSensor,
@@ -151,10 +168,12 @@ class _ColetaScreenState extends State<ColetaScreen> {
                       setState(() => _taxaAquisicaoHz = taxa),
                   frequenciaGpsController: _frequenciaGpsController,
                   intervaloMetrosController: _intervaloMetrosController,
+                  optionalSensorSettings: _optionalSensorSettings,
+                  onOptionalSettingsChanged: (settings) {
+                    setState(() => _optionalSensorSettings = settings);
+                  },
                   erroSelecaoSensores: _erroSelecaoSensores,
                 ),
-                const SizedBox(height: AppDimensions.space24),
-                const InfoFooterWidget(), // Componente extraído
                 const SizedBox(height: AppDimensions.space32),
                 SizedBox(
                   width: double.infinity,

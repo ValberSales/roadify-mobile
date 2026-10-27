@@ -2,12 +2,12 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:sensors_plus/sensors_plus.dart';
-import '../../../core/database/app_database.dart';
-import '../../../core/database/daos/run_dao.dart';
-import '../../../core/di/setup_locator.dart';
-import '../../../core/theme/app_dimensions.dart';
-import '../../../core/theme/theme_extensions.dart';
-import '../viewmodels/coleta_viewmodel.dart';
+import '../../core/database/app_database.dart';
+import '../../core/database/daos/run_dao.dart';
+import '../../core/di/setup_locator.dart';
+import '../../core/theme/app_dimensions.dart';
+import '../../core/theme/theme_extensions.dart';
+import '../coleta/viewmodels/coleta_viewmodel.dart';
 import 'package:drift/drift.dart' show Value;
 
 /// Tela de Gravação e Telemetria em Pista (Cockpit HUD — RF04).
@@ -22,10 +22,7 @@ import 'package:drift/drift.dart' show Value;
 class GravacaoScreen extends StatefulWidget {
   final ConfiguracaoColeta configuracao;
 
-  const GravacaoScreen({
-    super.key,
-    required this.configuracao,
-  });
+  const GravacaoScreen({super.key, required this.configuracao});
 
   @override
   State<GravacaoScreen> createState() => _GravacaoScreenState();
@@ -119,9 +116,15 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
     _mockSensorTimer = Timer.periodic(const Duration(milliseconds: 50), (_) {
       if (!mounted) return;
       _mockPhase += 0.15;
-      final x = math.sin(_mockPhase) * 1.2 + (math.Random().nextDouble() - 0.5) * 0.4;
-      final y = math.cos(_mockPhase * 0.8) * 0.8 + (math.Random().nextDouble() - 0.5) * 0.3;
-      final z = 9.81 + math.sin(_mockPhase * 1.5) * 1.5 + (math.Random().nextDouble() - 0.5) * 0.5;
+      final x =
+          math.sin(_mockPhase) * 1.2 + (math.Random().nextDouble() - 0.5) * 0.4;
+      final y =
+          math.cos(_mockPhase * 0.8) * 0.8 +
+          (math.Random().nextDouble() - 0.5) * 0.3;
+      final z =
+          9.81 +
+          math.sin(_mockPhase * 1.5) * 1.5 +
+          (math.Random().nextDouble() - 0.5) * 0.5;
       _addSample(x, y, z);
     });
   }
@@ -164,6 +167,53 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
       return '${(bytes / 1024).toStringAsFixed(1)} KB';
     }
     return '${(bytes / (1024 * 1024)).toStringAsFixed(2)} MB';
+  }
+
+  String _intervalLabel(CaptureIntervalUnit unit) => switch (unit) {
+    CaptureIntervalUnit.minutes => 'min',
+    CaptureIntervalUnit.hours => 'h',
+    CaptureIntervalUnit.meters => 'm',
+    CaptureIntervalUnit.kilometers => 'km',
+  };
+
+  String _collectionSettingsSummary() {
+    final config = widget.configuracao;
+    final optional = config.sensoresOpcionais;
+    final details = <String>[];
+
+    if (config.sensoresSelecionados.contains(SensorColeta.giroscopio)) {
+      details.add('Giroscópio ${optional.gyroscopeFrequencyHz} Hz');
+    }
+    if (config.sensoresSelecionados.contains(SensorColeta.camera)) {
+      final media = switch (optional.camera.mediaType) {
+        CameraMediaType.photos => 'fotos',
+        CameraMediaType.videos => 'vídeos',
+        CameraMediaType.photosAndVideos => 'fotos e vídeos',
+      };
+      final facing = switch (optional.camera.facing) {
+        CameraFacing.front => 'frontal',
+        CameraFacing.rear => 'traseira',
+      };
+      final schedule = optional.camera.automatic
+          ? ' • automático a cada ${optional.camera.interval}'
+                ' ${_intervalLabel(optional.camera.intervalUnit)}'
+          : '';
+      final videoDuration = optional.camera.mediaType == CameraMediaType.photos
+          ? ''
+          : ' • vídeo até ${optional.camera.videoDurationSeconds}s';
+      details.add('Câmera $facing: $media$videoDuration$schedule');
+    }
+    if (config.sensoresSelecionados.contains(SensorColeta.audio)) {
+      details.add(
+        optional.audio.automatic
+            ? 'Áudio: a cada ${optional.audio.interval}'
+                  ' ${_intervalLabel(optional.audio.intervalUnit)}, '
+                  '${optional.audio.durationSeconds}s'
+            : 'Áudio: acionamento manual',
+      );
+    }
+
+    return details.join(' • ');
   }
 
   void _capturarFoto() {
@@ -264,7 +314,9 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
               'Longitude: ${foto.longitude.toStringAsFixed(6)}',
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
-            Text('Odômetro estimado: ${foto.odometroKm.toStringAsFixed(2)} km'),
+            Text(
+              'Kilometragem estimada: ${foto.odometroKm.toStringAsFixed(2)} km',
+            ),
             Text(
               'Horário: ${foto.timestamp.hour.toString().padLeft(2, '0')}:${foto.timestamp.minute.toString().padLeft(2, '0')}:${foto.timestamp.second.toString().padLeft(2, '0')}',
             ),
@@ -339,15 +391,24 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
         final fotosDescricao = _fotosCapturadas.isNotEmpty
             ? ' • ${_fotosCapturadas.length} fotos geotagged'
             : '';
+        final optionalSettingsSummary = _collectionSettingsSummary();
 
         await dao.insertRun(
           RunsTableCompanion.insert(
-            title: Value('Ensaio Pista • ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}'),
+            title: Value(
+              'Ensaio Pista • ${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}',
+            ),
             recordedAt: Value(now),
             odometer: const Value(14250.0),
-            distanceKm: Value(double.parse(distanceEstimate.toStringAsFixed(2))),
+            distanceKm: Value(
+              double.parse(distanceEstimate.toStringAsFixed(2)),
+            ),
             isSynced: const Value(false),
-            notes: Value('Coleta com ${widget.configuracao.taxaInercialHz} Hz e ${widget.configuracao.taxaGpsHz} Hz GPS$fotosDescricao'),
+            notes: Value(
+              'Coleta com ${widget.configuracao.taxaInercialHz} Hz e '
+              '${widget.configuracao.taxaGpsHz} Hz GPS$fotosDescricao'
+              '${optionalSettingsSummary.isEmpty ? '' : ' • $optionalSettingsSummary'}',
+            ),
           ),
         );
       }
@@ -359,7 +420,9 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Ensaio finalizado e gravado com sucesso no banco de dados!'),
+        content: Text(
+          'Ensaio finalizado e gravado com sucesso no banco de dados!',
+        ),
         backgroundColor: Colors.green,
       ),
     );
@@ -418,7 +481,10 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                 children: [
                   // --- 1. CRONÔMETRO DECORRIDO ---
                   Container(
-                    padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 20,
+                      horizontal: 16,
+                    ),
                     decoration: BoxDecoration(
                       color: colors.surface,
                       borderRadius: AppDimensions.borderRadiusCard,
@@ -461,11 +527,17 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                       children: [
                         Row(
                           children: [
-                            Icon(Icons.tune_rounded, size: 18, color: colors.primary),
+                            Icon(
+                              Icons.tune_rounded,
+                              size: 18,
+                              color: colors.primary,
+                            ),
                             const SizedBox(width: 8),
                             Text(
                               'Parâmetros da Coleta',
-                              style: typography.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                              style: typography.titleSmall?.copyWith(
+                                fontWeight: FontWeight.w700,
+                              ),
                             ),
                           ],
                         ),
@@ -475,7 +547,8 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                             Expanded(
                               child: _ParamBadge(
                                 label: 'Acelerômetro',
-                                value: '${widget.configuracao.taxaInercialHz} Hz',
+                                value:
+                                    '${widget.configuracao.taxaInercialHz} Hz',
                                 icon: Icons.speed_rounded,
                               ),
                             ),
@@ -491,7 +564,8 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                             Expanded(
                               child: _ParamBadge(
                                 label: 'Intervalo',
-                                value: '${widget.configuracao.intervaloMetros.toStringAsFixed(0)} m',
+                                value:
+                                    '${widget.configuracao.intervaloMetros.toStringAsFixed(0)} m',
                                 icon: Icons.straighten_rounded,
                               ),
                             ),
@@ -501,35 +575,52 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                         Wrap(
                           spacing: 6,
                           runSpacing: 6,
-                          children: widget.configuracao.sensoresSelecionados.map((s) {
-                            return Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              decoration: BoxDecoration(
-                                color: colors.primary.withValues(alpha: 0.1),
-                                borderRadius: BorderRadius.circular(6),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    _iconForSensor(s),
-                                    size: 14,
-                                    color: colors.primary,
+                          children: widget.configuracao.sensoresSelecionados
+                              .map((s) {
+                                return Container(
+                                  padding: const EdgeInsets.symmetric(
+                                    horizontal: 8,
+                                    vertical: 4,
                                   ),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _nameForSensor(s),
-                                    style: TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.w600,
-                                      color: colors.primary,
+                                  decoration: BoxDecoration(
+                                    color: colors.primary.withValues(
+                                      alpha: 0.1,
                                     ),
+                                    borderRadius: BorderRadius.circular(6),
                                   ),
-                                ],
-                              ),
-                            );
-                          }).toList(),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      Icon(
+                                        _iconForSensor(s),
+                                        size: 14,
+                                        color: colors.primary,
+                                      ),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        _nameForSensor(s),
+                                        style: TextStyle(
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                          color: colors.primary,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                );
+                              })
+                              .toList(),
                         ),
+                        if (_collectionSettingsSummary().isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Text(
+                            _collectionSettingsSummary(),
+                            key: const ValueKey('optional-capture-settings'),
+                            style: typography.bodySmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -553,12 +644,18 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                             children: [
                               Row(
                                 children: [
-                                  Icon(Icons.sd_storage_outlined, size: 16, color: colors.primary),
+                                  Icon(
+                                    Icons.sd_storage_outlined,
+                                    size: 16,
+                                    color: colors.primary,
+                                  ),
                                   const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
                                       'Arquivo / Espaço',
-                                      style: typography.labelSmall?.copyWith(fontWeight: FontWeight.w700),
+                                      style: typography.labelSmall?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
@@ -567,12 +664,16 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                               const SizedBox(height: 8),
                               Text(
                                 _formatFileSize(_fileSizeBytes),
-                                style: typography.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                                style: typography.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                               const SizedBox(height: 2),
                               Text(
                                 '$_freeStoragePercent% livre ($_freeStorageGb GB)',
-                                style: typography.bodySmall?.copyWith(fontSize: 11),
+                                style: typography.bodySmall?.copyWith(
+                                  fontSize: 11,
+                                ),
                                 overflow: TextOverflow.ellipsis,
                               ),
                             ],
@@ -594,12 +695,18 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                             children: [
                               Row(
                                 children: [
-                                  const Icon(Icons.thermostat_rounded, size: 16, color: Colors.teal),
+                                  const Icon(
+                                    Icons.thermostat_rounded,
+                                    size: 16,
+                                    color: Colors.teal,
+                                  ),
                                   const SizedBox(width: 6),
                                   Expanded(
                                     child: Text(
                                       'Temperatura',
-                                      style: typography.labelSmall?.copyWith(fontWeight: FontWeight.w700),
+                                      style: typography.labelSmall?.copyWith(
+                                        fontWeight: FontWeight.w700,
+                                      ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
@@ -608,7 +715,9 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                               const SizedBox(height: 8),
                               Text(
                                 '${_phoneTemperatureC.toStringAsFixed(1)} °C',
-                                style: typography.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                                style: typography.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w800,
+                                ),
                               ),
                               const SizedBox(height: 2),
                               Text(
@@ -644,22 +753,40 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.show_chart_rounded, size: 18, color: colors.primary),
+                                Icon(
+                                  Icons.show_chart_rounded,
+                                  size: 18,
+                                  color: colors.primary,
+                                ),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Acelerômetro ao Vivo',
-                                  style: typography.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                                  style: typography.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ],
                             ),
                             // Valores numéricos instantâneos
                             Row(
                               children: [
-                                _AxisValueBadge(label: 'X', value: _currentX, color: const Color(0xFF10B981)),
+                                _AxisValueBadge(
+                                  label: 'X',
+                                  value: _currentX,
+                                  color: const Color(0xFF10B981),
+                                ),
                                 const SizedBox(width: 6),
-                                _AxisValueBadge(label: 'Y', value: _currentY, color: const Color(0xFF06B6D4)),
+                                _AxisValueBadge(
+                                  label: 'Y',
+                                  value: _currentY,
+                                  color: const Color(0xFF06B6D4),
+                                ),
                                 const SizedBox(width: 6),
-                                _AxisValueBadge(label: 'Z', value: _currentZ, color: const Color(0xFFF59E0B)),
+                                _AxisValueBadge(
+                                  label: 'Z',
+                                  value: _currentZ,
+                                  color: const Color(0xFFF59E0B),
+                                ),
                               ],
                             ),
                           ],
@@ -678,7 +805,9 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                                 colorX: const Color(0xFF10B981),
                                 colorY: const Color(0xFF06B6D4),
                                 colorZ: const Color(0xFFF59E0B),
-                                gridColor: colors.outlineVariant.withValues(alpha: 0.5),
+                                gridColor: colors.outlineVariant.withValues(
+                                  alpha: 0.5,
+                                ),
                                 backgroundColor: context.isDarkMode
                                     ? const Color(0xFF0D1F18)
                                     : const Color(0xFFF1F5F3),
@@ -713,16 +842,25 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                           children: [
                             Row(
                               children: [
-                                Icon(Icons.add_a_photo_rounded, size: 18, color: colors.primary),
+                                Icon(
+                                  Icons.add_a_photo_rounded,
+                                  size: 18,
+                                  color: colors.primary,
+                                ),
                                 const SizedBox(width: 8),
                                 Text(
                                   'Registro Fotográfico de Ocorrências',
-                                  style: typography.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                                  style: typography.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
                                 ),
                               ],
                             ),
                             Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 3,
+                              ),
                               decoration: BoxDecoration(
                                 color: _fotosCapturadas.isEmpty
                                     ? colors.surfaceContainerHighest
@@ -753,9 +891,14 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                             onTap: _capturarFoto,
                             borderRadius: AppDimensions.borderRadiusCard,
                             splashColor: Colors.white.withValues(alpha: 0.3),
-                            highlightColor: Colors.white.withValues(alpha: 0.15),
+                            highlightColor: Colors.white.withValues(
+                              alpha: 0.15,
+                            ),
                             child: Container(
-                              padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 18,
+                                horizontal: 16,
+                              ),
                               decoration: BoxDecoration(
                                 borderRadius: AppDimensions.borderRadiusCard,
                                 border: Border.all(
@@ -771,8 +914,13 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                                     height: 56,
                                     decoration: BoxDecoration(
                                       shape: BoxShape.circle,
-                                      color: Colors.white.withValues(alpha: 0.2),
-                                      border: Border.all(color: Colors.white, width: 2.5),
+                                      color: Colors.white.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                      border: Border.all(
+                                        color: Colors.white,
+                                        width: 2.5,
+                                      ),
                                     ),
                                     child: const Icon(
                                       Icons.camera_alt_rounded,
@@ -783,7 +931,8 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                                   const SizedBox(width: 16),
                                   Expanded(
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
                                       children: [
                                         const Text(
                                           'TIRAR FOTO DA VIA',
@@ -798,7 +947,9 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                                         Text(
                                           'Câmera Principal • Geotagging GPS Ativo',
                                           style: TextStyle(
-                                            color: Colors.white.withValues(alpha: 0.9),
+                                            color: Colors.white.withValues(
+                                              alpha: 0.9,
+                                            ),
                                             fontSize: 12,
                                             fontWeight: FontWeight.w600,
                                           ),
@@ -807,7 +958,9 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                                         Text(
                                           'Toque para registrar buracos e anomalias na pista',
                                           style: TextStyle(
-                                            color: Colors.white.withValues(alpha: 0.75),
+                                            color: Colors.white.withValues(
+                                              alpha: 0.75,
+                                            ),
                                             fontSize: 11,
                                           ),
                                         ),
@@ -826,7 +979,8 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                             child: ListView.separated(
                               scrollDirection: Axis.horizontal,
                               itemCount: _fotosCapturadas.length,
-                              separatorBuilder: (_, _) => const SizedBox(width: 8),
+                              separatorBuilder: (_, _) =>
+                                  const SizedBox(width: 8),
                               itemBuilder: (context, index) {
                                 final foto = _fotosCapturadas[index];
                                 final hora =
@@ -835,22 +989,35 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                                   onTap: () => _exibirDetalhesFoto(foto),
                                   borderRadius: BorderRadius.circular(8),
                                   child: Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 10,
+                                      vertical: 6,
+                                    ),
                                     decoration: BoxDecoration(
-                                      color: colors.primary.withValues(alpha: 0.08),
+                                      color: colors.primary.withValues(
+                                        alpha: 0.08,
+                                      ),
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(
-                                        color: colors.primary.withValues(alpha: 0.25),
+                                        color: colors.primary.withValues(
+                                          alpha: 0.25,
+                                        ),
                                       ),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
-                                        const Icon(Icons.photo_camera_rounded, size: 16, color: Colors.teal),
+                                        const Icon(
+                                          Icons.photo_camera_rounded,
+                                          size: 16,
+                                          color: Colors.teal,
+                                        ),
                                         const SizedBox(width: 6),
                                         Column(
-                                          crossAxisAlignment: CrossAxisAlignment.start,
-                                          mainAxisAlignment: MainAxisAlignment.center,
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.start,
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
                                           children: [
                                             Text(
                                               'Foto #${foto.id} • $hora',
@@ -898,7 +1065,10 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                       icon: const Icon(Icons.stop_circle_rounded, size: 22),
                       label: const Text(
                         'Finalizar Coleta',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          fontSize: 16,
+                        ),
                       ),
                     ),
                   ),
@@ -909,9 +1079,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
           if (_flashAtivo)
             Positioned.fill(
               child: IgnorePointer(
-                child: Container(
-                  color: Colors.white.withValues(alpha: 0.65),
-                ),
+                child: Container(color: Colors.white.withValues(alpha: 0.65)),
               ),
             ),
         ],
@@ -1048,10 +1216,7 @@ class _OscilloscopePainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     // Fundo
-    canvas.drawRect(
-      Offset.zero & size,
-      Paint()..color = backgroundColor,
-    );
+    canvas.drawRect(Offset.zero & size, Paint()..color = backgroundColor);
 
     // Linha central de zero (referência)
     final centerY = size.height / 2;
@@ -1060,8 +1225,16 @@ class _OscilloscopePainter extends CustomPainter {
       ..strokeWidth = 1.0;
 
     canvas.drawLine(Offset(0, centerY), Offset(size.width, centerY), gridPaint);
-    canvas.drawLine(Offset(0, centerY - size.height * 0.35), Offset(size.width, centerY - size.height * 0.35), gridPaint);
-    canvas.drawLine(Offset(0, centerY + size.height * 0.35), Offset(size.width, centerY + size.height * 0.35), gridPaint);
+    canvas.drawLine(
+      Offset(0, centerY - size.height * 0.35),
+      Offset(size.width, centerY - size.height * 0.35),
+      gridPaint,
+    );
+    canvas.drawLine(
+      Offset(0, centerY + size.height * 0.35),
+      Offset(size.width, centerY + size.height * 0.35),
+      gridPaint,
+    );
 
     if (bufferX.length < 2) return;
 
