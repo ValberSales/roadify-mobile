@@ -32,4 +32,16 @@ class RunsTable extends Table {
 
   // Data/hora em que a sincronização com a nuvem foi confirmada
   DateTimeColumn get syncedAt => dateTime().nullable()();
+
+  DateTimeColumn get endedAt => dateTime().nullable()();
+  IntColumn get durationSeconds => integer().withDefault(const Constant(0))();
+  TextColumn get configurationJson => text().nullable()();
+  TextColumn get deviceManufacturer => text().nullable()();
+  TextColumn get deviceModel => text().nullable()();
+  IntColumn get initialBatteryPercent => integer().nullable()();
+  RealColumn get initialBatteryTemperatureC => real().nullable()();
+  IntColumn get accelerometerSampleCount =>
+      integer().withDefault(const Constant(0))();
+  IntColumn get gpsPointCount => integer().withDefault(const Constant(0))();
+  IntColumn get mediaCount => integer().withDefault(const Constant(0))();
 }

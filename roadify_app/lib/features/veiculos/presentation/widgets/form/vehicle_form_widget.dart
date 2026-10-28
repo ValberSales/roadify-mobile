@@ -261,7 +261,7 @@ class _FormInputFields extends StatelessWidget {
         TextFormField(
           controller: controller.odometroController,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Odômetro Padrão (km)'),
+          decoration: const InputDecoration(labelText: 'Kilometragem Padrão (km)'),
           validator: controller.validateOdometer,
         ),
         const SizedBox(height: 16),
