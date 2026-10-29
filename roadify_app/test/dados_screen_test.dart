@@ -61,6 +61,14 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
+      // Verifica que a frase redundante foi removida e não há overflow ao lado do botão Ordenar
+      expect(
+        find.text('Toque em um ensaio para ver os detalhes'),
+        findsNothing,
+      );
+      expect(find.text('Ordenar'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+
       // Verifica que o card do ensaio é exibido na lista
       final cardFinder = find.byKey(ValueKey('run-item-card-$runId'));
       expect(cardFinder, findsOneWidget);

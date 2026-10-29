@@ -267,7 +267,6 @@ class RunExportService {
       'initialOdometerKm': run.odometer,
       'distanceKm': run.distanceKm,
       'notes': run.notes,
-      'synced': run.isSynced,
       'device': {
         'manufacturer': run.deviceManufacturer,
         'model': run.deviceModel,

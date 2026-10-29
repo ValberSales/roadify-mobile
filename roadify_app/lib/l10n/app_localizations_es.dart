@@ -15,13 +15,6 @@ class AppLocalizationsEs extends AppLocalizations {
   String get settingsTitle => 'Configuración';
 
   @override
-  String get userAccountTitle => 'Cuenta de Usuario';
-
-  @override
-  String get userAccountSubtitle =>
-      'Iniciar sesión o crear cuenta para sincronizar';
-
-  @override
   String get appearanceAndThemeTitle => 'Apariencia y Tema';
 
   @override
@@ -51,16 +44,4 @@ class AppLocalizationsEs extends AppLocalizations {
 
   @override
   String get systemLanguageLabel => 'Idioma del Sistema';
-
-  @override
-  String get serverConnectionTitle => 'Conexión al Servidor';
-
-  @override
-  String get apiEndpointLabel => 'Endpoint de la API Roadify';
-
-  @override
-  String get wifiOnlySyncTitle => 'Sincronizar solo con Wi-Fi';
-
-  @override
-  String get wifiOnlySyncSubtitle => 'Ahorra plan de datos móviles';
 }

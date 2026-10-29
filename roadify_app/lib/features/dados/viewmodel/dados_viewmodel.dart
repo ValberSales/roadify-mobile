@@ -46,7 +46,6 @@ class RunListItem {
   final double km;
   final double initialOdometer;
   final double sizeMb;
-  final bool isSynced;
   final bool isFinished;
   final int accelerometerSampleCount;
   final int gpsPointCount;
@@ -63,7 +62,6 @@ class RunListItem {
     required this.createdAt,
     required this.km,
     required this.sizeMb,
-    required this.isSynced,
     required this.isFinished,
     this.endedAt,
     this.initialOdometer = 0.0,
@@ -244,7 +242,6 @@ class DadosViewModel extends ChangeNotifier {
             km: r.distanceKm,
             initialOdometer: r.odometer,
             sizeMb: totalBytes / (1024 * 1024),
-            isSynced: r.isSynced,
             isFinished: r.endedAt != null,
             accelerometerSampleCount: r.accelerometerSampleCount,
             gpsPointCount: r.gpsPointCount,

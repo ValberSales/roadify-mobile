@@ -107,6 +107,13 @@ void main() {
       expect(find.text('Settings'), findsOneWidget);
       expect(find.text('Default Vehicle'), findsOneWidget);
       expect(find.text('System Language'), findsOneWidget);
+
+      // 3. Confirma ausência de seções de conta de usuário, servidor e sincronização (standalone)
+      expect(find.text('Conta de Usuário'), findsNothing);
+      expect(find.text('User Account'), findsNothing);
+      expect(find.text('Conexão com o Servidor'), findsNothing);
+      expect(find.text('Server Connection'), findsNothing);
+      expect(find.text('Endpoint da API Roadify'), findsNothing);
     },
   );
 }

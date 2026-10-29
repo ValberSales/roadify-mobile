@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
@@ -362,25 +363,86 @@ class _SensoresScreenState extends State<SensoresScreen>
                 child: Column(
                   children: [
                     _SensorLiveCard(
+                      key: const ValueKey('live-card-accelerometer'),
                       title: 'Acelerômetro (m/s²)',
                       values:
                           'X: ${_formatSigned(state.accelX)} | Y: ${_formatSigned(state.accelY)} | Z: ${_formatSigned(state.accelZ)}',
                       color: colors.primary,
+                      chart: _LiveWaveformChart(
+                        key: const ValueKey('live-chart-accelerometer'),
+                        sampleTick: _viewModel.sampleTick,
+                        minValue: -12.0,
+                        maxValue: 12.0,
+                        unitLabel: 'm/s²',
+                        series: [
+                          _WaveformSeries(
+                            label: 'Eixo X',
+                            color: const Color(0xFFEF4444),
+                            values: _viewModel.signalHistory
+                                .map((s) => s.accelX)
+                                .toList(growable: false),
+                          ),
+                          _WaveformSeries(
+                            label: 'Eixo Y',
+                            color: const Color(0xFF3B82F6),
+                            values: _viewModel.signalHistory
+                                .map((s) => s.accelY)
+                                .toList(growable: false),
+                          ),
+                          _WaveformSeries(
+                            label: 'Eixo Z',
+                            color: colors.primary,
+                            values: _viewModel.signalHistory
+                                .map((s) => s.accelZ)
+                                .toList(growable: false),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: AppDimensions.space16),
                     _SensorLiveCard(
+                      key: const ValueKey('live-card-inclination'),
                       title: 'Inclinação Compensada (Graus)',
                       values:
                           'Roll (X): ${_formatSigned(state.calibratedAngleX, decimals: 1)}° | Pitch (Y): ${_formatSigned(state.calibratedAngleY, decimals: 1)}°',
                       color: AppColors.secondary,
+                      chart: _LiveWaveformChart(
+                        key: const ValueKey('live-chart-inclination'),
+                        sampleTick: _viewModel.sampleTick,
+                        minValue: -30.0,
+                        maxValue: 30.0,
+                        unitLabel: '°',
+                        series: [
+                          _WaveformSeries(
+                            label: 'Roll (X)',
+                            color: AppColors.secondary,
+                            values: _viewModel.signalHistory
+                                .map((s) => s.roll)
+                                .toList(growable: false),
+                          ),
+                          _WaveformSeries(
+                            label: 'Pitch (Y)',
+                            color: colors.primary,
+                            values: _viewModel.signalHistory
+                                .map((s) => s.pitch)
+                                .toList(growable: false),
+                          ),
+                        ],
+                      ),
                     ),
                     const SizedBox(height: AppDimensions.space16),
                     _SensorLiveCard(
+                      key: const ValueKey('live-card-tare'),
                       title: 'Referência de Tara Angular',
                       values: state.isCalibrated
                           ? 'Ativa • Offset X: ${_formatSigned(state.calibOffsetX, decimals: 1)}° | Offset Y: ${_formatSigned(state.calibOffsetY, decimals: 1)}°'
                           : 'Padrão de fábrica (0,0° / 0,0°)',
                       color: context.roadQualityColors.boa,
+                      chart: _TareReferenceBarChart(
+                        offsetX: state.calibOffsetX,
+                        offsetY: state.calibOffsetY,
+                        isCalibrated: state.isCalibrated,
+                      ),
                     ),
                   ],
                 ),
@@ -471,11 +533,14 @@ class _SensorLiveCard extends StatelessWidget {
   final String title;
   final String values;
   final Color color;
+  final Widget chart;
 
   const _SensorLiveCard({
+    super.key,
     required this.title,
     required this.values,
     required this.color,
+    required this.chart,
   });
 
   @override
@@ -497,7 +562,14 @@ class _SensorLiveCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(title, style: typography.titleMedium),
+              Expanded(
+                child: Text(
+                  title,
+                  style: typography.titleMedium,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
@@ -516,25 +588,362 @@ class _SensorLiveCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: AppDimensions.space12),
-          Container(
-            height: 70,
-            width: double.infinity,
-            decoration: BoxDecoration(
-              color: colors.surfaceContainerHighest.withValues(alpha: 0.3),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Center(
-              child: Icon(
-                Icons.show_chart_rounded,
-                size: 48,
-                color: color.withValues(alpha: 0.6),
-              ),
-            ),
-          ),
+          chart,
           const SizedBox(height: AppDimensions.space8),
           Text(
             values,
             style: typography.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _WaveformSeries {
+  final String label;
+  final Color color;
+  final List<double> values;
+
+  const _WaveformSeries({
+    required this.label,
+    required this.color,
+    required this.values,
+  });
+}
+
+/// Gráfico temporal ao vivo (osciloscópio multicanal) renderizado via [CustomPaint].
+class _LiveWaveformChart extends StatelessWidget {
+  final List<_WaveformSeries> series;
+  final int sampleTick;
+  final double minValue;
+  final double maxValue;
+  final String unitLabel;
+
+  const _LiveWaveformChart({
+    super.key,
+    required this.series,
+    required this.sampleTick,
+    required this.minValue,
+    required this.maxValue,
+    required this.unitLabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+
+    return Container(
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: colors.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Legenda dos eixos
+          Wrap(
+            spacing: 12,
+            runSpacing: 4,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < series.length; i++) ...[
+                    if (i > 0) const SizedBox(width: 10),
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: BoxDecoration(
+                        color: series[i].color,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      series[i].label,
+                      style: TextStyle(
+                        fontSize: 10.5,
+                        fontWeight: FontWeight.w700,
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              Text(
+                '${minValue.toStringAsFixed(0)}$unitLabel a +${maxValue.toStringAsFixed(0)}$unitLabel',
+                style: TextStyle(
+                  fontSize: 10,
+                  color: colors.onSurfaceVariant.withValues(alpha: 0.75),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 110,
+            width: double.infinity,
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(6),
+              child: CustomPaint(
+                painter: _LiveWaveformPainter(
+                  series: series,
+                  sampleTick: sampleTick,
+                  minValue: minValue,
+                  maxValue: maxValue,
+                  gridColor: colors.outlineVariant.withValues(alpha: 0.45),
+                  zeroLineColor: colors.onSurfaceVariant.withValues(alpha: 0.4),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LiveWaveformPainter extends CustomPainter {
+  final List<_WaveformSeries> series;
+  final int sampleTick;
+  final double minValue;
+  final double maxValue;
+  final Color gridColor;
+  final Color zeroLineColor;
+
+  const _LiveWaveformPainter({
+    required this.series,
+    required this.sampleTick,
+    required this.minValue,
+    required this.maxValue,
+    required this.gridColor,
+    required this.zeroLineColor,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final gridPaint = Paint()
+      ..color = gridColor
+      ..strokeWidth = 0.8;
+
+    // Linhas horizontais de grade (25%, 50%, 75%)
+    for (final ratio in const [0.2, 0.5, 0.8]) {
+      final y = size.height * ratio;
+      canvas.drawLine(
+        Offset(0, y),
+        Offset(size.width, y),
+        ratio == 0.5
+            ? (Paint()
+                ..color = zeroLineColor
+                ..strokeWidth = 1.1)
+            : gridPaint,
+      );
+    }
+
+    // Linhas verticais de grade com deslocamento contínuo (osciloscópio)
+    const verticalDivisions = 6;
+    final stepX = size.width / verticalDivisions;
+    final shift = (sampleTick % 10) / 10.0 * stepX;
+    for (var i = 0; i <= verticalDivisions + 1; i++) {
+      final x = (i * stepX) - shift;
+      if (x >= 0 && x <= size.width) {
+        canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
+      }
+    }
+
+    // Calcula alcance dinâmico caso valores ultrapassem [minValue, maxValue]
+    var effectiveMin = minValue;
+    var effectiveMax = maxValue;
+    for (final s in series) {
+      for (final v in s.values) {
+        if (v < effectiveMin) effectiveMin = v - 2.0;
+        if (v > effectiveMax) effectiveMax = v + 2.0;
+      }
+    }
+    final range = math.max(1e-3, effectiveMax - effectiveMin);
+
+    double mapY(double value) {
+      final normalized = (value - effectiveMin) / range;
+      return (size.height - 6) - (normalized.clamp(0.0, 1.0) * (size.height - 12));
+    }
+
+    for (final s in series) {
+      if (s.values.isEmpty) continue;
+
+      final linePaint = Paint()
+        ..color = s.color
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.2
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round;
+
+      final path = Path();
+      final count = s.values.length;
+      Offset lastPoint = Offset.zero;
+
+      for (var i = 0; i < count; i++) {
+        final x = count == 1 ? size.width : (i / (count - 1)) * (size.width - 6);
+        final y = mapY(s.values[i]);
+        final pt = Offset(x, y);
+        if (i == 0) {
+          path.moveTo(pt.dx, pt.dy);
+        } else {
+          path.lineTo(pt.dx, pt.dy);
+        }
+        lastPoint = pt;
+      }
+
+      canvas.drawPath(path, linePaint);
+
+      // Ponto luminoso na extremidade direita (leitura mais recente)
+      final glowPaint = Paint()
+        ..color = s.color.withValues(alpha: 0.28)
+        ..style = PaintingStyle.fill;
+      final dotPaint = Paint()
+        ..color = s.color
+        ..style = PaintingStyle.fill;
+
+      canvas.drawCircle(lastPoint, 6.0, glowPaint);
+      canvas.drawCircle(lastPoint, 3.2, dotPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _LiveWaveformPainter oldDelegate) {
+    return oldDelegate.sampleTick != sampleTick ||
+        oldDelegate.series != series ||
+        oldDelegate.minValue != minValue ||
+        oldDelegate.maxValue != maxValue;
+  }
+}
+
+/// Visualizador gráfico de barras de compensação para a Referência de Tara Angular.
+class _TareReferenceBarChart extends StatelessWidget {
+  final double offsetX;
+  final double offsetY;
+  final bool isCalibrated;
+
+  const _TareReferenceBarChart({
+    required this.offsetX,
+    required this.offsetY,
+    required this.isCalibrated,
+  });
+
+  Widget _buildOffsetRow(
+    BuildContext context, {
+    required String label,
+    required double offsetDeg,
+    required Color color,
+  }) {
+    final colors = context.colors;
+    // Normaliza em uma escala visual de -45° a +45°
+    final clamped = (offsetDeg / 45.0).clamp(-1.0, 1.0);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+                color: colors.onSurfaceVariant,
+              ),
+            ),
+            Text(
+              '${offsetDeg >= 0 ? '+' : ''}${offsetDeg.toStringAsFixed(1)}°',
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w800,
+                color: isCalibrated ? color : colors.onSurfaceVariant,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 4),
+        SizedBox(
+          height: 10,
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final halfWidth = constraints.maxWidth / 2;
+              final barWidth = (clamped.abs() * halfWidth).clamp(2.0, halfWidth);
+              final left = clamped >= 0 ? halfWidth : halfWidth - barWidth;
+              return Stack(
+                children: [
+                  Container(
+                    decoration: BoxDecoration(
+                      color: colors.surfaceContainerHighest,
+                      borderRadius: BorderRadius.circular(5),
+                    ),
+                  ),
+                  Positioned(
+                    left: halfWidth - 0.5,
+                    top: 0,
+                    bottom: 0,
+                    child: Container(
+                      width: 1,
+                      color: colors.onSurfaceVariant.withValues(alpha: 0.5),
+                    ),
+                  ),
+                  Positioned(
+                    left: left,
+                    top: 1,
+                    bottom: 1,
+                    width: barWidth,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: isCalibrated ? color : colors.outline,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = context.colors;
+    final goodColor = context.roadQualityColors.boa;
+
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerHighest.withValues(alpha: 0.35),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(
+          color: colors.outlineVariant.withValues(alpha: 0.5),
+        ),
+      ),
+      child: Column(
+        children: [
+          _buildOffsetRow(
+            context,
+            label: 'Compensação Eixo X (Roll)',
+            offsetDeg: offsetX,
+            color: goodColor,
+          ),
+          const SizedBox(height: 10),
+          _buildOffsetRow(
+            context,
+            label: 'Compensação Eixo Y (Pitch)',
+            offsetDeg: offsetY,
+            color: AppColors.secondary,
           ),
         ],
       ),

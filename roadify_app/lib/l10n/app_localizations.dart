@@ -112,18 +112,6 @@ abstract class AppLocalizations {
   /// **'Configurações'**
   String get settingsTitle;
 
-  /// Título do card de conta de usuário
-  ///
-  /// In pt, this message translates to:
-  /// **'Conta de Usuário'**
-  String get userAccountTitle;
-
-  /// Subtítulo do card de conta de usuário
-  ///
-  /// In pt, this message translates to:
-  /// **'Entrar ou criar conta para sincronizar'**
-  String get userAccountSubtitle;
-
   /// Título da seção de aparência e tema
   ///
   /// In pt, this message translates to:
@@ -183,30 +171,6 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Idioma do Sistema'**
   String get systemLanguageLabel;
-
-  /// Título da seção de conexão com o servidor
-  ///
-  /// In pt, this message translates to:
-  /// **'Conexão com o Servidor'**
-  String get serverConnectionTitle;
-
-  /// Rótulo do endpoint da API
-  ///
-  /// In pt, this message translates to:
-  /// **'Endpoint da API Roadify'**
-  String get apiEndpointLabel;
-
-  /// Título da opção de sincronizar apenas no Wi-Fi
-  ///
-  /// In pt, this message translates to:
-  /// **'Sincronizar apenas no Wi-Fi'**
-  String get wifiOnlySyncTitle;
-
-  /// Subtítulo da opção de sincronizar apenas no Wi-Fi
-  ///
-  /// In pt, this message translates to:
-  /// **'Economiza franquia de dados móveis'**
-  String get wifiOnlySyncSubtitle;
 }
 
 class _AppLocalizationsDelegate

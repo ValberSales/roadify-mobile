@@ -18,11 +18,27 @@ class NivelBolhaViewModel extends ChangeNotifier {
   static const String _keyIsCalibrated = 'roadify_tare_is_calibrated';
   static const String _keySelectedMode = 'roadify_tare_selected_mode';
   static const String _collectionConfigKey = 'last_collection_configuration';
+  static const int maxHistoryPoints = 60;
 
   final SensorOrientationService _orientationService;
   final Future<SharedPreferences> Function() _preferencesProvider;
   StreamSubscription<OrientationReading>? _orientationSubscription;
+  Timer? _telemetryHeartbeatTimer;
+  DateTime _lastHardwareSampleAt = DateTime.fromMillisecondsSinceEpoch(0);
   bool _disposed = false;
+
+  final List<SensorSignalSample> _signalHistory = List<SensorSignalSample>.generate(
+    24,
+    (_) => const SensorSignalSample(
+      accelX: 0.0,
+      accelY: 0.0,
+      accelZ: 9.81,
+      roll: 0.0,
+      pitch: 0.0,
+    ),
+    growable: true,
+  );
+  int _sampleTick = 0;
 
   NivelBolhaState _state = const NivelBolhaState(
     angleX: 0.0,
@@ -33,6 +49,13 @@ class NivelBolhaViewModel extends ChangeNotifier {
 
   /// Estado imutável atual exposto para as views.
   NivelBolhaState get state => _state;
+
+  /// Histórico recente de amostras para os gráficos em tempo real ("Sinais ao Vivo").
+  List<SensorSignalSample> get signalHistory =>
+      List<SensorSignalSample>.unmodifiable(_signalHistory);
+
+  /// Contador incremental de amostras para deslocamento temporal contínuo do gráfico.
+  int get sampleTick => _sampleTick;
 
   NivelBolhaViewModel({
     SensorOrientationService? orientationService,
@@ -74,10 +97,43 @@ class NivelBolhaViewModel extends ChangeNotifier {
         detectedOrientation: resolvedOrientation,
         isReadingFromHardware: reading.isFromHardware,
       );
+      _lastHardwareSampleAt = DateTime.now();
+      _pushSignalSample();
       _notify();
     });
 
     _orientationService.startListening(allowMockFallback: true);
+
+    // Mantém a janela temporal do osciloscópio avançando continuamente mesmo quando o emulador está parado
+    _telemetryHeartbeatTimer = Timer.periodic(
+      const Duration(milliseconds: 100),
+      (_) {
+        if (_disposed) return;
+        final elapsedMs = DateTime.now()
+            .difference(_lastHardwareSampleAt)
+            .inMilliseconds;
+        if (elapsedMs >= 90) {
+          _pushSignalSample();
+          _notify();
+        }
+      },
+    );
+  }
+
+  void _pushSignalSample() {
+    _sampleTick++;
+    _signalHistory.add(
+      SensorSignalSample(
+        accelX: _state.accelX,
+        accelY: _state.accelY,
+        accelZ: _state.accelZ,
+        roll: _state.calibratedAngleX,
+        pitch: _state.calibratedAngleY,
+      ),
+    );
+    if (_signalHistory.length > maxHistoryPoints) {
+      _signalHistory.removeAt(0);
+    }
   }
 
   /// Carrega os offsets de calibração (tara) persistidos da sessão.
@@ -141,6 +197,7 @@ class NivelBolhaViewModel extends ChangeNotifier {
       angleX: double.parse(x.toStringAsFixed(2)),
       angleY: double.parse(y.toStringAsFixed(2)),
     );
+    _pushSignalSample();
     _notify();
   }
 
@@ -235,6 +292,7 @@ class NivelBolhaViewModel extends ChangeNotifier {
       accelZ: accelZ,
       detectedOrientation: detected,
     );
+    _pushSignalSample();
     _notify();
   }
 
@@ -245,6 +303,7 @@ class NivelBolhaViewModel extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _telemetryHeartbeatTimer?.cancel();
     _orientationSubscription?.cancel();
     _orientationService.dispose();
     super.dispose();

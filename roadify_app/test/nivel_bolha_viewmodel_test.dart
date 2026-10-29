@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:roadify_app/features/sensores/models/nivel_bolha_state.dart';
+import 'package:roadify_app/features/sensores/presentation/sensores_screen.dart';
 import 'package:roadify_app/features/sensores/services/sensor_orientation_service.dart';
 import 'package:roadify_app/features/sensores/viewmodel/nivel_bolha_viewmodel.dart';
 
@@ -149,6 +151,36 @@ void main() {
 
         service.dispose();
         await mockController.close();
+      },
+    );
+
+    testWidgets(
+      'SensoresScreen exibe gráficos em tempo real na aba Sinais ao Vivo',
+      (tester) async {
+        final vm = NivelBolhaViewModel(autoStart: false);
+        addTearDown(vm.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(home: SensoresScreen(viewModel: vm)),
+        );
+
+        await tester.tap(find.text('Sinais ao Vivo'));
+        await tester.pumpAndSettle();
+
+        expect(
+          find.byKey(const ValueKey('live-chart-accelerometer')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('live-chart-inclination')),
+          findsOneWidget,
+        );
+
+        vm.updateFromSensors(accelX: 1.5, accelY: -0.8, accelZ: 9.65);
+        await tester.pump();
+
+        expect(vm.signalHistory.last.accelX, equals(1.5));
+        expect(vm.signalHistory.last.accelY, equals(-0.8));
       },
     );
   });

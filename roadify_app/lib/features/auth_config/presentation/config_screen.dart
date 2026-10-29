@@ -8,14 +8,13 @@ import '../../../core/theme/theme_controller.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../veiculos/presentation/vehicles_management_screen.dart';
-import 'login_screen.dart';
 
-/// Tela de Configurações e Perfil (Feature Auth/Config — SP2-08).
+/// Tela de Configurações do Aplicativo Standalone (Feature Config — SP2-08).
 ///
 /// Funcionalidades:
 /// 1. Opções de tema (Claro / Escuro / Sistema) funcionando em tempo real.
 /// 2. Link para a tela de Gestão de Veículos (`VehiclesManagementScreen`).
-/// 3. Seletor de idioma e internacionalização (`AppLocalizations` + `LocaleController`).
+/// 3. Taxa padrão do acelerômetro e seletor de idioma (`AppLocalizations` + `LocaleController`).
 class ConfigScreen extends StatefulWidget {
   final ThemeController themeController;
   final LocaleController? localeController;
@@ -34,14 +33,12 @@ class _ConfigScreenState extends State<ConfigScreen> {
   static const String _prefDefaultVehicleLabelKey =
       'roadify_default_vehicle_label';
   static const String _prefDefaultAccelHzKey = 'roadify_default_accel_hz';
-  static const String _prefWifiOnlyKey = 'roadify_sync_wifi_only';
 
   late final LocaleController _localeController;
   late final bool _ownsLocaleController;
 
   String _defaultVehicleLabel = 'Toyota Hilux (ABC-1234)';
   int _defaultAccelerometerHz = 200;
-  bool _wifiOnlySync = true;
 
   @override
   void initState() {
@@ -64,7 +61,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
       final prefs = await SharedPreferences.getInstance();
       final savedVehicle = prefs.getString(_prefDefaultVehicleLabelKey);
       final savedHz = prefs.getInt(_prefDefaultAccelHzKey);
-      final savedWifi = prefs.getBool(_prefWifiOnlyKey);
       if (!mounted) return;
       setState(() {
         if (savedVehicle != null && savedVehicle.isNotEmpty) {
@@ -72,9 +68,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
         }
         if (savedHz != null) {
           _defaultAccelerometerHz = savedHz;
-        }
-        if (savedWifi != null) {
-          _wifiOnlySync = savedWifi;
         }
       });
     } catch (_) {}
@@ -201,14 +194,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
     }
   }
 
-  Future<void> _toggleWifiOnly(bool value) async {
-    setState(() => _wifiOnlySync = value);
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool(_prefWifiOnlyKey, value);
-    } catch (_) {}
-  }
-
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -234,41 +219,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
                     40,
               ),
               children: [
-                // --- Seção: Conta de Usuário ---
-                Material(
-                  color: colors.surface,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: AppDimensions.borderRadiusCard,
-                    side: BorderSide(color: colors.outlineVariant),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: colors.primary,
-                      child: const Text(
-                        'R',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                    title: Text(l10n?.userAccountTitle ?? 'Conta de Usuário'),
-                    subtitle: Text(
-                      l10n?.userAccountSubtitle ??
-                          'Entrar ou criar conta para sincronizar',
-                    ),
-                    trailing: const Icon(Icons.chevron_right_rounded),
-                    onTap: () {
-                      Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      );
-                    },
-                  ),
-                ),
-
-                const SizedBox(height: AppDimensions.space20),
-
                 // --- Seção: Aparência e Temas Globais ---
                 Text(
                   l10n?.appearanceAndThemeTitle ?? 'Aparência e Tema',
@@ -388,52 +338,6 @@ class _ConfigScreenState extends State<ConfigScreen> {
                         subtitle: Text(_localeController.currentLanguageLabel),
                         trailing: const Icon(Icons.chevron_right_rounded),
                         onTap: _selectLanguage,
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: AppDimensions.space24),
-
-                // --- Seção: Servidor e API RESTful ---
-                Text(
-                  l10n?.serverConnectionTitle ?? 'Conexão com o Servidor',
-                  style: typography.titleMedium,
-                ),
-                const SizedBox(height: AppDimensions.space8),
-                Material(
-                  color: colors.surface,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: AppDimensions.borderRadiusCard,
-                    side: BorderSide(color: colors.outlineVariant),
-                  ),
-                  clipBehavior: Clip.antiAlias,
-                  child: Column(
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.cloud_queue_rounded),
-                        title: Text(
-                          l10n?.apiEndpointLabel ?? 'Endpoint da API Roadify',
-                        ),
-                        subtitle: const Text(
-                          'https://roadify.app.pb.utfpr.edu.br/api',
-                        ),
-                        trailing: const Icon(Icons.chevron_right_rounded),
-                        onTap: () {},
-                      ),
-                      const Divider(height: 1),
-                      SwitchListTile(
-                        secondary: const Icon(Icons.wifi_rounded),
-                        title: Text(
-                          l10n?.wifiOnlySyncTitle ??
-                              'Sincronizar apenas no Wi-Fi',
-                        ),
-                        subtitle: Text(
-                          l10n?.wifiOnlySyncSubtitle ??
-                              'Economiza franquia de dados móveis',
-                        ),
-                        value: _wifiOnlySync,
-                        onChanged: _toggleWifiOnly,
                       ),
                     ],
                   ),

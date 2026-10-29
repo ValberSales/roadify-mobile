@@ -41,7 +41,6 @@ class DadosScreen extends StatefulWidget {
 class _DadosScreenState extends State<DadosScreen> {
   late final DadosViewModel _viewModel;
   late final bool _ownsViewModel;
-  bool? _syncFilter;
   _SortOption _sort = _SortOption.data;
   String _searchQuery = '';
 
@@ -106,9 +105,6 @@ class _DadosScreenState extends State<DadosScreen> {
     final normalizedQuery = _normalize(_searchQuery.trim());
 
     final list = source.where((r) {
-      final matchesSync = _syncFilter == null || r.isSynced == _syncFilter;
-      if (!matchesSync) return false;
-
       if (normalizedQuery.isEmpty) return true;
 
       final titleNormalized = _normalize(r.title);
@@ -228,41 +224,33 @@ class _DadosScreenState extends State<DadosScreen> {
 
           const SizedBox(height: AppDimensions.space12),
 
-          Row(
-            children: [
-              Text(
-                'Toque em um ensaio para ver os detalhes',
-                style: typography.bodySmall?.copyWith(
-                  color: colors.onSurfaceVariant,
-                ),
-              ),
-              const Spacer(),
-              MenuAnchor(
-                menuChildren: [
-                  for (final option in _SortOption.values)
-                    MenuItemButton(
-                      leadingIcon: Icon(option.icon),
-                      trailingIcon: option == _sort
-                          ? Icon(Icons.check_rounded, color: colors.primary)
-                          : null,
-                      onPressed: () => setState(() => _sort = option),
-                      child: Text(option.label),
-                    ),
-                ],
-                builder: (context, controller, _) {
-                  return OutlinedButton.icon(
-                    onPressed: () => controller.isOpen
-                        ? controller.close()
-                        : controller.open(),
-                    icon: const Icon(Icons.swap_vert_rounded, size: 18),
-                    label: const Text('Ordenar'),
-                    style: OutlinedButton.styleFrom(
-                      visualDensity: VisualDensity.compact,
-                    ),
-                  );
-                },
-              ),
-            ],
+          Align(
+            alignment: Alignment.centerRight,
+            child: MenuAnchor(
+              menuChildren: [
+                for (final option in _SortOption.values)
+                  MenuItemButton(
+                    leadingIcon: Icon(option.icon),
+                    trailingIcon: option == _sort
+                        ? Icon(Icons.check_rounded, color: colors.primary)
+                        : null,
+                    onPressed: () => setState(() => _sort = option),
+                    child: Text(option.label),
+                  ),
+              ],
+              builder: (context, controller, _) {
+                return OutlinedButton.icon(
+                  onPressed: () => controller.isOpen
+                      ? controller.close()
+                      : controller.open(),
+                  icon: const Icon(Icons.swap_vert_rounded, size: 18),
+                  label: const Text('Ordenar'),
+                  style: OutlinedButton.styleFrom(
+                    visualDensity: VisualDensity.compact,
+                  ),
+                );
+              },
+            ),
           ),
 
           const SizedBox(height: AppDimensions.space20),
@@ -316,7 +304,7 @@ class _DadosScreenState extends State<DadosScreen> {
                 const SizedBox(width: AppDimensions.space12),
                 const Expanded(
                   child: Text(
-                    'Coletas salvas localmente e prontas para sincronização.',
+                    'Coletas salvas localmente no dispositivo e prontas para exportação em ZIP.',
                     style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                   ),
                 ),

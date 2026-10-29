@@ -8,7 +8,7 @@ import 'package:roadify_app/features/home/viewmodel/home_health_viewmodel.dart';
 
 void main() {
   testWidgets(
-    'HomeScreen: remove escala de qualidade e card de nuvem, exibe últimas coletas com sync no card',
+    'HomeScreen: remove escala de qualidade e sincronização em nuvem, exibe últimas coletas locais',
     (tester) async {
       final controller = ThemeController();
 
@@ -24,8 +24,10 @@ void main() {
       // 1. Escala de qualidade do pavimento DEVE estar removida
       expect(find.text('Escala de Qualidade do Pavimento'), findsNothing);
 
-      // 2. Card antigo de sincronização em nuvem DEVE estar removido
+      // 2. Card e ícones de sincronização em nuvem DEVEM estar removidos (app standalone)
       expect(find.text('Sincronização em Nuvem'), findsNothing);
+      expect(find.byIcon(Icons.cloud_done_rounded), findsNothing);
+      expect(find.byIcon(Icons.cloud_upload_outlined), findsNothing);
 
       // 3. Seção "Últimas Coletas" DEVE estar presente
       expect(find.text('Últimas Coletas'), findsOneWidget);
@@ -33,27 +35,6 @@ void main() {
       // 4. Cards de coletas com dados essenciais
       expect(find.text('BR-101 • Trecho Norte'), findsOneWidget);
       expect(find.text('Av. Paulista • Leste'), findsOneWidget);
-
-      // 5. Ícones de nuvem de sincronização nos cards
-      // 2 já sincronizados (nuvem com check) e 1 pendente (nuvem upload)
-      expect(find.byIcon(Icons.cloud_done_rounded), findsNWidgets(2));
-      expect(find.byIcon(Icons.cloud_upload_outlined), findsOneWidget);
-
-      // 6. Clica no botão de sincronizar do card pendente
-      final syncButtonFinder = find.byIcon(Icons.cloud_upload_outlined);
-      await tester.ensureVisible(syncButtonFinder);
-      await tester.tap(syncButtonFinder);
-      await tester.pump();
-
-      // Verifica que exibiu SnackBar de sincronização concluída
-      expect(
-        find.textContaining('sincronizado com a nuvem com sucesso!'),
-        findsOneWidget,
-      );
-
-      // Agora todos os 3 cards devem estar sincronizados
-      await tester.pump();
-      expect(find.byIcon(Icons.cloud_done_rounded), findsNWidgets(3));
     },
   );
 

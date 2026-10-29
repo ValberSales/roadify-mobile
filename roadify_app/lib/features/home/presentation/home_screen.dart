@@ -16,25 +16,13 @@ class _HomeRunItem {
   final String title;
   final String dateLabel;
   final String metrics;
-  final bool isSynced;
 
   const _HomeRunItem({
     this.id,
     required this.title,
     required this.dateLabel,
     required this.metrics,
-    required this.isSynced,
   });
-
-  _HomeRunItem copyWith({bool? isSynced}) {
-    return _HomeRunItem(
-      id: id,
-      title: title,
-      dateLabel: dateLabel,
-      metrics: metrics,
-      isSynced: isSynced ?? this.isSynced,
-    );
-  }
 }
 
 /// Tela Inicial (Home) do Roadify Mobile.
@@ -43,7 +31,7 @@ class _HomeRunItem {
 /// 1. Atalho rápido para Nova Coleta em Pista.
 /// 2. Cards de Saúde de Bateria e Precisão do Sinal de GPS (SP2-02) + Alerta de Bateria Baixa.
 /// 3. Diagnóstico do armazenamento interno do aparelho.
-/// 4. Cards das últimas coletas com botão/ícone de sincronização em nuvem no canto superior direito.
+/// 4. Cards das últimas coletas armazenadas localmente.
 class HomeScreen extends StatefulWidget {
   final ThemeController themeController;
   final VoidCallback onStartCollection;
@@ -88,21 +76,18 @@ class _HomeScreenState extends State<HomeScreen> {
         title: 'BR-101 • Trecho Norte',
         dateLabel: 'Hoje, 09:24',
         metrics: '12,8 km • 48,2 MB • CSV ;',
-        isSynced: true,
       ),
       const _HomeRunItem(
         id: -2,
         title: 'Av. Paulista • Leste',
         dateLabel: '12 set, 16:08',
         metrics: '4,6 km • 21,7 MB • CSV ;',
-        isSynced: false,
       ),
       const _HomeRunItem(
         id: -3,
         title: 'SP-270 • km 34-52',
         dateLabel: '10 set, 07:42',
         metrics: '18,1 km • 73,4 MB • CSV ;',
-        isSynced: true,
       ),
     ];
   }
@@ -113,33 +98,6 @@ class _HomeScreenState extends State<HomeScreen> {
       _healthViewModel.dispose();
     }
     super.dispose();
-  }
-
-  Future<void> _handleSync(_HomeRunItem item) async {
-    if (item.isSynced) return;
-
-    if (item.id != null && item.id! > 0 && _dao != null) {
-      await _dao!.markAsSynced(item.id!);
-    } else {
-      // Atualiza o estado da lista demo
-      setState(() {
-        final index = _demoRuns.indexWhere((r) => r.id == item.id);
-        if (index != -1) {
-          _demoRuns[index] = _demoRuns[index].copyWith(isSynced: true);
-        }
-      });
-    }
-
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(
-          'Ensaio "${item.title}" sincronizado com a nuvem com sucesso!',
-        ),
-        backgroundColor: Colors.green,
-        duration: const Duration(seconds: 2),
-      ),
-    );
   }
 
   @override
@@ -427,7 +385,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: AppDimensions.space24),
 
-              // --- Seção: Últimas Coletas (Cards com Botão de Sync Pequeno no Canto Superior Direito) ---
+              // --- Seção: Últimas Coletas ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -467,7 +425,6 @@ class _HomeScreenState extends State<HomeScreen> {
                           dateLabel: dateStr,
                           metrics:
                               '${r.distanceKm.toStringAsFixed(1)} km • Odômetro: ${r.odometer.toStringAsFixed(0)} km',
-                          isSynced: r.isSynced,
                         );
                       }).toList();
 
@@ -477,10 +434,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             padding: const EdgeInsets.only(
                               bottom: AppDimensions.space12,
                             ),
-                            child: _ColetaCard(
-                              item: item,
-                              onSyncTap: () => _handleSync(item),
-                            ),
+                            child: _ColetaCard(item: item),
                           );
                         }).toList(),
                       );
@@ -504,7 +458,7 @@ class _HomeScreenState extends State<HomeScreen> {
       children: _demoRuns.map((item) {
         return Padding(
           padding: const EdgeInsets.only(bottom: AppDimensions.space12),
-          child: _ColetaCard(item: item, onSyncTap: () => _handleSync(item)),
+          child: _ColetaCard(item: item),
         );
       }).toList(),
     );
@@ -763,18 +717,16 @@ class _GpsHealthCard extends StatelessWidget {
   }
 }
 
-/// Card de Coleta Individual com Ícone/Botão de Sincronização no Canto Superior Direito.
+/// Card de Coleta Individual na HomeScreen.
 class _ColetaCard extends StatelessWidget {
   final _HomeRunItem item;
-  final VoidCallback onSyncTap;
 
-  const _ColetaCard({required this.item, required this.onSyncTap});
+  const _ColetaCard({required this.item});
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final typography = context.typography;
-    final isSynced = item.isSynced;
 
     return Container(
       width: double.infinity,
@@ -787,46 +739,11 @@ class _ColetaCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Linha Superior: Título da Coleta + Ícone Pequeno de Nuvem no Canto Superior Direito
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Text(
-                  item.title,
-                  style: typography.titleMedium?.copyWith(
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-              ),
-              const SizedBox(width: AppDimensions.space8),
-              // Botão / Ícone pequeno de nuvem no canto superior direito
-              Tooltip(
-                message: isSynced
-                    ? 'Sincronizado na Nuvem'
-                    : 'Sincronizar com a Nuvem',
-                child: Material(
-                  color: isSynced
-                      ? colors.primary.withValues(alpha: 0.1)
-                      : Colors.amber.withValues(alpha: 0.15),
-                  borderRadius: BorderRadius.circular(8),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(8),
-                    onTap: isSynced ? null : onSyncTap,
-                    child: Padding(
-                      padding: const EdgeInsets.all(6.0),
-                      child: Icon(
-                        isSynced
-                            ? Icons.cloud_done_rounded
-                            : Icons.cloud_upload_outlined,
-                        size: 18,
-                        color: isSynced ? colors.primary : Colors.amber.shade800,
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-            ],
+          Text(
+            item.title,
+            style: typography.titleMedium?.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
           ),
           const SizedBox(height: 4),
           // Data e Hora

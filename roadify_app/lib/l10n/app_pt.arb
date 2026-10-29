@@ -8,14 +8,6 @@
   "@settingsTitle": {
     "description": "Título da tela de configurações"
   },
-  "userAccountTitle": "Conta de Usuário",
-  "@userAccountTitle": {
-    "description": "Título do card de conta de usuário"
-  },
-  "userAccountSubtitle": "Entrar ou criar conta para sincronizar",
-  "@userAccountSubtitle": {
-    "description": "Subtítulo do card de conta de usuário"
-  },
   "appearanceAndThemeTitle": "Aparência e Tema",
   "@appearanceAndThemeTitle": {
     "description": "Título da seção de aparência e tema"
@@ -55,21 +47,5 @@
   "systemLanguageLabel": "Idioma do Sistema",
   "@systemLanguageLabel": {
     "description": "Rótulo do seletor de idioma do sistema"
-  },
-  "serverConnectionTitle": "Conexão com o Servidor",
-  "@serverConnectionTitle": {
-    "description": "Título da seção de conexão com o servidor"
-  },
-  "apiEndpointLabel": "Endpoint da API Roadify",
-  "@apiEndpointLabel": {
-    "description": "Rótulo do endpoint da API"
-  },
-  "wifiOnlySyncTitle": "Sincronizar apenas no Wi-Fi",
-  "@wifiOnlySyncTitle": {
-    "description": "Título da opção de sincronizar apenas no Wi-Fi"
-  },
-  "wifiOnlySyncSubtitle": "Economiza franquia de dados móveis",
-  "@wifiOnlySyncSubtitle": {
-    "description": "Subtítulo da opção de sincronizar apenas no Wi-Fi"
   }
 }

@@ -1,5 +1,22 @@
 import 'dart:math' as math;
 
+/// Amostra instantânea de telemetria para os gráficos em tempo real ("Sinais ao Vivo").
+class SensorSignalSample {
+  final double accelX;
+  final double accelY;
+  final double accelZ;
+  final double roll;
+  final double pitch;
+
+  const SensorSignalSample({
+    required this.accelX,
+    required this.accelY,
+    required this.accelZ,
+    required this.roll,
+    required this.pitch,
+  });
+}
+
 /// Modos de exibição do nível bolha.
 enum BubbleDisplayMode {
   /// Alterna automaticamente entre Circular (horizontal) e Tubular T (vertical).

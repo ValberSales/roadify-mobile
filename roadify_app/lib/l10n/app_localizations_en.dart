@@ -15,12 +15,6 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsTitle => 'Settings';
 
   @override
-  String get userAccountTitle => 'User Account';
-
-  @override
-  String get userAccountSubtitle => 'Sign in or create an account to sync';
-
-  @override
   String get appearanceAndThemeTitle => 'Appearance & Theme';
 
   @override
@@ -50,16 +44,4 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get systemLanguageLabel => 'System Language';
-
-  @override
-  String get serverConnectionTitle => 'Server Connection';
-
-  @override
-  String get apiEndpointLabel => 'Roadify API Endpoint';
-
-  @override
-  String get wifiOnlySyncTitle => 'Sync over Wi-Fi only';
-
-  @override
-  String get wifiOnlySyncSubtitle => 'Saves mobile data allowance';
 }

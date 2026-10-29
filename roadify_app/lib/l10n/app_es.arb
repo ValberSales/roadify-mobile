@@ -2,8 +2,6 @@
   "@@locale": "es",
   "appTitle": "Roadify",
   "settingsTitle": "Configuración",
-  "userAccountTitle": "Cuenta de Usuario",
-  "userAccountSubtitle": "Iniciar sesión o crear cuenta para sincronizar",
   "appearanceAndThemeTitle": "Apariencia y Tema",
   "appearanceDescription": "Seleccione el modo de visualización preferido. El Modo Claro es el más recomendado para visibilidad en parabrisas.",
   "themeLight": "Claro",
@@ -13,9 +11,5 @@
   "defaultVehicleLabel": "Vehículo Predeterminado",
   "manageVehiclesTitle": "Gestión de Vehículos",
   "accelerometerRateLabel": "Frecuencia del Acelerómetro",
-  "systemLanguageLabel": "Idioma del Sistema",
-  "serverConnectionTitle": "Conexión al Servidor",
-  "apiEndpointLabel": "Endpoint de la API Roadify",
-  "wifiOnlySyncTitle": "Sincronizar solo con Wi-Fi",
-  "wifiOnlySyncSubtitle": "Ahorra plan de datos móviles"
+  "systemLanguageLabel": "Idioma del Sistema"
 }
