@@ -2,6 +2,7 @@ import 'package:get_it/get_it.dart';
 import 'package:roadify_app/core/database/app_database.dart';
 import 'package:roadify_app/core/database/daos/run_dao.dart';
 import 'package:roadify_app/core/database/daos/vehicle_dao.dart';
+import 'package:roadify_app/features/dados/services/run_export_service.dart';
 import 'package:roadify_app/features/veiculos/viewmodels/vehicle_viewmodel.dart';
 
 // Instância global do GetIt
@@ -13,14 +14,18 @@ void setupLocators() {
 
   // Registra os DAOs para os ViewModels consumirem
   getIt.registerLazySingleton<VehicleDao>(
-    () => getIt<AppDatabase>().vehicleDao,
+        () => getIt<AppDatabase>().vehicleDao,
   );
 
   getIt.registerLazySingleton<RunDao>(
-    () => getIt<AppDatabase>().runDao,
+        () => getIt<AppDatabase>().runDao,
+  );
+
+  getIt.registerLazySingleton<RunExportService>(
+        () => RunExportService(getIt<AppDatabase>()),
   );
 
   getIt.registerLazySingleton<VehicleViewModel>(
-    () => VehicleViewModel(getIt<VehicleDao>()),
+        () => VehicleViewModel(getIt<VehicleDao>()),
   );
 }

@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:roadify_app/core/database/daos/run_dao.dart';
+import 'package:roadify_app/core/di/setup_locator.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../../core/utils/snackbar_helper.dart';
+import '../services/run_export_service.dart';
+import '../viewmodel/dados_viewmodel.dart';
 
 enum _SortOption {
   data('Data de criação', Icons.calendar_today_outlined),
@@ -13,8 +18,6 @@ enum _SortOption {
   final IconData icon;
 }
 
-String _fmt(double value) => value.toStringAsFixed(1).replaceAll('.', ',');
-
 String _normalize(String input) {
   const from = 'áàâãäéèêëíìîïóòôõöúùûüçñ';
   const to = 'aaaaaeeeeiiiiooooouuuucn';
@@ -25,45 +28,51 @@ String _normalize(String input) {
   return out;
 }
 
-class _Run {
-  final String title;
-  final String dateLabel;
-  final DateTime createdAt;
-  final double km;
-  final double sizeMb;
-  final bool isSynced;
-  final Color qualityColor;
-
-  const _Run({
-    required this.title,
-    required this.dateLabel,
-    required this.createdAt,
-    required this.km,
-    required this.sizeMb,
-    required this.isSynced,
-    required this.qualityColor,
-  });
-
-  String get metrics => '${_fmt(km)} km • ${_fmt(sizeMb)} MB • CSV';
-}
-
 class DadosScreen extends StatefulWidget {
-  const DadosScreen({super.key});
+  final DadosViewModel? viewModel;
+
+  const DadosScreen({super.key, this.viewModel});
 
   @override
   State<DadosScreen> createState() => _DadosScreenState();
 }
 
 class _DadosScreenState extends State<DadosScreen> {
+  late final DadosViewModel _viewModel;
+  late final bool _ownsViewModel;
   bool? _syncFilter;
   _SortOption _sort = _SortOption.data;
   String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _ownsViewModel = widget.viewModel == null;
+    _viewModel = widget.viewModel ?? DadosViewModel(getIt<RunDao>(), getIt<RunExportService>());
+  }
+
+  @override
+  void dispose() {
+    if (_ownsViewModel) _viewModel.dispose();
+    super.dispose();
+  }
+
+  Future<void> _exportRun(RunListItem run) async {
+    try {
+      final savedPath = await _viewModel.exportRun(run.id);
+      if (!mounted || savedPath == null) return; // null = usuário cancelou
+      SnackbarHelper.showSuccess(context, message: 'ZIP de "${run.title}" salvo no dispositivo.');
+    } catch (e) {
+      if (!mounted) return;
+      SnackbarHelper.showError(context, message: 'Falha ao exportar a coleta: $e');
+    }
+  }
 
   void _toggleSyncFilter(bool value) {
     setState(() => _syncFilter = _syncFilter == value ? null : value);
   }
 
-  List<_Run> _applyFilterAndSort(List<_Run> source) {
+  List<RunListItem> _applyFilterAndSort(List<RunListItem> source) {
     final normalizedQuery = _normalize(_searchQuery.trim());
 
     final list = source.where((r) {
@@ -96,41 +105,6 @@ class _DadosScreenState extends State<DadosScreen> {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
-    final typography = context.typography;
-    final qualityColors = context.roadQualityColors;
-
-    final allRuns = <_Run>[
-      _Run(
-        title: 'BR-101 • Trecho Norte',
-        dateLabel: 'Hoje, 09:24',
-        createdAt: DateTime(2025, 9, 14, 9, 24),
-        km: 12.8,
-        sizeMb: 48.2,
-        isSynced: true,
-        qualityColor: qualityColors.boa,
-      ),
-      _Run(
-        title: 'Av. Paulista • Leste',
-        dateLabel: '12 set, 16:08',
-        createdAt: DateTime(2025, 9, 12, 16, 8),
-        km: 4.6,
-        sizeMb: 21.7,
-        isSynced: false,
-        qualityColor: qualityColors.media,
-      ),
-      _Run(
-        title: 'SP-270 • km 34-52',
-        dateLabel: '10 set, 07:42',
-        createdAt: DateTime(2025, 9, 10, 7, 42),
-        km: 18.1,
-        sizeMb: 73.4,
-        isSynced: true,
-        qualityColor: qualityColors.excelente,
-      ),
-    ];
-
-    final totalMb = allRuns.fold<double>(0, (sum, r) => sum + r.sizeMb);
-    final visibleRuns = _applyFilterAndSort(allRuns);
 
     return Scaffold(
       appBar: AppBar(
@@ -138,154 +112,213 @@ class _DadosScreenState extends State<DadosScreen> {
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: AppDimensions.space8),
-            child: IconButton.filled(
-              icon: const Icon(Icons.cloud_upload_outlined),
-              tooltip: 'Sincronizar todas',
-              style: IconButton.styleFrom(
-                backgroundColor: colors.primary,
-                foregroundColor: colors.onPrimary,
-              ),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Upload em lote iniciado para o servidor.')),
-                );
-              },
-            ),
+            // child: IconButton.filled(
+            //   icon: const Icon(Icons.cloud_upload_outlined),
+            //   //tooltip: 'Sincronizar todas',
+            //   style: IconButton.styleFrom(
+            //     backgroundColor: colors.primary,
+            //     foregroundColor: colors.onPrimary,
+            //   ),
+            //   onPressed: () {
+            //     //ScaffoldMessenger.of(context).showSnackBar(
+            //       //const SnackBar(content: Text('Upload em lote iniciado para o servidor.')),
+            //     //);
+            //   },
+            // ),
           ),
         ],
       ),
       body: SafeArea(
         bottom: false,
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(
-            AppDimensions.space20,
-            AppDimensions.space12,
-            AppDimensions.space20,
-            AppDimensions.pillDockHeight + AppDimensions.pillDockMarginBottom + 40,
-          ),
-          children: [
-            Text(
-              '${allRuns.length} coletas • ${_fmt(totalMb)} MB no dispositivo',
-              style: typography.bodyMedium,
-            ),
-            const SizedBox(height: AppDimensions.space12),
-
-            // Barra de busca
-            SearchBar(
-              hintText: 'Buscar por nome, data ou rodovia',
-              leading: const Icon(Icons.search_rounded),
-              elevation: const WidgetStatePropertyAll(0),
-              backgroundColor: WidgetStatePropertyAll(colors.surfaceContainerHighest.withValues(alpha: 0.5)),
-              onChanged: (value) {
-                setState(() => _searchQuery = value);
-              },
-              trailing: _searchQuery.isNotEmpty
-                  ? [
-                IconButton(
-                  icon: const Icon(Icons.clear_rounded),
-                  onPressed: () {
-                    setState(() => _searchQuery = '');
-                  },
-                ),
-              ]
-                  : null,
-            ),
-
-            const SizedBox(height: AppDimensions.space12),
-
-            Row(
-              children: [
-                FilterChip(
-                  avatar: Icon(Icons.cloud_done_rounded, size: 16, color: colors.primary),
-                  label: const Text('Nuvem'),
-                  selected: _syncFilter == true,
-                  showCheckmark: false,
-                  onSelected: (_) => _toggleSyncFilter(true),
-                ),
-                const SizedBox(width: AppDimensions.space8),
-                FilterChip(
-                  avatar: const Icon(Icons.cloud_upload_outlined, size: 16, color: Colors.amber),
-                  label: const Text('Pendente'),
-                  selected: _syncFilter == false,
-                  showCheckmark: false,
-                  onSelected: (_) => _toggleSyncFilter(false),
-                ),
-                const Spacer(),
-                MenuAnchor(
-                  menuChildren: [
-                    for (final option in _SortOption.values)
-                      MenuItemButton(
-                        leadingIcon: Icon(option.icon),
-                        trailingIcon: option == _sort
-                            ? Icon(Icons.check_rounded, color: colors.primary)
-                            : null,
-                        onPressed: () => setState(() => _sort = option),
-                        child: Text(option.label),
-                      ),
-                  ],
-                  builder: (context, controller, _) {
-                    return OutlinedButton.icon(
-                      onPressed: () =>
-                      controller.isOpen ? controller.close() : controller.open(),
-                      icon: const Icon(Icons.swap_vert_rounded, size: 18),
-                      label: const Text('Ordenar'),
-                      style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
-                    );
-                  },
-                ),
-              ],
-            ),
-
-            const SizedBox(height: AppDimensions.space20),
-
-            // Cards de Ensaios
-            if (visibleRuns.isEmpty)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: AppDimensions.space20),
-                child: Center(
-                  child: Text('Nenhuma coleta encontrada.', style: typography.bodyMedium),
-                ),
-              )
-            else
-              for (var i = 0; i < visibleRuns.length; i++) ...[
-                if (i > 0) const SizedBox(height: AppDimensions.space12),
-                _RunItemCard(run: visibleRuns[i]),
-              ],
-
-            const SizedBox(height: AppDimensions.space20),
-
-            // Banner Informativo Verde Claro
-            Container(
-              padding: const EdgeInsets.all(AppDimensions.space16),
-              decoration: BoxDecoration(
-                color: qualityColors.boa.withValues(alpha: 0.12),
-                borderRadius: AppDimensions.borderRadiusCard,
-                border: Border.all(color: qualityColors.boa.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.check_circle_outline_rounded, color: qualityColors.boa),
-                  const SizedBox(width: AppDimensions.space12),
-                  const Expanded(
-                    child: Text(
-                      'Arquivos salvos localmente com Drift e prontos para sincronização.',
-                      style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
+        child: ListenableBuilder(
+          listenable: _viewModel,
+          builder: (context, _) => _buildBody(context),
         ),
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context) {
+    final colors = context.colors;
+    final typography = context.typography;
+    final qualityColors = context.roadQualityColors;
+
+    if (_viewModel.isLoading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_viewModel.error != null) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(AppDimensions.space20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.error_outline_rounded, size: 48, color: colors.error),
+              const SizedBox(height: AppDimensions.space12),
+              Text('Não foi possível carregar as gravações.',
+                  style: typography.bodyMedium, textAlign: TextAlign.center),
+              const SizedBox(height: AppDimensions.space12),
+              OutlinedButton(onPressed: _viewModel.retry, child: const Text('Tentar novamente')),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final allRuns = _viewModel.items;
+    final visibleRuns = _applyFilterAndSort(allRuns);
+
+    return RefreshIndicator(
+      onRefresh: _viewModel.refresh,
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(
+          AppDimensions.space20,
+          AppDimensions.space12,
+          AppDimensions.space20,
+          AppDimensions.pillDockHeight + AppDimensions.pillDockMarginBottom + 40,
+        ),
+        children: [
+          Text(
+            '${allRuns.length} coletas • ${formatDecimal(_viewModel.totalMb)} MB no dispositivo',
+            style: typography.bodyMedium,
+          ),
+          const SizedBox(height: AppDimensions.space12),
+
+          // Barra de busca
+          SearchBar(
+            hintText: 'Buscar por nome, data ou rodovia',
+            leading: const Icon(Icons.search_rounded),
+            elevation: const WidgetStatePropertyAll(0),
+            backgroundColor: WidgetStatePropertyAll(colors.surfaceContainerHighest.withValues(alpha: 0.5)),
+            onChanged: (value) {
+              setState(() => _searchQuery = value);
+            },
+            trailing: _searchQuery.isNotEmpty
+                ? [
+              IconButton(
+                icon: const Icon(Icons.clear_rounded),
+                onPressed: () {
+                  setState(() => _searchQuery = '');
+                },
+              ),
+            ]
+                : null,
+          ),
+
+          const SizedBox(height: AppDimensions.space12),
+
+          Row(
+            children: [
+              // FilterChip(
+              //   avatar: Icon(Icons.cloud_done_rounded, size: 16, color: colors.primary),
+              //   label: const Text('Nuvem'),
+              //   selected: _syncFilter == true,
+              //   showCheckmark: false,
+              //   onSelected: (_) => _toggleSyncFilter(true),
+              // ),
+              // const SizedBox(width: AppDimensions.space8),
+              // FilterChip(
+              //   avatar: const Icon(Icons.cloud_upload_outlined, size: 16, color: Colors.amber),
+              //   label: const Text('Pendente'),
+              //   selected: _syncFilter == false,
+              //   showCheckmark: false,
+              //   onSelected: (_) => _toggleSyncFilter(false),
+              // ),
+              const Spacer(),
+              MenuAnchor(
+                menuChildren: [
+                  for (final option in _SortOption.values)
+                    MenuItemButton(
+                      leadingIcon: Icon(option.icon),
+                      trailingIcon: option == _sort
+                          ? Icon(Icons.check_rounded, color: colors.primary)
+                          : null,
+                      onPressed: () => setState(() => _sort = option),
+                      child: Text(option.label),
+                    ),
+                ],
+                builder: (context, controller, _) {
+                  return OutlinedButton.icon(
+                    onPressed: () =>
+                    controller.isOpen ? controller.close() : controller.open(),
+                    icon: const Icon(Icons.swap_vert_rounded, size: 18),
+                    label: const Text('Ordenar'),
+                    style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
+                  );
+                },
+              ),
+            ],
+          ),
+
+          const SizedBox(height: AppDimensions.space20),
+
+          // Cards de Ensaios
+          if (visibleRuns.isEmpty)
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: AppDimensions.space20),
+              child: Center(
+                child: Text(
+                  allRuns.isEmpty
+                      ? 'Nenhuma coleta gravada ainda. Inicie uma na aba Coleta.'
+                      : 'Nenhuma coleta encontrada.',
+                  style: typography.bodyMedium,
+                  textAlign: TextAlign.center,
+                ),
+              ),
+            )
+          else
+            for (var i = 0; i < visibleRuns.length; i++) ...[
+              if (i > 0) const SizedBox(height: AppDimensions.space12),
+              _RunItemCard(
+                run: visibleRuns[i],
+                isExporting: _viewModel.isExporting(visibleRuns[i].id),
+                exportProgress: _viewModel.exportProgress(visibleRuns[i].id),
+                onExport: () => _exportRun(visibleRuns[i]),
+              ),
+            ],
+
+          const SizedBox(height: AppDimensions.space20),
+
+          // Banner Informativo Verde Claro
+          Container(
+            padding: const EdgeInsets.all(AppDimensions.space16),
+            decoration: BoxDecoration(
+              color: qualityColors.boa.withValues(alpha: 0.12),
+              borderRadius: AppDimensions.borderRadiusCard,
+              border: Border.all(color: qualityColors.boa.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.check_circle_outline_rounded, color: qualityColors.boa),
+                const SizedBox(width: AppDimensions.space12),
+                const Expanded(
+                  child: Text(
+                    'Coletas salvas localmente e prontas para sincronização.',
+                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
 class _RunItemCard extends StatelessWidget {
-  final _Run run;
+  final RunListItem run;
+  final bool isExporting;
+  final double? exportProgress;
+  final VoidCallback onExport;
 
-  const _RunItemCard({required this.run});
+  const _RunItemCard({
+    required this.run,
+    required this.isExporting,
+    required this.exportProgress,
+    required this.onExport,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -312,24 +345,24 @@ class _RunItemCard extends StatelessWidget {
                   style: typography.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
-              Tooltip(
-                message: isSynced ? 'Nuvem' : 'Pendente',
-                triggerMode: TooltipTriggerMode.tap,
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: isSynced
-                        ? colors.primary.withValues(alpha: 0.1)
-                        : Colors.amber.withValues(alpha: 0.15),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(
-                    isSynced ? Icons.cloud_done_rounded : Icons.cloud_upload_outlined,
-                    size: 18,
-                    color: isSynced ? colors.primary : Colors.amber,
-                  ),
-                ),
-              ),
+              // Tooltip(
+              //   message: isSynced ? 'Nuvem' : 'Pendente',
+              //   triggerMode: TooltipTriggerMode.tap,
+              //   child: Container(
+              //     padding: const EdgeInsets.all(6),
+              //     decoration: BoxDecoration(
+              //       color: isSynced
+              //           ? colors.primary.withValues(alpha: 0.1)
+              //           : Colors.amber.withValues(alpha: 0.15),
+              //       borderRadius: BorderRadius.circular(8),
+              //     ),
+              //     child: Icon(
+              //       isSynced ? Icons.cloud_done_rounded : Icons.cloud_upload_outlined,
+              //       size: 18,
+              //       color: isSynced ? colors.primary : Colors.amber,
+              //     ),
+              //   ),
+              // ),
             ],
           ),
           const SizedBox(height: 4),
@@ -341,26 +374,36 @@ class _RunItemCard extends StatelessWidget {
             children: [
               Expanded(
                 child: OutlinedButton.icon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.share_outlined, size: 16),
-                  label: const Text('Exportar ZIP'),
+                  onPressed: isExporting ? null : onExport,
+                  icon: isExporting
+                      ? SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, value: exportProgress),
+                  )
+                      : const Icon(Icons.download_rounded, size: 16),
+                  label: Text(
+                    isExporting
+                        ? 'Exportando ${((exportProgress ?? 0) * 100).round()}%'
+                        : 'Exportar ZIP',
+                  ),
                   style: OutlinedButton.styleFrom(visualDensity: VisualDensity.compact),
                 ),
               ),
               const SizedBox(width: AppDimensions.space8),
-              if (!isSynced)
-                Expanded(
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('Upload do ensaio ${run.title} iniciado...')),
-                      );
-                    },
-                    icon: const Icon(Icons.cloud_upload_rounded, size: 16),
-                    label: const Text('Subir API'),
-                    style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
-                  ),
-                ),
+              // if (!isSynced)
+              //   Expanded(
+              //     child: FilledButton.icon(
+              //       onPressed: () {
+              //         ScaffoldMessenger.of(context).showSnackBar(
+              //           SnackBar(content: Text('Upload do ensaio ${run.title} iniciado...')),
+              //         );
+              //       },
+              //       icon: const Icon(Icons.cloud_upload_rounded, size: 16),
+              //       label: const Text('Subir API'),
+              //       style: FilledButton.styleFrom(visualDensity: VisualDensity.compact),
+              //     ),
+              //   ),
             ],
           ),
         ],
