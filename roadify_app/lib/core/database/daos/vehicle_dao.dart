@@ -28,6 +28,15 @@ class VehicleDao extends DatabaseAccessor<AppDatabase> with _$VehicleDaoMixin {
     return update(vehicles).replace(vehicle);
   }
 
+  Future<int> updateOdometer({required int id, required double odometer}) {
+    return (update(vehicles)..where((vehicle) => vehicle.id.equals(id))).write(
+      VehiclesCompanion(
+        defaultOdometer: Value(odometer),
+        updatedAt: Value(DateTime.now()),
+      ),
+    );
+  }
+
   // 6. EXCLUSÃO LÓGICA (Soft Delete)
   Future<int> softDeleteVehicle(int id) {
     return (update(vehicles)..where((v) => v.id.equals(id))).write(

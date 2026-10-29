@@ -122,8 +122,6 @@ class _OptionalSensorsSectionState extends State<OptionalSensorsSection> {
 
   @override
   Widget build(BuildContext context) {
-    final colors = context.colors;
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -133,66 +131,48 @@ class _OptionalSensorsSectionState extends State<OptionalSensorsSection> {
           icon: Icons.tune_rounded,
         ),
         const SizedBox(height: AppDimensions.space12),
-        Container(
-          decoration: BoxDecoration(
-            color: colors.surfaceContainerLow,
-            borderRadius: AppDimensions.borderRadiusCard,
-            border: Border.all(color: colors.outlineVariant),
+        SensorConfigurationCard(
+          sensor: SensorColeta.giroscopio,
+          title: 'Giroscópio',
+          subtitle: 'Taxa de rotação e atitude veicular',
+          icon: Icons.screen_rotation_alt_rounded,
+          selected: widget.selectedSensors.contains(SensorColeta.giroscopio),
+          onChanged: widget.onSensorChanged,
+          settings: SensorFrequencySelector(
+            keyPrefix: 'gyro',
+            minimum: 50,
+            maximum: 500,
+            title: 'Frequência do giroscópio',
+            unit: 'Hz',
+            presets: _gyroscopePresets,
+            currentValue: widget.settings.gyroscopeFrequencyHz,
+            customController: _gyroscopeController,
+            onChanged: (rate) => _updateSettings(gyroscopeFrequencyHz: rate),
+            validator: _validateGyroscopeFrequency,
+            inputHint: 'Ex: 250',
+            inputHelper: 'Faixa permitida',
+            inputIcon: Icons.screen_rotation_alt_rounded,
           ),
-          padding: const EdgeInsets.symmetric(
-            horizontal: AppDimensions.space12,
-            vertical: AppDimensions.space4,
-          ),
-          child: Column(
-            children: [
-              SensorConfigurationCard(
-                sensor: SensorColeta.giroscopio,
-                title: 'Giroscópio',
-                subtitle: 'Taxa de rotação e atitude veicular',
-                icon: Icons.screen_rotation_alt_rounded,
-                selected: widget.selectedSensors.contains(
-                  SensorColeta.giroscopio,
-                ),
-                onChanged: widget.onSensorChanged,
-                settings: SensorFrequencySelector(
-                  keyPrefix: 'gyro',
-                  minimum: 50,
-                  maximum: 500,
-                  title: 'Frequência do giroscópio',
-                  unit: 'Hz',
-                  presets: _gyroscopePresets,
-                  currentValue: widget.settings.gyroscopeFrequencyHz,
-                  customController: _gyroscopeController,
-                  onChanged: (rate) =>
-                      _updateSettings(gyroscopeFrequencyHz: rate),
-                  validator: _validateGyroscopeFrequency,
-                  inputHint: 'Ex: 250',
-                  inputHelper: 'Faixa permitida',
-                  inputIcon: Icons.screen_rotation_alt_rounded,
-                ),
-              ),
-              Divider(height: 1, color: colors.outlineVariant),
-              SensorConfigurationCard(
-                sensor: SensorColeta.camera,
-                title: 'Câmera',
-                subtitle: 'Fotos ou vídeos de ocorrências na via',
-                icon: Icons.photo_camera_outlined,
-                selected: widget.selectedSensors.contains(SensorColeta.camera),
-                onChanged: widget.onSensorChanged,
-                settings: _cameraSettings(),
-              ),
-              Divider(height: 1, color: colors.outlineVariant),
-              SensorConfigurationCard(
-                sensor: SensorColeta.audio,
-                title: 'Áudio',
-                subtitle: 'Gravação de voz durante a coleta',
-                icon: Icons.mic_none_rounded,
-                selected: widget.selectedSensors.contains(SensorColeta.audio),
-                onChanged: widget.onSensorChanged,
-                settings: _audioSettings(),
-              ),
-            ],
-          ),
+        ),
+        const SizedBox(height: AppDimensions.space12),
+        SensorConfigurationCard(
+          sensor: SensorColeta.camera,
+          title: 'Câmera',
+          subtitle: 'Fotos ou vídeos de ocorrências na via',
+          icon: Icons.photo_camera_outlined,
+          selected: widget.selectedSensors.contains(SensorColeta.camera),
+          onChanged: widget.onSensorChanged,
+          settings: _cameraSettings(),
+        ),
+        const SizedBox(height: AppDimensions.space12),
+        SensorConfigurationCard(
+          sensor: SensorColeta.audio,
+          title: 'Áudio',
+          subtitle: 'Gravação de voz durante a coleta',
+          icon: Icons.mic_none_rounded,
+          selected: widget.selectedSensors.contains(SensorColeta.audio),
+          onChanged: widget.onSensorChanged,
+          settings: _audioSettings(),
         ),
       ],
     );

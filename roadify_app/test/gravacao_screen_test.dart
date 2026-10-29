@@ -6,18 +6,74 @@ import 'package:roadify_app/core/theme/app_theme.dart';
 import 'package:roadify_app/features/coleta/viewmodels/coleta_viewmodel.dart';
 import 'package:roadify_app/features/gravacao/gravacao_screen.dart';
 import 'package:roadify_app/features/gravacao/services/recording_repository.dart';
+import 'package:roadify_app/features/gravacao/widgets/camera_capture_controls.dart';
 
 void main() {
   late AppDatabase database;
   late RecordingRepository repository;
+  late int vehicleId;
 
-  setUp(() {
+  setUp(() async {
     database = AppDatabase.forTesting(NativeDatabase.memory());
+    vehicleId = await database
+        .into(database.vehicles)
+        .insert(
+          VehiclesCompanion.insert(
+            name: 'Veículo de teste',
+            model: 'Modelo',
+            licensePlate: 'ABC1234',
+            defaultOdometer: 1000,
+            year: 2020,
+          ),
+        );
     repository = RecordingRepository(database);
   });
 
   tearDown(() async {
     await database.close();
+  });
+
+  testWidgets('blocks photo capture while video is recording', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: CameraCaptureControls(
+            controller: null,
+            mediaType: CameraMediaType.photosAndVideos,
+            isVideoRecording: true,
+            isBusy: false,
+            videoElapsed: Duration.zero,
+            videoDurationSeconds: 60,
+            errorMessage: null,
+            onTakePhoto: () {},
+            onToggleVideo: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.descendant(
+              of: find.byKey(const ValueKey('botao-capturar-foto')),
+              matching: find.byType(FilledButton),
+            ),
+          )
+          .onPressed,
+      isNull,
+    );
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.descendant(
+              of: find.byKey(const ValueKey('botao-gravar-video')),
+              matching: find.byType(FilledButton),
+            ),
+          )
+          .onPressed,
+      isNull,
+    );
   });
 
   Future<void> waitForRecording(WidgetTester tester) async {
@@ -42,6 +98,10 @@ void main() {
       taxaInercialHz: 200,
       taxaGpsHz: 10,
       intervaloMetros: 25,
+      trecho: 'Trecho de teste',
+      identificador: 'ensaio-001',
+      vehicleId: vehicleId,
+      odometroInicial: 1000,
     );
 
     await tester.pumpWidget(
@@ -60,8 +120,8 @@ void main() {
     expect(find.text('GRAVANDO'), findsOneWidget);
     expect(find.text('TEMPO DECORRIDO'), findsOneWidget);
     expect(find.text('200 Hz'), findsOneWidget);
-    expect(find.text('10 Hz'), findsOneWidget);
-    expect(find.text('25 m'), findsOneWidget);
+    expect(find.textContaining('10 Hz • a cada'), findsOneWidget);
+    expect(find.textContaining('25 m'), findsOneWidget);
     expect(find.text('Amostras'), findsOneWidget);
     expect(find.text('Pontos GPS'), findsOneWidget);
     expect(find.text('Acelerômetro ao Vivo'), findsOneWidget);
@@ -88,6 +148,11 @@ void main() {
       savedRun.configurationJson,
       contains('"accelerometerFrequencyHz":200'),
     );
+    expect(savedRun.configurationJson, contains('"identifier":"ensaio-001"'));
+    expect(
+      (await database.vehicleDao.getVehicleById(vehicleId)).defaultOdometer,
+      1000,
+    );
     await tester.pumpWidget(const SizedBox());
   });
 
@@ -105,6 +170,10 @@ void main() {
       taxaInercialHz: 200,
       taxaGpsHz: 10,
       intervaloMetros: 25,
+      trecho: 'Trecho de teste',
+      identificador: 'ensaio-002',
+      vehicleId: vehicleId,
+      odometroInicial: 1000,
       sensoresOpcionais: const OptionalSensorSettings(
         gyroscopeFrequencyHz: 250,
         camera: CameraCaptureSettings(
@@ -143,7 +212,7 @@ void main() {
       ),
       findsOneWidget,
     );
-    expect(find.text('Áudio da coleta'), findsOneWidget);
+    expect(find.textContaining('Áudio: a cada 2 h, 45s'), findsOneWidget);
     expect(find.byKey(const ValueKey('botao-gravar-video')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('audio-recording-indicator')),
@@ -165,6 +234,10 @@ void main() {
       taxaInercialHz: 100,
       taxaGpsHz: 5,
       intervaloMetros: 20,
+      trecho: 'Trecho de teste',
+      identificador: 'ensaio-003',
+      vehicleId: vehicleId,
+      odometroInicial: 1000,
       sensoresOpcionais: const OptionalSensorSettings(
         camera: CameraCaptureSettings(
           mediaType: CameraMediaType.photosAndVideos,
@@ -199,6 +272,10 @@ void main() {
       taxaInercialHz: 20,
       taxaGpsHz: 10,
       intervaloMetros: 25,
+      trecho: 'Trecho de teste',
+      identificador: 'ensaio-004',
+      vehicleId: vehicleId,
+      odometroInicial: 1000,
     );
 
     await tester.pumpWidget(

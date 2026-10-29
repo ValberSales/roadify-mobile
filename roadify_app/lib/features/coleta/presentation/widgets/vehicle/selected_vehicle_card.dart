@@ -15,10 +15,6 @@ class SelectedVehicleCard extends StatelessWidget {
     required this.onChange,
   });
 
-  String _formatOdometer(double value) => value == value.truncateToDouble()
-      ? value.toStringAsFixed(0)
-      : value.toString();
-
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -85,10 +81,6 @@ class SelectedVehicleCard extends StatelessWidget {
               _VehicleDetail(label: 'Ano', value: vehicle.year.toString()),
               if (vehicle.traction?.trim().isNotEmpty == true)
                 _VehicleDetail(label: 'Tração', value: vehicle.traction!),
-              _VehicleDetail(
-                label: 'Kilometragem',
-                value: '${_formatOdometer(vehicle.defaultOdometer)} km',
-              ),
             ],
           ),
           if (vehicle.description?.trim().isNotEmpty == true) ...[

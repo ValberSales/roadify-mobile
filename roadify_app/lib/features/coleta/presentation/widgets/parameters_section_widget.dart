@@ -18,6 +18,7 @@ class ParametersSectionWidget extends StatefulWidget {
   final String? erroSelecaoSensores;
   final OptionalSensorSettings optionalSensorSettings;
   final ValueChanged<OptionalSensorSettings> onOptionalSettingsChanged;
+  final VoidCallback? onConfigurationChanged;
 
   const ParametersSectionWidget({
     super.key,
@@ -29,6 +30,7 @@ class ParametersSectionWidget extends StatefulWidget {
     required this.intervaloMetrosController,
     required this.optionalSensorSettings,
     required this.onOptionalSettingsChanged,
+    this.onConfigurationChanged,
     this.erroSelecaoSensores,
   });
 
@@ -94,6 +96,7 @@ class _ParametersSectionWidgetState extends State<ParametersSectionWidget> {
     setState(() {
       widget.frequenciaGpsController.text = rate.toString();
     });
+    widget.onConfigurationChanged?.call();
   }
 
   @override
@@ -103,7 +106,10 @@ class _ParametersSectionWidgetState extends State<ParametersSectionWidget> {
       children: [
         RequiredSensorsSection(
           accelerometerRate: widget.taxaAquisicaoHz,
-          onAccelerometerRateChanged: widget.onTaxaAquisicaoChanged,
+          onAccelerometerRateChanged: (rate) {
+            widget.onTaxaAquisicaoChanged(rate);
+            widget.onConfigurationChanged?.call();
+          },
           onGpsRateChanged: _updateGpsRate,
           accelerometerFrequencyController: _accelerometerFrequencyController,
           gpsFrequencyController: widget.frequenciaGpsController,
@@ -118,7 +124,10 @@ class _ParametersSectionWidgetState extends State<ParametersSectionWidget> {
           selectedSensors: widget.sensoresSelecionados,
           onSensorChanged: widget.onSensorChanged,
           settings: widget.optionalSensorSettings,
-          onSettingsChanged: widget.onOptionalSettingsChanged,
+          onSettingsChanged: (settings) {
+            widget.onOptionalSettingsChanged(settings);
+            widget.onConfigurationChanged?.call();
+          },
         ),
         const SizedBox(height: AppDimensions.space20),
         const SectionDivider(icon: Icons.straighten_rounded),

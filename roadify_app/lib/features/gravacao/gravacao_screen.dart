@@ -18,6 +18,7 @@ import '../coleta/viewmodels/coleta_viewmodel.dart';
 import 'services/recording_repository.dart';
 import 'widgets/audio_recording_indicator.dart';
 import 'widgets/camera_capture_controls.dart';
+import 'widgets/recorded_media_preview.dart';
 
 /// Tela de Gravação e Telemetria em Pista (Cockpit HUD — RF04).
 ///
@@ -98,7 +99,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
   double _audioAmplitudeDb = -60;
 
   // Media capture is tracked independently from sensor samples.
-  final List<_RegistroFoto> _fotosCapturadas = [];
+  final List<RecordedMediaItem> _capturedMedia = [];
   bool _isFinalizing = false;
   bool _isFinalized = false;
 
@@ -118,69 +119,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
   }
 
   void _validateCaptureConfiguration() {
-    final config = widget.configuracao;
-    if (!config.sensoresSelecionados.contains(SensorColeta.acelerometro) ||
-        !config.sensoresSelecionados.contains(SensorColeta.gps)) {
-      throw StateError('Acelerômetro e GPS são obrigatórios para gravar.');
-    }
-    if (config.taxaInercialHz < 50 || config.taxaInercialHz > 500) {
-      throw StateError(
-        'A frequência do acelerômetro deve estar entre 50 e 500 Hz.',
-      );
-    }
-    if (config.taxaGpsHz < 1 || config.taxaGpsHz > 10) {
-      throw StateError('A frequência do GPS deve estar entre 1 e 10 Hz.');
-    }
-    if (!config.intervaloMetros.isFinite || config.intervaloMetros <= 0) {
-      throw StateError(
-        'O intervalo de gravação deve ser uma distância positiva.',
-      );
-    }
-    if (config.sensoresSelecionados.contains(SensorColeta.giroscopio) &&
-        (config.sensoresOpcionais.gyroscopeFrequencyHz < 50 ||
-            config.sensoresOpcionais.gyroscopeFrequencyHz > 500)) {
-      throw StateError(
-        'A frequência do giroscópio deve estar entre 50 e 500 Hz.',
-      );
-    }
-    if (config.sensoresSelecionados.contains(SensorColeta.camera)) {
-      final camera = config.sensoresOpcionais.camera;
-      if (camera.mediaType != CameraMediaType.photos &&
-          (camera.videoDurationSeconds < 1 ||
-              camera.videoDurationSeconds > 120)) {
-        throw StateError(
-          'A duração máxima do vídeo deve ser de 1 a 120 segundos.',
-        );
-      }
-      if (camera.automatic) {
-        _validateAutomaticInterval(camera.interval, camera.intervalUnit);
-      }
-    }
-    if (config.sensoresSelecionados.contains(SensorColeta.audio)) {
-      final audio = config.sensoresOpcionais.audio;
-      if (audio.durationSeconds < 1 || audio.durationSeconds > 300) {
-        throw StateError(
-          'A duração máxima do áudio deve ser de 1 a 300 segundos.',
-        );
-      }
-      if (audio.automatic) {
-        _validateAutomaticInterval(audio.interval, audio.intervalUnit);
-      }
-    }
-  }
-
-  void _validateAutomaticInterval(int interval, CaptureIntervalUnit unit) {
-    final (minimum, maximum) = switch (unit) {
-      CaptureIntervalUnit.minutes => (1, 59),
-      CaptureIntervalUnit.hours => (1, 24),
-      CaptureIntervalUnit.meters => (1, 9999),
-      CaptureIntervalUnit.kilometers => (1, 999),
-    };
-    if (interval < minimum || interval > maximum) {
-      throw StateError(
-        'O intervalo automático deve estar entre $minimum e $maximum ${_intervalLabel(unit)}.',
-      );
-    }
+    widget.configuracao.validarParaGravacao();
   }
 
   Future<void> _startRecording() async {
@@ -575,6 +514,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
     bool video = false,
   }) async {
     if (automatic && _isRecordingVideo) return;
+    if (_isRecordingVideo && !video) return;
     if (_isCapturingMedia || _runId == null) return;
     final controller = _cameraController;
     if (controller == null || !controller.value.isInitialized) {
@@ -731,15 +671,16 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
       await File(file.path).delete();
     }
     _mediaCount++;
-    if (type == 'photo' && mounted) {
+    if (mounted) {
       setState(() {
-        _fotosCapturadas.add(
-          _RegistroFoto(
+        _capturedMedia.add(
+          RecordedMediaItem(
             id: mediaId,
+            type: type,
             timestamp: timestamp,
             latitude: position?.latitude,
             longitude: position?.longitude,
-            odometroKm:
+            odometerKm:
                 widget.configuracao.odometroInicial + _distanceMeters / 1000,
             filePath: savedFile.path,
           ),
@@ -895,71 +836,91 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
 
   void _capturarFoto() => unawaited(_captureCameraMedia());
 
-  void _exibirDetalhesFoto(_RegistroFoto foto) {
+  void _exibirDetalhesFoto(RecordedMediaItem media) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: Row(
-          children: [
-            const Icon(Icons.place_rounded, color: Colors.teal),
-            const SizedBox(width: 8),
-            Text('Foto #${foto.id} (Geotag)'),
-          ],
-        ),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              height: 120,
-              width: double.infinity,
-              decoration: BoxDecoration(
-                color: Colors.black12,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.grey.shade400),
-              ),
-              child: Image.file(
-                File(foto.filePath),
-                fit: BoxFit.cover,
-                errorBuilder: (context, error, stackTrace) => const Center(
-                  child: Icon(Icons.broken_image_outlined, size: 36),
-                ),
-              ),
+      builder: (ctx) => RecordedMediaPreviewDialog(media: media),
+    );
+  }
+
+  Widget _capturedMediaGallery(ColorScheme colors) {
+    return Container(
+      key: const ValueKey('captured-media-gallery'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppDimensions.space12),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: AppDimensions.borderRadiusCard,
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Arquivos capturados (${_capturedMedia.length})',
+            style: context.typography.titleSmall,
+          ),
+          const SizedBox(height: AppDimensions.space8),
+          SizedBox(
+            height: 58,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: _capturedMedia.length,
+              separatorBuilder: (_, _) =>
+                  const SizedBox(width: AppDimensions.space8),
+              itemBuilder: (context, index) {
+                final media = _capturedMedia[index];
+                final hour =
+                    '${media.timestamp.hour.toString().padLeft(2, '0')}:'
+                    '${media.timestamp.minute.toString().padLeft(2, '0')}:'
+                    '${media.timestamp.second.toString().padLeft(2, '0')}';
+                return InkWell(
+                  key: ValueKey('captured-media-${media.id}'),
+                  onTap: () => _exibirDetalhesFoto(media),
+                  borderRadius: AppDimensions.borderRadiusSmall,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: AppDimensions.space12,
+                      vertical: AppDimensions.space8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.primary.withValues(alpha: 0.08),
+                      borderRadius: AppDimensions.borderRadiusSmall,
+                      border: Border.all(
+                        color: colors.primary.withValues(alpha: 0.25),
+                      ),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(media.icon, color: colors.primary),
+                        const SizedBox(width: AppDimensions.space8),
+                        Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Text(
+                              '${media.label} #${media.id}',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                            Text(
+                              '$hour • ${path.basename(media.filePath)}',
+                              style: TextStyle(
+                                fontSize: 9,
+                                color: colors.onSurfaceVariant,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
             ),
-            const SizedBox(height: 12),
-            Text(
-              foto.latitude == null
-                  ? 'Latitude: sem posição GPS disponível'
-                  : 'Latitude: ${foto.latitude!.toStringAsFixed(6)}',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            Text(
-              foto.longitude == null
-                  ? 'Longitude: sem posição GPS disponível'
-                  : 'Longitude: ${foto.longitude!.toStringAsFixed(6)}',
-              style: const TextStyle(fontWeight: FontWeight.w600),
-            ),
-            Text(
-              'Kilometragem estimada: ${foto.odometroKm.toStringAsFixed(2)} km',
-            ),
-            Text(
-              'Horário: ${foto.timestamp.hour.toString().padLeft(2, '0')}:${foto.timestamp.minute.toString().padLeft(2, '0')}:${foto.timestamp.second.toString().padLeft(2, '0')}',
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Arquivo: ${path.basename(foto.filePath)}',
-              style: TextStyle(
-                fontSize: 11,
-                fontStyle: FontStyle.italic,
-                color: Colors.grey,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Fechar'),
           ),
         ],
       ),
@@ -1024,6 +985,9 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
         sensorSampleCount: _sensorSampleCount,
         gpsPointCount: _gpsPointCount,
         mediaCount: _mediaCount,
+        vehicleId: widget.configuracao.vehicleId,
+        finalOdometer:
+            widget.configuracao.odometroInicial + _distanceMeters / 1000,
       );
       _isFinalized = true;
       if (widget.captureDeviceSensors) await WakelockPlus.disable();
@@ -1241,8 +1205,8 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                           _ParamBadge(
                             label: 'GPS',
                             value:
-                                '${widget.configuracao.taxaGpsHz} Hz • a cada '
-                                '${widget.configuracao.intervaloMetros.toStringAsFixed(0)} m',
+                                '${widget.configuracao.taxaGpsHz} Hz • mínimo '
+                                '${widget.configuracao.intervaloMetros.toStringAsFixed(0)} m entre pontos',
                             icon: Icons.gps_fixed_rounded,
                           ),
                           if (widget.configuracao.sensoresSelecionados.contains(
@@ -1512,10 +1476,14 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                       color: colors.surface,
                       borderRadius: AppDimensions.borderRadiusCard,
                       border: Border.all(
-                        color: _fotosCapturadas.isNotEmpty
+                        color:
+                            _capturedMedia.any((media) => media.type == 'photo')
                             ? colors.primary.withValues(alpha: 0.5)
                             : colors.outlineVariant,
-                        width: _fotosCapturadas.isNotEmpty ? 1.6 : 1.0,
+                        width:
+                            _capturedMedia.any((media) => media.type == 'photo')
+                            ? 1.6
+                            : 1.0,
                       ),
                     ),
                     child: Column(
@@ -1546,7 +1514,10 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                                 vertical: 3,
                               ),
                               decoration: BoxDecoration(
-                                color: _fotosCapturadas.isEmpty
+                                color:
+                                    !_capturedMedia.any(
+                                      (media) => media.type == 'photo',
+                                    )
                                     ? colors.surfaceContainerHighest
                                     : colors.primary.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(12),
@@ -1556,7 +1527,10 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                                 style: TextStyle(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
-                                  color: _fotosCapturadas.isEmpty
+                                  color:
+                                      !_capturedMedia.any(
+                                        (media) => media.type == 'photo',
+                                      )
                                       ? colors.onSurfaceVariant
                                       : colors.primary,
                                 ),
@@ -1584,80 +1558,6 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                           onTakePhoto: _capturarFoto,
                           onToggleVideo: _alternarVideo,
                         ),
-                        if (_fotosCapturadas.isNotEmpty) ...[
-                          const SizedBox(height: 12),
-                          SizedBox(
-                            height: 48,
-                            child: ListView.separated(
-                              scrollDirection: Axis.horizontal,
-                              itemCount: _fotosCapturadas.length,
-                              separatorBuilder: (_, _) =>
-                                  const SizedBox(width: 8),
-                              itemBuilder: (context, index) {
-                                final foto = _fotosCapturadas[index];
-                                final hora =
-                                    '${foto.timestamp.hour.toString().padLeft(2, '0')}:${foto.timestamp.minute.toString().padLeft(2, '0')}:${foto.timestamp.second.toString().padLeft(2, '0')}';
-                                return InkWell(
-                                  onTap: () => _exibirDetalhesFoto(foto),
-                                  borderRadius: BorderRadius.circular(8),
-                                  child: Container(
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 10,
-                                      vertical: 6,
-                                    ),
-                                    decoration: BoxDecoration(
-                                      color: colors.primary.withValues(
-                                        alpha: 0.08,
-                                      ),
-                                      borderRadius: BorderRadius.circular(8),
-                                      border: Border.all(
-                                        color: colors.primary.withValues(
-                                          alpha: 0.25,
-                                        ),
-                                      ),
-                                    ),
-                                    child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const Icon(
-                                          Icons.photo_camera_rounded,
-                                          size: 16,
-                                          color: Colors.teal,
-                                        ),
-                                        const SizedBox(width: 6),
-                                        Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            Text(
-                                              'Foto #${foto.id} • $hora',
-                                              style: const TextStyle(
-                                                fontSize: 11,
-                                                fontWeight: FontWeight.w700,
-                                              ),
-                                            ),
-                                            Text(
-                                              foto.latitude == null ||
-                                                      foto.longitude == null
-                                                  ? 'GPS: indisponível'
-                                                  : 'GPS: ${foto.latitude!.toStringAsFixed(4)}, ${foto.longitude!.toStringAsFixed(4)}',
-                                              style: TextStyle(
-                                                fontSize: 9,
-                                                color: colors.onSurfaceVariant,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ],
                       ],
                     ),
                   ),
@@ -1717,6 +1617,10 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                       ],
                     ),
                   ),
+                ],
+                if (_capturedMedia.isNotEmpty) ...[
+                  const SizedBox(height: AppDimensions.space16),
+                  _capturedMediaGallery(colors),
                 ],
 
                 const SizedBox(height: AppDimensions.space24),
@@ -2001,23 +1905,4 @@ class _OscilloscopePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _OscilloscopePainter oldDelegate) => true;
-}
-
-/// Foto armazenada localmente junto aos metadados de captura.
-class _RegistroFoto {
-  final int id;
-  final DateTime timestamp;
-  final double? latitude;
-  final double? longitude;
-  final double odometroKm;
-  final String filePath;
-
-  const _RegistroFoto({
-    required this.id,
-    required this.timestamp,
-    required this.latitude,
-    required this.longitude,
-    required this.odometroKm,
-    required this.filePath,
-  });
 }

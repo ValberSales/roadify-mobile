@@ -1,8 +1,15 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:roadify_app/main.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
-  testWidgets('RoadifyApp inicializa e renderiza a PillDockBar com 5 abas', (WidgetTester tester) async {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
+  testWidgets('RoadifyApp inicializa e renderiza a PillDockBar com 5 abas', (
+    WidgetTester tester,
+  ) async {
     await tester.pumpWidget(const RoadifyApp());
     await tester.pumpAndSettle();
 

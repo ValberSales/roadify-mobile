@@ -7,9 +7,21 @@ import 'package:roadify_app/features/gravacao/services/recording_repository.dart
 void main() {
   late AppDatabase database;
   late RecordingRepository repository;
+  late int vehicleId;
 
-  setUp(() {
+  setUp(() async {
     database = AppDatabase.forTesting(NativeDatabase.memory());
+    vehicleId = await database
+        .into(database.vehicles)
+        .insert(
+          VehiclesCompanion.insert(
+            name: 'Veículo de teste',
+            model: 'Modelo',
+            licensePlate: 'ABC1234',
+            defaultOdometer: 1000,
+            year: 2020,
+          ),
+        );
     repository = RecordingRepository(database);
   });
 
@@ -30,6 +42,9 @@ void main() {
         taxaInercialHz: 200,
         taxaGpsHz: 10,
         intervaloMetros: 25,
+        trecho: 'BR-101 • Trecho Norte',
+        identificador: 'ensaio-2026-001',
+        vehicleId: vehicleId,
         nomeColeta: 'BR-101 • Trecho Norte',
         odometroInicial: 15420.5,
       );
@@ -91,6 +106,8 @@ void main() {
         sensorSampleCount: 2,
         gpsPointCount: 1,
         mediaCount: 1,
+        vehicleId: vehicleId,
+        finalOdometer: 15420.625,
       );
 
       final run = await (database.select(
@@ -116,6 +133,10 @@ void main() {
       expect(run.accelerometerSampleCount, 2);
       expect(run.gpsPointCount, 1);
       expect(run.mediaCount, 1);
+      expect(
+        (await database.vehicleDao.getVehicleById(vehicleId)).defaultOdometer,
+        15420.625,
+      );
       expect(samples, hasLength(2));
       expect(samples.first.gyroscopeY, 0.2);
       expect(gpsPoints.single.latitude, -23.55);

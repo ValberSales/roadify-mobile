@@ -113,7 +113,11 @@ class _SensorFrequencySelectorState extends State<SensorFrequencySelector> {
                 final isSelected = !_isCustom && widget.currentValue == hz;
                 return ChoiceChip(
                   key: ValueKey('chip-${widget.keyPrefix}-$hz'),
-                  label: Text('$hz ${widget.unit}'),
+                  showCheckmark: false,
+                  label: SizedBox(
+                    width: 58,
+                    child: Center(child: Text('$hz ${widget.unit}')),
+                  ),
                   selected: isSelected,
                   selectedColor: colors.primary,
                   labelStyle: TextStyle(
@@ -129,6 +133,7 @@ class _SensorFrequencySelectorState extends State<SensorFrequencySelector> {
               }),
               ChoiceChip(
                 key: ValueKey('chip-${widget.keyPrefix}-outro'),
+                showCheckmark: false,
                 avatar: const Icon(Icons.tune_rounded, size: 14),
                 label: const Text('Outro...'),
                 selected: _isCustom,

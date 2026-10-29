@@ -78,6 +78,14 @@ class RecordingRepository {
                 'gyroscopeFrequencyHz': options.gyroscopeFrequencyHz,
                 'gpsFrequencyHz': configuration.taxaGpsHz,
                 'gpsDistanceIntervalMeters': configuration.intervaloMetros,
+                'route': configuration.trecho,
+                'identifier': configuration.identificador,
+                'orientation': configuration.orientation.name,
+                'posture': configuration.posture.name,
+                'levelingMode': configuration.levelingMode.name,
+                'isCalibrated': configuration.isCalibrated,
+                'calibrationOffsetX': configuration.calibrationOffsetX,
+                'calibrationOffsetY': configuration.calibrationOffsetY,
                 'camera': {
                   'mediaType': options.camera.mediaType.name,
                   'facing': options.camera.facing.name,
@@ -174,23 +182,45 @@ class RecordingRepository {
     required int sensorSampleCount,
     required int gpsPointCount,
     required int mediaCount,
+    int? vehicleId,
+    double? finalOdometer,
   }) async {
-    final changed =
-        await (database.update(
-          database.runsTable,
-        )..where((run) => run.id.equals(runId))).write(
-          RunsTableCompanion(
-            endedAt: Value(endedAt.toUtc()),
-            durationSeconds: Value(duration.inSeconds),
-            distanceKm: Value(distanceKm),
-            accelerometerSampleCount: Value(sensorSampleCount),
-            gpsPointCount: Value(gpsPointCount),
-            mediaCount: Value(mediaCount),
-          ),
-        );
-    if (changed != 1) {
-      throw StateError('A coleta não foi encontrada para finalização.');
+    if ((vehicleId == null) != (finalOdometer == null)) {
+      throw ArgumentError(
+        'Veículo e quilometragem final devem ser informados juntos.',
+      );
     }
+
+    await database.transaction(() async {
+      final changed =
+          await (database.update(
+            database.runsTable,
+          )..where((run) => run.id.equals(runId))).write(
+            RunsTableCompanion(
+              endedAt: Value(endedAt.toUtc()),
+              durationSeconds: Value(duration.inSeconds),
+              distanceKm: Value(distanceKm),
+              accelerometerSampleCount: Value(sensorSampleCount),
+              gpsPointCount: Value(gpsPointCount),
+              mediaCount: Value(mediaCount),
+            ),
+          );
+      if (changed != 1) {
+        throw StateError('A coleta não foi encontrada para finalização.');
+      }
+
+      if (vehicleId != null) {
+        final updated = await database.vehicleDao.updateOdometer(
+          id: vehicleId,
+          odometer: finalOdometer!,
+        );
+        if (updated != 1) {
+          throw StateError(
+            'O veículo selecionado não está mais disponível para atualizar a quilometragem.',
+          );
+        }
+      }
+    });
   }
 
   Future<int> saveMedia({

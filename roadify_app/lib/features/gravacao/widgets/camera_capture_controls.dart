@@ -81,7 +81,9 @@ class CameraCaptureControls extends StatelessWidget {
             icon: Icons.camera_alt_rounded,
             label: 'TIRAR FOTO DA VIA',
             detail: 'Registrar imagem da ocorrência',
-            onPressed: cameraReady && !isBusy ? onTakePhoto : null,
+            onPressed: cameraReady && !isBusy && !isVideoRecording
+                ? onTakePhoto
+                : null,
           )
         else if (mediaType == CameraMediaType.videos)
           _CaptureButton(
@@ -103,7 +105,9 @@ class CameraCaptureControls extends StatelessWidget {
                   icon: Icons.camera_alt_rounded,
                   label: 'FOTO',
                   detail: 'Registrar imagem',
-                  onPressed: cameraReady && !isBusy ? onTakePhoto : null,
+                  onPressed: cameraReady && !isBusy && !isVideoRecording
+                      ? onTakePhoto
+                      : null,
                 ),
               ),
               const SizedBox(width: 10),

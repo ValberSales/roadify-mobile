@@ -34,32 +34,33 @@ class NivelBolhaViewModel extends ChangeNotifier {
   }
 
   void _initService() {
-    _orientationSubscription = _orientationService.orientationStream.listen(
-      (OrientationReading reading) {
-        // Se a aceleração no eixo Z for alta (> 6.5 m/s²), o aparelho está deitado na mesa
-        // Se for menor, está inclinado ou em pé no suporte veicular
-        final autoDetected = reading.accelZ.abs() > 6.5
-            ? DeviceOrientationMode.horizontal
-            : DeviceOrientationMode.vertical;
+    _orientationSubscription = _orientationService.orientationStream.listen((
+      OrientationReading reading,
+    ) {
+      // Se a aceleração no eixo Z for alta (> 6.5 m/s²), o aparelho está deitado na mesa
+      // Se for menor, está inclinado ou em pé no suporte veicular
+      final autoDetected = reading.accelZ.abs() > 6.5
+          ? DeviceOrientationMode.horizontal
+          : DeviceOrientationMode.vertical;
 
-        // Se o modo selecionado for manual, a postura reflete o instrumento escolhido;
-        // se for automático, reflete a leitura inercial do sensor
-        final resolvedOrientation = _state.selectedMode == BubbleDisplayMode.circular2D
-            ? DeviceOrientationMode.horizontal
-            : (_state.selectedMode == BubbleDisplayMode.tubularT
+      // Se o modo selecionado for manual, a postura reflete o instrumento escolhido;
+      // se for automático, reflete a leitura inercial do sensor
+      final resolvedOrientation =
+          _state.selectedMode == BubbleDisplayMode.circular2D
+          ? DeviceOrientationMode.horizontal
+          : (_state.selectedMode == BubbleDisplayMode.tubularT
                 ? DeviceOrientationMode.vertical
                 : autoDetected);
 
-        _state = _state.copyWith(
-          angleX: reading.roll,
-          angleY: reading.pitch,
-          accelZ: reading.accelZ,
-          detectedOrientation: resolvedOrientation,
-          isReadingFromHardware: reading.isFromHardware,
-        );
-        notifyListeners();
-      },
-    );
+      _state = _state.copyWith(
+        angleX: reading.roll,
+        angleY: reading.pitch,
+        accelZ: reading.accelZ,
+        detectedOrientation: resolvedOrientation,
+        isReadingFromHardware: reading.isFromHardware,
+      );
+      notifyListeners();
+    });
 
     _orientationService.startListening(allowMockFallback: true);
   }
@@ -80,10 +81,10 @@ class NivelBolhaViewModel extends ChangeNotifier {
     final updatedOrientation = mode == BubbleDisplayMode.circular2D
         ? DeviceOrientationMode.horizontal
         : (mode == BubbleDisplayMode.tubularT
-            ? DeviceOrientationMode.vertical
-            : (_state.accelZ.abs() > 6.5
-                ? DeviceOrientationMode.horizontal
-                : DeviceOrientationMode.vertical));
+              ? DeviceOrientationMode.vertical
+              : (_state.accelZ.abs() > 6.5
+                    ? DeviceOrientationMode.horizontal
+                    : DeviceOrientationMode.vertical));
 
     _state = _state.copyWith(
       selectedMode: mode,
@@ -91,7 +92,6 @@ class NivelBolhaViewModel extends ChangeNotifier {
     );
     notifyListeners();
   }
-
 
   /// Calibra o nível na posição atual (grava tara angular da montagem).
   ///
@@ -115,6 +115,19 @@ class NivelBolhaViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
+  void restoreCalibration({
+    required double offsetX,
+    required double offsetY,
+    required bool isCalibrated,
+  }) {
+    _state = _state.copyWith(
+      calibOffsetX: offsetX,
+      calibOffsetY: offsetY,
+      isCalibrated: isCalibrated,
+    );
+    notifyListeners();
+  }
+
   /// Atualização direta a partir de valores de aceleração (útil para injeção manual ou testes).
   void updateFromSensors({
     required double accelX,
@@ -123,11 +136,18 @@ class NivelBolhaViewModel extends ChangeNotifier {
   }) {
     // Cálculo do Roll (inclinação lateral no eixo X)
     final rollRad = (accelX != 0 || accelY != 0 || accelZ != 0)
-        ? (accelX / (accelY * accelY + accelZ * accelZ > 0 ? (accelY * accelY + accelZ * accelZ) : 1))
+        ? (accelX /
+              (accelY * accelY + accelZ * accelZ > 0
+                  ? (accelY * accelY + accelZ * accelZ)
+                  : 1))
         : 0.0;
     // Cálculo trigonométrico
-    final degX = double.parse((rollRad * 180.0 / 3.1415926535).toStringAsFixed(2));
-    final degY = double.parse(((accelY) * 180.0 / (3.1415926535 * 9.81)).toStringAsFixed(2));
+    final degX = double.parse(
+      (rollRad * 180.0 / 3.1415926535).toStringAsFixed(2),
+    );
+    final degY = double.parse(
+      ((accelY) * 180.0 / (3.1415926535 * 9.81)).toStringAsFixed(2),
+    );
 
     final detected = accelZ.abs() > 6.5
         ? DeviceOrientationMode.horizontal

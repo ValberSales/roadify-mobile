@@ -24,7 +24,9 @@ class AcquisitionParametersSection extends StatelessWidget {
       children: [
         const SensorSectionHeading(
           title: 'Parâmetros',
-          subtitle: 'Defina a distância entre cada registro do percurso.',
+          subtitle:
+              'Defina a distância mínima entre os pontos GPS armazenados. '
+              'As taxas dos outros sensores são configuradas acima.',
           icon: Icons.straighten_rounded,
         ),
         const SizedBox(height: AppDimensions.space12),
@@ -36,6 +38,7 @@ class AcquisitionParametersSection extends StatelessWidget {
           ),
           padding: const EdgeInsets.all(AppDimensions.space12),
           child: TextFormField(
+            key: const ValueKey('interval-meters-field'),
             controller: intervalController,
             autovalidateMode: AutovalidateMode.onUserInteraction,
             keyboardType: const TextInputType.numberWithOptions(decimal: true),
@@ -43,9 +46,11 @@ class AcquisitionParametersSection extends StatelessWidget {
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
             ],
             decoration: const InputDecoration(
-              labelText: 'Gravar trecho a cada',
-              suffixText: 'metros',
+              labelText: 'Distância mínima entre pontos GPS',
+              suffixText: 'm',
               prefixIcon: Icon(Icons.straighten_rounded),
+              helperText:
+                  'O GPS continua lendo na frequência escolhida; um ponto só é salvo após deslocar pelo menos esta distância.',
             ),
             validator: validator,
           ),

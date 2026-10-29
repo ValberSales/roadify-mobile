@@ -12,6 +12,8 @@ class VehicleViewModel extends ChangeNotifier {
   Stream<List<Vehicle>> get activeVehiclesStream =>
       _dao.watchAllActiveVehicles();
 
+  Future<List<Vehicle>> getActiveVehicles() => _dao.getAllActiveVehicles();
+
   // Lógica centralizada de salvamento (criação ou atualização)
   Future<void> saveVehicle({
     Vehicle? existingVehicle,

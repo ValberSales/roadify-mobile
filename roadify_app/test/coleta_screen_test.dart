@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:roadify_app/core/theme/app_theme.dart';
 import 'package:roadify_app/features/coleta/presentation/coleta_screen.dart';
 import 'package:roadify_app/features/coleta/viewmodels/coleta_viewmodel.dart';
@@ -16,6 +17,10 @@ class _RecordingColetaViewModel implements ColetaViewModel {
 }
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('requires vehicle selection before starting collection', (
     tester,
   ) async {
@@ -27,6 +32,7 @@ void main() {
         home: ColetaScreen(viewModel: viewModel),
       ),
     );
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('200 Hz'));
     final gyroscopeCheckbox = find.byKey(
@@ -55,6 +61,7 @@ void main() {
         home: ColetaScreen(viewModel: _RecordingColetaViewModel()),
       ),
     );
+    await tester.pumpAndSettle();
 
     expect(
       find.byKey(const ValueKey('sensor-acelerometro-checkbox')),
@@ -64,6 +71,30 @@ void main() {
     expect(find.text('Obrigatório'), findsNWidgets(2));
     expect(find.byKey(const ValueKey('chip-acc-100')), findsOneWidget);
     expect(find.byKey(const ValueKey('chip-gps-10')), findsOneWidget);
+  });
+
+  testWidgets('explains GPS distance as a storage filter, not sensor rate', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: ColetaScreen(viewModel: _RecordingColetaViewModel()),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Distância mínima entre pontos GPS'), findsOneWidget);
+    expect(
+      find.textContaining('O GPS continua lendo na frequência escolhida'),
+      findsOneWidget,
+    );
+    expect(
+      find.textContaining(
+        'As taxas dos outros sensores são configuradas acima.',
+      ),
+      findsOneWidget,
+    );
   });
 
   testWidgets('prefills the collection name and validates required fields', (
@@ -77,6 +108,7 @@ void main() {
         home: ColetaScreen(viewModel: viewModel),
       ),
     );
+    await tester.pumpAndSettle();
 
     final collectionNameField = tester.widget<TextFormField>(
       find.byKey(const ValueKey('collection-name-field')),
@@ -91,12 +123,13 @@ void main() {
       '   ',
     );
     await tester.pump();
-    expect(find.text('Informe o nome da coleta.'), findsOneWidget);
+    expect(find.text('Informe o identificador do ensaio.'), findsOneWidget);
     await tester.ensureVisible(find.text('Prosseguir para gravação'));
     await tester.tap(find.text('Prosseguir para gravação'));
     await tester.pump();
 
-    expect(find.text('Informe o nome da coleta.'), findsOneWidget);
+    expect(find.text('Informe o identificador do ensaio.'), findsOneWidget);
+    expect(find.text('Informe o trecho da coleta.'), findsOneWidget);
     expect(find.text('Selecione um veículo para a coleta.'), findsOneWidget);
     expect(viewModel.requestedConfiguration, isNull);
   });
@@ -112,6 +145,7 @@ void main() {
           home: ColetaScreen(viewModel: viewModel),
         ),
       );
+      await tester.pumpAndSettle();
 
       // 1. Verifica presença dos botões pre-configurados do acelerômetro: 100, 200, 300, 400, 500 Hz e Outro
       expect(find.byKey(const ValueKey('chip-acc-100')), findsOneWidget);
@@ -173,6 +207,7 @@ void main() {
           home: ColetaScreen(viewModel: _RecordingColetaViewModel()),
         ),
       );
+      await tester.pumpAndSettle();
 
       final accOther = find.byKey(const ValueKey('chip-acc-outro'));
       await tester.ensureVisible(accOther);
@@ -212,6 +247,7 @@ void main() {
         home: ColetaScreen(viewModel: _RecordingColetaViewModel()),
       ),
     );
+    await tester.pumpAndSettle();
 
     expect(find.byKey(const ValueKey('input-gyro-custom')), findsNothing);
     expect(find.byKey(const ValueKey('camera-auto-capture')), findsNothing);
@@ -284,6 +320,7 @@ void main() {
         home: ColetaScreen(viewModel: _RecordingColetaViewModel()),
       ),
     );
+    await tester.pumpAndSettle();
 
     final cameraCheckbox = find.byKey(const ValueKey('sensor-camera-checkbox'));
     await tester.ensureVisible(cameraCheckbox);
@@ -331,6 +368,7 @@ void main() {
         home: ColetaScreen(viewModel: _RecordingColetaViewModel()),
       ),
     );
+    await tester.pumpAndSettle();
 
     final cameraCheckbox = find.byKey(const ValueKey('sensor-camera-checkbox'));
     await tester.ensureVisible(cameraCheckbox);
