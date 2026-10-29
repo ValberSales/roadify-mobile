@@ -1,113 +1,200 @@
+import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:roadify_app/core/theme/theme_controller.dart';
+import 'package:roadify_app/features/home/models/device_health_state.dart';
 import 'package:roadify_app/features/home/presentation/home_screen.dart';
+import 'package:roadify_app/features/home/viewmodel/home_health_viewmodel.dart';
 
 void main() {
-  testWidgets('HomeScreen: remove escala de qualidade e card de nuvem, exibe últimas coletas com sync no card', (tester) async {
-    final controller = ThemeController();
+  testWidgets(
+    'HomeScreen: remove escala de qualidade e card de nuvem, exibe últimas coletas com sync no card',
+    (tester) async {
+      final controller = ThemeController();
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: HomeScreen(
-          themeController: controller,
-          onStartCollection: () {},
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomeScreen(
+            themeController: controller,
+            onStartCollection: () {},
+          ),
         ),
-      ),
-    );
+      );
 
-    // 1. Escala de qualidade do pavimento DEVE estar removida
-    expect(find.text('Escala de Qualidade do Pavimento'), findsNothing);
+      // 1. Escala de qualidade do pavimento DEVE estar removida
+      expect(find.text('Escala de Qualidade do Pavimento'), findsNothing);
 
-    // 2. Card antigo de sincronização em nuvem DEVE estar removido
-    expect(find.text('Sincronização em Nuvem'), findsNothing);
+      // 2. Card antigo de sincronização em nuvem DEVE estar removido
+      expect(find.text('Sincronização em Nuvem'), findsNothing);
 
-    // 3. Seção "Últimas Coletas" DEVE estar presente
-    expect(find.text('Últimas Coletas'), findsOneWidget);
+      // 3. Seção "Últimas Coletas" DEVE estar presente
+      expect(find.text('Últimas Coletas'), findsOneWidget);
 
-    // 4. Cards de coletas com dados essenciais
-    expect(find.text('BR-101 • Trecho Norte'), findsOneWidget);
-    expect(find.text('Av. Paulista • Leste'), findsOneWidget);
+      // 4. Cards de coletas com dados essenciais
+      expect(find.text('BR-101 • Trecho Norte'), findsOneWidget);
+      expect(find.text('Av. Paulista • Leste'), findsOneWidget);
 
-    // 5. Ícones de nuvem de sincronização nos cards
-    // 2 já sincronizados (nuvem com check) e 1 pendente (nuvem upload)
-    expect(find.byIcon(Icons.cloud_done_rounded), findsNWidgets(2));
-    expect(find.byIcon(Icons.cloud_upload_outlined), findsOneWidget);
+      // 5. Ícones de nuvem de sincronização nos cards
+      // 2 já sincronizados (nuvem com check) e 1 pendente (nuvem upload)
+      expect(find.byIcon(Icons.cloud_done_rounded), findsNWidgets(2));
+      expect(find.byIcon(Icons.cloud_upload_outlined), findsOneWidget);
 
-    // 6. Clica no botão de sincronizar do card pendente
-    final syncButtonFinder = find.byIcon(Icons.cloud_upload_outlined);
-    await tester.ensureVisible(syncButtonFinder);
-    await tester.tap(syncButtonFinder);
-    await tester.pump();
+      // 6. Clica no botão de sincronizar do card pendente
+      final syncButtonFinder = find.byIcon(Icons.cloud_upload_outlined);
+      await tester.ensureVisible(syncButtonFinder);
+      await tester.tap(syncButtonFinder);
+      await tester.pump();
 
-    // Verifica que exibiu SnackBar de sincronização concluída
-    expect(find.textContaining('sincronizado com a nuvem com sucesso!'), findsOneWidget);
+      // Verifica que exibiu SnackBar de sincronização concluída
+      expect(
+        find.textContaining('sincronizado com a nuvem com sucesso!'),
+        findsOneWidget,
+      );
 
-    // Agora todos os 3 cards devem estar sincronizados
-    await tester.pump();
-    expect(find.byIcon(Icons.cloud_done_rounded), findsNWidgets(3));
-  });
+      // Agora todos os 3 cards devem estar sincronizados
+      await tester.pump();
+      expect(find.byIcon(Icons.cloud_done_rounded), findsNWidgets(3));
+    },
+  );
 
-  testWidgets('HomeScreen: card de armazenamento não transborda (sem overflow) em tela de celular estreita (320px)', (tester) async {
-    tester.view.physicalSize = const Size(320 * 2.0, 640 * 2.0);
-    tester.view.devicePixelRatio = 2.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
+  testWidgets(
+    'HomeScreen: card de armazenamento não transborda (sem overflow) em tela de celular estreita (320px)',
+    (tester) async {
+      tester.view.physicalSize = const Size(320 * 2.0, 640 * 2.0);
+      tester.view.devicePixelRatio = 2.0;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
 
-    final controller = ThemeController();
+      final controller = ThemeController();
 
-    await tester.pumpWidget(
-      MaterialApp(
-        home: HomeScreen(
-          themeController: controller,
-          onStartCollection: () {},
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomeScreen(
+            themeController: controller,
+            onStartCollection: () {},
+          ),
         ),
-      ),
-    );
+      );
 
-    // Renderiza e verifica que os textos estão presentes sem estourar overflow
-    expect(find.text('Armazenamento do Aparelho'), findsOneWidget);
-    expect(find.text('143,3 MB usados'), findsOneWidget);
-    expect(find.text('42 GB disponíveis'), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      // Renderiza e verifica que os textos estão presentes sem estourar overflow
+      expect(find.text('Armazenamento do Aparelho'), findsOneWidget);
+      expect(find.text('143,3 MB usados'), findsOneWidget);
+      expect(find.text('42 GB disponíveis'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
 
-  testWidgets('HomeScreen: botão Iniciar Coleta em Pista possui alto contraste e ícone visível nos modos claro e escuro', (tester) async {
-    bool iniciouColeta = false;
-    final controller = ThemeController();
+  testWidgets(
+    'HomeScreen: botão Iniciar Coleta em Pista possui alto contraste e ícone visível nos modos claro e escuro',
+    (tester) async {
+      bool iniciouColeta = false;
+      final controller = ThemeController();
 
-    // 1. Modo Claro
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: ThemeData.light(),
-        home: HomeScreen(
-          themeController: controller,
-          onStartCollection: () => iniciouColeta = true,
+      // 1. Modo Claro
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.light(),
+          home: HomeScreen(
+            themeController: controller,
+            onStartCollection: () => iniciouColeta = true,
+          ),
         ),
-      ),
-    );
+      );
 
-    final botaoIniciar = find.text('Iniciar Coleta em Pista');
-    expect(botaoIniciar, findsOneWidget);
-    expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+      final botaoIniciar = find.text('Iniciar Coleta em Pista');
+      expect(botaoIniciar, findsOneWidget);
+      expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
 
-    await tester.tap(botaoIniciar);
-    await tester.pump();
-    expect(iniciouColeta, isTrue);
+      await tester.tap(botaoIniciar);
+      await tester.pump();
+      expect(iniciouColeta, isTrue);
 
-    // 2. Modo Escuro
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: ThemeData.dark(),
-        home: HomeScreen(
-          themeController: controller,
-          onStartCollection: () {},
+      // 2. Modo Escuro
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData.dark(),
+          home: HomeScreen(
+            themeController: controller,
+            onStartCollection: () {},
+          ),
         ),
-      ),
-    );
+      );
 
-    expect(find.text('Iniciar Coleta em Pista'), findsOneWidget);
-    expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
-    expect(tester.takeException(), isNull);
-  });
+      expect(find.text('Iniciar Coleta em Pista'), findsOneWidget);
+      expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  testWidgets(
+    'SP2-02: HomeScreen exibe Card de Bateria, Indicador de GPS (forte/médio/fraco) com raio em metros e Alerta de Bateria Baixa',
+    (tester) async {
+      final controller = ThemeController();
+      final healthVm = HomeHealthViewModel(
+        autoStart: false,
+        initialState: const DeviceHealthState(
+          batteryLevel: 76,
+          batteryState: BatteryState.charging,
+          gpsAccuracyMeters: 3.8,
+          isGpsServiceEnabled: true,
+        ),
+      );
+      addTearDown(healthVm.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomeScreen(
+            themeController: controller,
+            onStartCollection: () {},
+            healthViewModel: healthVm,
+          ),
+        ),
+      );
+
+      // 1. Card de bateria com percentual real e status de carregamento
+      expect(
+        find.byKey(const ValueKey('home-battery-health-card')),
+        findsOneWidget,
+      );
+      expect(find.text('76%'), findsOneWidget);
+      expect(find.text('Carregando'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('low-battery-alert-banner')),
+        findsNothing,
+      );
+
+      // 2. Indicador de precisão do sinal GPS Forte com raio de incerteza em metros
+      expect(
+        find.byKey(const ValueKey('home-gps-health-card')),
+        findsOneWidget,
+      );
+      expect(find.text('± 3,8 m'), findsOneWidget);
+      expect(find.text('Sinal: Forte'), findsOneWidget);
+
+      // 3. Atualiza GPS para Médio (16,5 m) e Fraco (38,0 m)
+      healthVm.updateGpsAccuracy(16.5);
+      await tester.pump();
+      expect(find.text('± 16,5 m'), findsOneWidget);
+      expect(find.text('Sinal: Médio'), findsOneWidget);
+
+      healthVm.updateGpsAccuracy(38.0);
+      await tester.pump();
+      expect(find.text('± 38,0 m'), findsOneWidget);
+      expect(find.text('Sinal: Fraco'), findsOneWidget);
+
+      // 4. Atualiza bateria abaixo do limite seguro (< 20%) e valida alerta visual
+      healthVm.updateBattery(level: 14, state: BatteryState.discharging);
+      await tester.pump();
+      expect(find.text('14%'), findsOneWidget);
+      expect(find.text('Descarregando'), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('low-battery-alert-banner')),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Bateria abaixo do limite seguro (14%)'),
+        findsOneWidget,
+      );
+    },
+  );
 }
