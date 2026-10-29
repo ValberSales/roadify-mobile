@@ -120,7 +120,8 @@ void main() {
     expect(find.text('GRAVANDO'), findsOneWidget);
     expect(find.text('TEMPO DECORRIDO'), findsOneWidget);
     expect(find.text('200 Hz'), findsOneWidget);
-    expect(find.textContaining('10 Hz • a cada'), findsOneWidget);
+    expect(find.textContaining('10 Hz • mínimo'), findsOneWidget);
+    expect(find.textContaining('25 m entre pontos'), findsOneWidget);
     expect(find.textContaining('25 m'), findsOneWidget);
     expect(find.text('Amostras'), findsOneWidget);
     expect(find.text('Pontos GPS'), findsOneWidget);
@@ -260,6 +261,67 @@ void main() {
 
     expect(find.byKey(const ValueKey('botao-capturar-foto')), findsOneWidget);
     expect(find.byKey(const ValueKey('botao-gravar-video')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox());
+  });
+
+  testWidgets('mantém o HUD escuro e mostra cronômetro e captura rápida', (
+    tester,
+  ) async {
+    final configuration = ConfiguracaoColeta(
+      sensoresSelecionados: {
+        SensorColeta.acelerometro,
+        SensorColeta.gps,
+        SensorColeta.camera,
+      },
+      taxaInercialHz: 100,
+      taxaGpsHz: 5,
+      intervaloMetros: 20,
+      trecho: 'Trecho de teste',
+      identificador: 'ensaio-hud',
+      vehicleId: vehicleId,
+      odometroInicial: 1000,
+      sensoresOpcionais: const OptionalSensorSettings(
+        camera: CameraCaptureSettings(
+          mediaType: CameraMediaType.photosAndVideos,
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: GravacaoScreen(
+          configuracao: configuration,
+          repository: repository,
+          captureDeviceSensors: false,
+        ),
+      ),
+    );
+    await waitForRecording(tester);
+    await tester.pump(const Duration(milliseconds: 250));
+
+    final elapsedContext = tester.element(
+      find.byKey(const ValueKey('elapsed-time-sticky')),
+    );
+    expect(Theme.of(elapsedContext).brightness, Brightness.dark);
+    expect(
+      tester
+          .widget<Text>(find.byKey(const ValueKey('elapsed-time-sticky')))
+          .data,
+      matches(RegExp(r'^\d{2}:\d{2}:\d{2}\.\d$')),
+    );
+    expect(
+      tester.widget<Text>(find.byKey(const ValueKey('speedometer-value'))).data,
+      '-- km/h',
+    );
+    expect(find.byKey(const ValueKey('quick-capture-photo')), findsOneWidget);
+    expect(
+      tester
+          .widget<IconButton>(find.byKey(const ValueKey('quick-capture-photo')))
+          .tooltip,
+      'Foto rápida da via',
+    );
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
