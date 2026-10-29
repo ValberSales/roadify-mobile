@@ -50,6 +50,12 @@ class NivelBolhaState {
   /// Indica se a referência de zero já foi calibrada pelo usuário.
   final bool isCalibrated;
 
+  /// Valor da aceleração do eixo X (em m/s²).
+  final double accelX;
+
+  /// Valor da aceleração do eixo Y (em m/s²).
+  final double accelY;
+
   /// Valor da aceleração do eixo Z (em m/s²), usado para detecção de postura.
   final double accelZ;
 
@@ -64,6 +70,8 @@ class NivelBolhaState {
     this.selectedMode = BubbleDisplayMode.auto,
     this.detectedOrientation = DeviceOrientationMode.horizontal,
     this.isCalibrated = false,
+    this.accelX = 0.0,
+    this.accelY = 0.0,
     this.accelZ = 9.81,
     this.isReadingFromHardware = false,
   });
@@ -76,8 +84,9 @@ class NivelBolhaState {
 
   /// Magnitude angular total combinada (em graus).
   double get totalInclination => math.sqrt(
-        (calibratedAngleX * calibratedAngleX) + (calibratedAngleY * calibratedAngleY),
-      );
+    (calibratedAngleX * calibratedAngleX) +
+        (calibratedAngleY * calibratedAngleY),
+  );
 
   /// Tolerância limite de alinhamento perfeito (0.5 graus).
   static const double tolerance = 0.5;
@@ -110,6 +119,8 @@ class NivelBolhaState {
     BubbleDisplayMode? selectedMode,
     DeviceOrientationMode? detectedOrientation,
     bool? isCalibrated,
+    double? accelX,
+    double? accelY,
     double? accelZ,
     bool? isReadingFromHardware,
   }) {
@@ -121,8 +132,11 @@ class NivelBolhaState {
       selectedMode: selectedMode ?? this.selectedMode,
       detectedOrientation: detectedOrientation ?? this.detectedOrientation,
       isCalibrated: isCalibrated ?? this.isCalibrated,
+      accelX: accelX ?? this.accelX,
+      accelY: accelY ?? this.accelY,
       accelZ: accelZ ?? this.accelZ,
-      isReadingFromHardware: isReadingFromHardware ?? this.isReadingFromHardware,
+      isReadingFromHardware:
+          isReadingFromHardware ?? this.isReadingFromHardware,
     );
   }
 }

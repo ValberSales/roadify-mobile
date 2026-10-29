@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
@@ -8,15 +9,53 @@ import 'package:roadify_app/core/database/app_database.dart';
 import 'package:roadify_app/core/database/daos/run_dao.dart';
 import '../services/run_export_service.dart';
 
+/// Resumo das coordenadas GPS inicial e final de um ensaio (SP2-07).
+@immutable
+class RunGpsCoordinatesSummary {
+  final double? startLatitude;
+  final double? startLongitude;
+  final double? endLatitude;
+  final double? endLongitude;
+
+  const RunGpsCoordinatesSummary({
+    this.startLatitude,
+    this.startLongitude,
+    this.endLatitude,
+    this.endLongitude,
+  });
+
+  bool get hasCoordinates => startLatitude != null && startLongitude != null;
+
+  String get startFormatted =>
+      startLatitude != null && startLongitude != null
+      ? '${startLatitude!.toStringAsFixed(5)}, ${startLongitude!.toStringAsFixed(5)}'
+      : 'Não registrado';
+
+  String get endFormatted =>
+      endLatitude != null && endLongitude != null
+      ? '${endLatitude!.toStringAsFixed(5)}, ${endLongitude!.toStringAsFixed(5)}'
+      : 'Não registrado';
+}
+
 @immutable
 class RunListItem {
   final int id;
   final String title;
   final DateTime createdAt;
+  final DateTime? endedAt;
   final double km;
+  final double initialOdometer;
   final double sizeMb;
   final bool isSynced;
   final bool isFinished;
+  final int accelerometerSampleCount;
+  final int gpsPointCount;
+  final int mediaCount;
+  final int durationSeconds;
+  final String? deviceManufacturer;
+  final String? deviceModel;
+  final int? initialBatteryPercent;
+  final String? notes;
 
   const RunListItem({
     required this.id,
@@ -26,13 +65,25 @@ class RunListItem {
     required this.sizeMb,
     required this.isSynced,
     required this.isFinished,
+    this.endedAt,
+    this.initialOdometer = 0.0,
+    this.accelerometerSampleCount = 0,
+    this.gpsPointCount = 0,
+    this.mediaCount = 0,
+    this.durationSeconds = 0,
+    this.deviceManufacturer,
+    this.deviceModel,
+    this.initialBatteryPercent,
+    this.notes,
   });
+
+  double get finalOdometer => initialOdometer + km;
 
   String get dateLabel => formatRunDate(createdAt);
 
   String get metrics =>
       '${formatDecimal(km)} km • ${formatDecimal(sizeMb)} MB'
-          '${isFinished ? '' : ' • Incompleta'}';
+      '${isFinished ? '' : ' • Incompleta'}';
 }
 
 String formatDecimal(double value) =>
@@ -40,8 +91,18 @@ String formatDecimal(double value) =>
 
 String formatRunDate(DateTime utcOrLocal, {DateTime? now}) {
   const months = [
-    'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
-    'jul', 'ago', 'set', 'out', 'nov', 'dez',
+    'jan',
+    'fev',
+    'mar',
+    'abr',
+    'mai',
+    'jun',
+    'jul',
+    'ago',
+    'set',
+    'out',
+    'nov',
+    'dez',
   ];
   final date = utcOrLocal.toLocal();
   final today = now ?? DateTime.now();
@@ -55,7 +116,9 @@ String formatRunDate(DateTime utcOrLocal, {DateTime? now}) {
   if (diff == 0) return 'Hoje, $hh:$mm';
   if (diff == 1) return 'Ontem, $hh:$mm';
   final base = '${date.day} ${months[date.month - 1]}';
-  return date.year == today.year ? '$base, $hh:$mm' : '$base ${date.year}, $hh:$mm';
+  return date.year == today.year
+      ? '$base, $hh:$mm'
+      : '$base ${date.year}, $hh:$mm';
 }
 
 /// Observa o banco Drift e expõe as coletas gravadas para a tela de Dados.
@@ -80,10 +143,11 @@ class DadosViewModel extends ChangeNotifier {
   final Map<int, double> _exportProgress = {};
 
   DadosViewModel(
-      this._dao,
-      this._exportService, {
-        Future<Directory> Function()? documentsDirectory,
-      }) : _documentsDirectory = documentsDirectory ?? getApplicationDocumentsDirectory {
+    this._dao,
+    this._exportService, {
+    Future<Directory> Function()? documentsDirectory,
+  }) : _documentsDirectory =
+           documentsDirectory ?? getApplicationDocumentsDirectory {
     _listen();
   }
 
@@ -116,26 +180,83 @@ class DadosViewModel extends ChangeNotifier {
 
   void retry() => _listen();
 
+  /// Busca as coordenadas GPS inicial e final de um ensaio específico para o modal de detalhes (SP2-07).
+  Future<RunGpsCoordinatesSummary> getRunGpsCoordinates(int runId) async {
+    try {
+      final db = _dao.attachedDatabase;
+      final firstPoint =
+          await (db.select(db.gpsPointsTable)
+                ..where((t) => t.runId.equals(runId))
+                ..orderBy([
+                  (t) => OrderingTerm(
+                    expression: t.recordedAt,
+                    mode: OrderingMode.asc,
+                  ),
+                  (t) => OrderingTerm(expression: t.id, mode: OrderingMode.asc),
+                ])
+                ..limit(1))
+              .getSingleOrNull();
+
+      final lastPoint =
+          await (db.select(db.gpsPointsTable)
+                ..where((t) => t.runId.equals(runId))
+                ..orderBy([
+                  (t) => OrderingTerm(
+                    expression: t.recordedAt,
+                    mode: OrderingMode.desc,
+                  ),
+                  (t) =>
+                      OrderingTerm(expression: t.id, mode: OrderingMode.desc),
+                ])
+                ..limit(1))
+              .getSingleOrNull();
+
+      return RunGpsCoordinatesSummary(
+        startLatitude: firstPoint?.latitude,
+        startLongitude: firstPoint?.longitude,
+        endLatitude: lastPoint?.latitude,
+        endLongitude: lastPoint?.longitude,
+      );
+    } catch (_) {
+      return const RunGpsCoordinatesSummary();
+    }
+  }
+
   Future<void> _onRuns(List<Run> runs) async {
     // Descarta resultados antigos caso chegue um evento novo durante o cálculo de tamanho.
     final generation = ++_generation;
     final sizes = await _mediaSizesByRun(runs);
     if (_disposed || generation != _generation) return;
 
-    _items = runs.map((r) {
-      final dataBytes = r.accelerometerSampleCount * _bytesPerSensorSample +
-          r.gpsPointCount * _bytesPerGpsPoint;
-      final totalBytes = dataBytes + (sizes[r.id] ?? 0);
-      return RunListItem(
-        id: r.id,
-        title: (r.title?.trim().isNotEmpty ?? false) ? r.title!.trim() : 'Coleta #${r.id}',
-        createdAt: r.recordedAt,
-        km: r.distanceKm,
-        sizeMb: totalBytes / (1024 * 1024),
-        isSynced: r.isSynced,
-        isFinished: r.endedAt != null,
-      );
-    }).toList(growable: false);
+    _items = runs
+        .map((r) {
+          final dataBytes =
+              r.accelerometerSampleCount * _bytesPerSensorSample +
+              r.gpsPointCount * _bytesPerGpsPoint;
+          final totalBytes = dataBytes + (sizes[r.id] ?? 0);
+          return RunListItem(
+            id: r.id,
+            title: (r.title?.trim().isNotEmpty ?? false)
+                ? r.title!.trim()
+                : 'Coleta #${r.id}',
+            createdAt: r.recordedAt,
+            endedAt: r.endedAt,
+            km: r.distanceKm,
+            initialOdometer: r.odometer,
+            sizeMb: totalBytes / (1024 * 1024),
+            isSynced: r.isSynced,
+            isFinished: r.endedAt != null,
+            accelerometerSampleCount: r.accelerometerSampleCount,
+            gpsPointCount: r.gpsPointCount,
+            mediaCount: r.mediaCount,
+            durationSeconds: r.durationSeconds,
+            deviceManufacturer: r.deviceManufacturer,
+            deviceModel: r.deviceModel,
+            initialBatteryPercent: r.initialBatteryPercent,
+            notes: r.notes,
+          );
+        })
+        .toList(growable: false);
     _isLoading = false;
     _error = null;
     _notify();
@@ -145,13 +266,20 @@ class DadosViewModel extends ChangeNotifier {
   Future<Map<int, int>> _mediaSizesByRun(List<Run> runs) async {
     final result = <int, int>{};
     try {
-      final root = p.join((await _documentsDirectory()).path, 'roadify', 'runs');
+      final root = p.join(
+        (await _documentsDirectory()).path,
+        'roadify',
+        'runs',
+      );
       for (final run in runs) {
         if (run.mediaCount == 0) continue;
         final dir = Directory(p.join(root, run.id.toString()));
         if (!await dir.exists()) continue;
         var total = 0;
-        await for (final entity in dir.list(recursive: true, followLinks: false)) {
+        await for (final entity in dir.list(
+          recursive: true,
+          followLinks: false,
+        )) {
           if (entity is File) {
             try {
               total += await entity.length();

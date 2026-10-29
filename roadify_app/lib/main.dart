@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_localizations/flutter_localizations.dart';
 import 'core/di/setup_locator.dart';
+import 'core/l10n/locale_controller.dart';
 import 'core/navigation/pill_dock_scaffold.dart';
 import 'core/session/session_lifecycle_orchestrator.dart';
 import 'core/theme/app_colors.dart';
@@ -13,6 +15,7 @@ import 'features/coleta/presentation/coleta_screen.dart';
 import 'features/dados/presentation/dados_screen.dart';
 import 'features/home/presentation/home_screen.dart';
 import 'features/sensores/presentation/sensores_screen.dart';
+import 'l10n/app_localizations.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,8 +35,13 @@ void main() {
 
 class RoadifyApp extends StatefulWidget {
   final SessionLifecycleOrchestrator? sessionOrchestrator;
+  final LocaleController? localeController;
 
-  const RoadifyApp({super.key, this.sessionOrchestrator});
+  const RoadifyApp({
+    super.key,
+    this.sessionOrchestrator,
+    this.localeController,
+  });
 
   @override
   State<RoadifyApp> createState() => _RoadifyAppState();
@@ -41,6 +49,8 @@ class RoadifyApp extends StatefulWidget {
 
 class _RoadifyAppState extends State<RoadifyApp> {
   final ThemeController _themeController = ThemeController();
+  late final LocaleController _localeController;
+  late final bool _ownsLocaleController;
   late final SessionLifecycleOrchestrator _sessionOrchestrator;
   late final bool _ownsOrchestrator;
 
@@ -50,6 +60,12 @@ class _RoadifyAppState extends State<RoadifyApp> {
     final isWidgetTest = WidgetsBinding.instance.runtimeType
         .toString()
         .contains('Test');
+    _ownsLocaleController = widget.localeController == null;
+    _localeController = widget.localeController ?? LocaleController();
+    if (!isWidgetTest) {
+      unawaited(_localeController.loadSavedLocale());
+    }
+
     if (widget.sessionOrchestrator != null) {
       _sessionOrchestrator = widget.sessionOrchestrator!;
       _ownsOrchestrator = false;
@@ -72,6 +88,9 @@ class _RoadifyAppState extends State<RoadifyApp> {
   @override
   void dispose() {
     _themeController.dispose();
+    if (_ownsLocaleController) {
+      _localeController.dispose();
+    }
     if (_ownsOrchestrator) {
       _sessionOrchestrator.dispose();
     }
@@ -81,7 +100,7 @@ class _RoadifyAppState extends State<RoadifyApp> {
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: _themeController,
+      listenable: Listenable.merge([_themeController, _localeController]),
       builder: (context, _) {
         return MaterialApp(
           title: 'Roadify',
@@ -89,8 +108,17 @@ class _RoadifyAppState extends State<RoadifyApp> {
           theme: AppTheme.light,
           darkTheme: AppTheme.dark,
           themeMode: _themeController.themeMode,
+          locale: _localeController.locale,
+          localizationsDelegates: const [
+            AppLocalizations.delegate,
+            GlobalMaterialLocalizations.delegate,
+            GlobalWidgetsLocalizations.delegate,
+            GlobalCupertinoLocalizations.delegate,
+          ],
+          supportedLocales: LocaleController.supportedLocales,
           home: RoadifyMainShell(
             themeController: _themeController,
+            localeController: _localeController,
             sessionOrchestrator: _sessionOrchestrator,
           ),
         );
@@ -101,11 +129,13 @@ class _RoadifyAppState extends State<RoadifyApp> {
 
 class RoadifyMainShell extends StatefulWidget {
   final ThemeController themeController;
+  final LocaleController? localeController;
   final SessionLifecycleOrchestrator? sessionOrchestrator;
 
   const RoadifyMainShell({
     super.key,
     required this.themeController,
+    this.localeController,
     this.sessionOrchestrator,
   });
 
@@ -137,7 +167,10 @@ class _RoadifyMainShellState extends State<RoadifyMainShell> {
           : const SizedBox.shrink(),
       _visitedTabs.contains(3) ? const DadosScreen() : const SizedBox.shrink(),
       _visitedTabs.contains(4)
-          ? ConfigScreen(themeController: widget.themeController)
+          ? ConfigScreen(
+              themeController: widget.themeController,
+              localeController: widget.localeController,
+            )
           : const SizedBox.shrink(),
     ];
 

@@ -1,0 +1,21 @@
+{
+  "@@locale": "en",
+  "appTitle": "Roadify",
+  "settingsTitle": "Settings",
+  "userAccountTitle": "User Account",
+  "userAccountSubtitle": "Sign in or create an account to sync",
+  "appearanceAndThemeTitle": "Appearance & Theme",
+  "appearanceDescription": "Select your preferred display mode. Light Mode is recommended for windshield visibility.",
+  "themeLight": "Light",
+  "themeDark": "Dark",
+  "themeSystem": "System",
+  "vehicleDefaultsTitle": "Vehicle Defaults",
+  "defaultVehicleLabel": "Default Vehicle",
+  "manageVehiclesTitle": "Vehicle Management",
+  "accelerometerRateLabel": "Accelerometer Rate",
+  "systemLanguageLabel": "System Language",
+  "serverConnectionTitle": "Server Connection",
+  "apiEndpointLabel": "Roadify API Endpoint",
+  "wifiOnlySyncTitle": "Sync over Wi-Fi only",
+  "wifiOnlySyncSubtitle": "Saves mobile data allowance"
+}

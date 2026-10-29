@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
@@ -12,31 +13,47 @@ import 'widgets/t_bubble_level.dart';
 ///
 /// Integra a arquitetura MVVM com a ViewModel desacoplada [NivelBolhaViewModel]
 /// suportando modo duplo de visualização (Circular 2D e Tubular em T),
-/// alternância automática por orientação e calibração de tara angular.
+/// alternância automática por orientação e calibração de tara angular persistida.
 class SensoresScreen extends StatefulWidget {
-  const SensoresScreen({super.key});
+  final NivelBolhaViewModel? viewModel;
+
+  const SensoresScreen({super.key, this.viewModel});
 
   @override
   State<SensoresScreen> createState() => _SensoresScreenState();
 }
 
-class _SensoresScreenState extends State<SensoresScreen> with SingleTickerProviderStateMixin {
+class _SensoresScreenState extends State<SensoresScreen>
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
   late final NivelBolhaViewModel _viewModel;
+  late final bool _ownsViewModel;
 
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
-    final isWidgetTest = WidgetsBinding.instance.runtimeType.toString().contains('Test');
-    _viewModel = NivelBolhaViewModel(autoStart: !isWidgetTest);
+    final isWidgetTest = WidgetsBinding.instance.runtimeType
+        .toString()
+        .contains('Test');
+    _ownsViewModel = widget.viewModel == null;
+    _viewModel =
+        widget.viewModel ?? NivelBolhaViewModel(autoStart: !isWidgetTest);
+    unawaited(_viewModel.loadPersistedCalibration());
   }
 
   @override
   void dispose() {
     _tabController.dispose();
-    _viewModel.dispose();
+    if (_ownsViewModel) {
+      _viewModel.dispose();
+    }
     super.dispose();
+  }
+
+  String _formatSigned(double value, {int decimals = 2}) {
+    final sign = value >= 0 ? '+' : '';
+    return '$sign${value.toStringAsFixed(decimals).replaceAll('.', ',')}';
   }
 
   @override
@@ -57,22 +74,24 @@ class _SensoresScreenState extends State<SensoresScreen> with SingleTickerProvid
           ],
         ),
       ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          // Aba 1: Nível Bolha com arquitetura MVVM
-          ListenableBuilder(
-            listenable: _viewModel,
-            builder: (context, _) {
-              final state = _viewModel.state;
-              final isDark = context.isDarkMode;
+      body: ListenableBuilder(
+        listenable: _viewModel,
+        builder: (context, _) {
+          final state = _viewModel.state;
+          final isDark = context.isDarkMode;
 
-              return SingleChildScrollView(
+          return TabBarView(
+            controller: _tabController,
+            children: [
+              // Aba 1: Nível Bolha com arquitetura MVVM e Tara Persistida (SP2-05 e SP2-06)
+              SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(
                   AppDimensions.space20,
                   AppDimensions.space16,
                   AppDimensions.space20,
-                  AppDimensions.pillDockHeight + AppDimensions.pillDockMarginBottom + 40,
+                  AppDimensions.pillDockHeight +
+                      AppDimensions.pillDockMarginBottom +
+                      40,
                 ),
                 child: Column(
                   children: [
@@ -95,12 +114,20 @@ class _SensoresScreenState extends State<SensoresScreen> with SingleTickerProvid
 
                     // Banner de status da orientação e modo ativo
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
                       decoration: BoxDecoration(
-                        color: (isDark ? colors.surfaceContainerHighest : Colors.grey.shade100)
-                            .withValues(alpha: 0.6),
+                        color:
+                            (isDark
+                                    ? colors.surfaceContainerHighest
+                                    : Colors.grey.shade100)
+                                .withValues(alpha: 0.6),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.5)),
+                        border: Border.all(
+                          color: colors.outlineVariant.withValues(alpha: 0.5),
+                        ),
                       ),
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -108,7 +135,8 @@ class _SensoresScreenState extends State<SensoresScreen> with SingleTickerProvid
                           Row(
                             children: [
                               Icon(
-                                state.detectedOrientation == DeviceOrientationMode.horizontal
+                                state.detectedOrientation ==
+                                        DeviceOrientationMode.horizontal
                                     ? Icons.table_restaurant_rounded
                                     : Icons.stay_current_portrait_rounded,
                                 size: 16,
@@ -126,7 +154,10 @@ class _SensoresScreenState extends State<SensoresScreen> with SingleTickerProvid
                             ],
                           ),
                           Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 2,
+                            ),
                             decoration: BoxDecoration(
                               color: AppColors.primary.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(6),
@@ -152,7 +183,10 @@ class _SensoresScreenState extends State<SensoresScreen> with SingleTickerProvid
                         return FadeTransition(
                           opacity: animation,
                           child: ScaleTransition(
-                            scale: Tween<double>(begin: 0.95, end: 1.0).animate(animation),
+                            scale: Tween<double>(
+                              begin: 0.95,
+                              end: 1.0,
+                            ).animate(animation),
                             child: child,
                           ),
                         );
@@ -196,22 +230,31 @@ class _SensoresScreenState extends State<SensoresScreen> with SingleTickerProvid
                     // Card de Status do Nivelamento Geral
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 12,
+                      ),
                       decoration: BoxDecoration(
                         color: state.isLevel
                             ? AppColors.success.withValues(alpha: 0.1)
                             : colors.surface,
                         borderRadius: AppDimensions.borderRadiusCard,
                         border: Border.all(
-                          color: state.isLevel ? AppColors.success : colors.outlineVariant,
+                          color: state.isLevel
+                              ? AppColors.success
+                              : colors.outlineVariant,
                           width: state.isLevel ? 1.5 : 1.0,
                         ),
                       ),
                       child: Row(
                         children: [
                           Icon(
-                            state.isLevel ? Icons.verified_rounded : Icons.info_outline_rounded,
-                            color: state.isLevel ? AppColors.success : colors.onSurfaceVariant,
+                            state.isLevel
+                                ? Icons.verified_rounded
+                                : Icons.info_outline_rounded,
+                            color: state.isLevel
+                                ? AppColors.success
+                                : colors.onSurfaceVariant,
                             size: 20,
                           ),
                           const SizedBox(width: 10),
@@ -226,7 +269,9 @@ class _SensoresScreenState extends State<SensoresScreen> with SingleTickerProvid
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 13,
-                                    color: state.isLevel ? AppColors.success : colors.onSurface,
+                                    color: state.isLevel
+                                        ? AppColors.success
+                                        : colors.onSurface,
                                   ),
                                 ),
                                 Text(
@@ -262,58 +307,87 @@ class _SensoresScreenState extends State<SensoresScreen> with SingleTickerProvid
                           _viewModel.calibrate();
                           ScaffoldMessenger.of(context).showSnackBar(
                             const SnackBar(
-                              content: Text('Nível calibrado e zerado em 0,0°!'),
+                              content: Text(
+                                'Nível calibrado e zerado em 0,0°! Tara salva na sessão.',
+                              ),
                               behavior: SnackBarBehavior.floating,
                               duration: Duration(seconds: 2),
                             ),
                           );
                         },
-                        child: const Text(
-                          'Calibrar Nível (Zerar Nível)',
-                          style: TextStyle(
+                        child: Text(
+                          state.isCalibrated
+                              ? 'Recalibrar Nível (Zerar Nível)'
+                              : 'Calibrar Nível (Zerar Nível)',
+                          style: const TextStyle(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
                     ),
+                    if (state.isCalibrated) ...[
+                      const SizedBox(height: AppDimensions.space8),
+                      TextButton.icon(
+                        onPressed: () {
+                          _viewModel.resetCalibration();
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text('Tara angular removida.'),
+                              behavior: SnackBarBehavior.floating,
+                              duration: Duration(seconds: 2),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.restart_alt_rounded, size: 18),
+                        label: Text(
+                          'Remover Tara (Offsets: ${_formatSigned(state.calibOffsetX, decimals: 1)}° / ${_formatSigned(state.calibOffsetY, decimals: 1)}°)',
+                        ),
+                      ),
+                    ],
                   ],
                 ),
-              );
-            },
-          ),
+              ),
 
-          // Aba 2: Sinais ao Vivo (Preservada da Sprint 1)
-          SingleChildScrollView(
-            padding: const EdgeInsets.fromLTRB(
-              AppDimensions.space20,
-              AppDimensions.space20,
-              AppDimensions.space20,
-              AppDimensions.pillDockHeight + AppDimensions.pillDockMarginBottom + 40,
-            ),
-            child: Column(
-              children: [
-                _SensorLiveCard(
-                  title: 'Acelerômetro (m/s²)',
-                  values: 'X: +0,12 | Y: -0,04 | Z: +9,81',
-                  color: colors.primary,
+              // Aba 2: Sinais ao Vivo conectados ao estado inercial reativo
+              SingleChildScrollView(
+                padding: const EdgeInsets.fromLTRB(
+                  AppDimensions.space20,
+                  AppDimensions.space20,
+                  AppDimensions.space20,
+                  AppDimensions.pillDockHeight +
+                      AppDimensions.pillDockMarginBottom +
+                      40,
                 ),
-                const SizedBox(height: AppDimensions.space16),
-                _SensorLiveCard(
-                  title: 'Giroscópio (rad/s)',
-                  values: 'X: 0,8°/s | Y: 1,4°/s | Z: -0,2°/s',
-                  color: AppColors.secondary,
+                child: Column(
+                  children: [
+                    _SensorLiveCard(
+                      title: 'Acelerômetro (m/s²)',
+                      values:
+                          'X: ${_formatSigned(state.accelX)} | Y: ${_formatSigned(state.accelY)} | Z: ${_formatSigned(state.accelZ)}',
+                      color: colors.primary,
+                    ),
+                    const SizedBox(height: AppDimensions.space16),
+                    _SensorLiveCard(
+                      title: 'Inclinação Compensada (Graus)',
+                      values:
+                          'Roll (X): ${_formatSigned(state.calibratedAngleX, decimals: 1)}° | Pitch (Y): ${_formatSigned(state.calibratedAngleY, decimals: 1)}°',
+                      color: AppColors.secondary,
+                    ),
+                    const SizedBox(height: AppDimensions.space16),
+                    _SensorLiveCard(
+                      title: 'Referência de Tara Angular',
+                      values: state.isCalibrated
+                          ? 'Ativa • Offset X: ${_formatSigned(state.calibOffsetX, decimals: 1)}° | Offset Y: ${_formatSigned(state.calibOffsetY, decimals: 1)}°'
+                          : 'Padrão de fábrica (0,0° / 0,0°)',
+                      color: context.roadQualityColors.boa,
+                    ),
+                  ],
                 ),
-                const SizedBox(height: AppDimensions.space16),
-                _SensorLiveCard(
-                  title: 'Velocidade GPS',
-                  values: 'Atual: 43,2 km/h • Média: 41,8 km/h',
-                  color: context.roadQualityColors.boa,
-                ),
-              ],
-            ),
-          ),
-        ],
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -432,7 +506,11 @@ class _SensorLiveCard extends StatelessWidget {
                 ),
                 child: Text(
                   'AO VIVO',
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color),
+                  style: TextStyle(
+                    fontSize: 10,
+                    fontWeight: FontWeight.w700,
+                    color: color,
+                  ),
                 ),
               ),
             ],
@@ -446,11 +524,18 @@ class _SensorLiveCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(8),
             ),
             child: Center(
-              child: Icon(Icons.show_chart_rounded, size: 48, color: color.withValues(alpha: 0.6)),
+              child: Icon(
+                Icons.show_chart_rounded,
+                size: 48,
+                color: color.withValues(alpha: 0.6),
+              ),
             ),
           ),
           const SizedBox(height: AppDimensions.space8),
-          Text(values, style: typography.bodySmall?.copyWith(fontWeight: FontWeight.w600)),
+          Text(
+            values,
+            style: typography.bodySmall?.copyWith(fontWeight: FontWeight.w600),
+          ),
         ],
       ),
     );

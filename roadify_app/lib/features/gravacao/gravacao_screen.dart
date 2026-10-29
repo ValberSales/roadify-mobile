@@ -42,7 +42,7 @@ class GravacaoScreen extends StatefulWidget {
 }
 
 class _GravacaoScreenState extends State<GravacaoScreen> {
-  late final ThemeData _drivingTheme = context.theme;
+  final ThemeData _drivingTheme = AppTheme.dark;
   late final Stopwatch _stopwatch;
   final Stopwatch _audioStopwatch = Stopwatch();
   final Stopwatch _videoStopwatch = Stopwatch();

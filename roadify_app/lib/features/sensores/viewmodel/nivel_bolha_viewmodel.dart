@@ -1,18 +1,28 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../models/nivel_bolha_state.dart';
 import '../services/sensor_orientation_service.dart';
 
-/// ViewModel desacoplada para gerenciamento do Nível Bolha (Feature Sensores).
+/// ViewModel desacoplada para gerenciamento do Nível Bolha (Feature Sensores — SP2-05 e SP2-06).
 ///
 /// Implementa:
 /// 1. Conexão ao [SensorOrientationService] (leitura inercial real via sensors_plus com filtro passa-baixa).
-/// 2. Lógica de calibração de tara angular (compensação da montagem no para-brisa).
+/// 2. Lógica de calibração de tara angular (compensação da montagem no para-brisa) com persistência em SharedPreferences.
 /// 3. Alternância entre modos (Circular 2D e Tubular em T).
 /// 4. Fallback automático com dados simulados/mockados caso o hardware inercial não esteja presente.
 class NivelBolhaViewModel extends ChangeNotifier {
+  static const String _keyOffsetX = 'roadify_tare_offset_x';
+  static const String _keyOffsetY = 'roadify_tare_offset_y';
+  static const String _keyIsCalibrated = 'roadify_tare_is_calibrated';
+  static const String _keySelectedMode = 'roadify_tare_selected_mode';
+  static const String _collectionConfigKey = 'last_collection_configuration';
+
   final SensorOrientationService _orientationService;
+  final Future<SharedPreferences> Function() _preferencesProvider;
   StreamSubscription<OrientationReading>? _orientationSubscription;
+  bool _disposed = false;
 
   NivelBolhaState _state = const NivelBolhaState(
     angleX: 0.0,
@@ -26,8 +36,11 @@ class NivelBolhaViewModel extends ChangeNotifier {
 
   NivelBolhaViewModel({
     SensorOrientationService? orientationService,
+    Future<SharedPreferences> Function()? preferencesProvider,
     bool autoStart = true,
-  }) : _orientationService = orientationService ?? SensorOrientationService() {
+  }) : _orientationService = orientationService ?? SensorOrientationService(),
+       _preferencesProvider =
+           preferencesProvider ?? SharedPreferences.getInstance {
     if (autoStart) {
       _initService();
     }
@@ -55,14 +68,71 @@ class NivelBolhaViewModel extends ChangeNotifier {
       _state = _state.copyWith(
         angleX: reading.roll,
         angleY: reading.pitch,
+        accelX: reading.accelX,
+        accelY: reading.accelY,
         accelZ: reading.accelZ,
         detectedOrientation: resolvedOrientation,
         isReadingFromHardware: reading.isFromHardware,
       );
-      notifyListeners();
+      _notify();
     });
 
     _orientationService.startListening(allowMockFallback: true);
+  }
+
+  /// Carrega os offsets de calibração (tara) persistidos da sessão.
+  Future<void> loadPersistedCalibration() async {
+    try {
+      final prefs = await _preferencesProvider();
+      final isCalibrated = prefs.getBool(_keyIsCalibrated);
+      final offsetX = prefs.getDouble(_keyOffsetX);
+      final offsetY = prefs.getDouble(_keyOffsetY);
+      final modeName = prefs.getString(_keySelectedMode);
+
+      BubbleDisplayMode? mode;
+      if (modeName != null) {
+        for (final candidate in BubbleDisplayMode.values) {
+          if (candidate.name == modeName) {
+            mode = candidate;
+            break;
+          }
+        }
+      }
+
+      if (isCalibrated != null || mode != null) {
+        _state = _state.copyWith(
+          calibOffsetX: offsetX ?? _state.calibOffsetX,
+          calibOffsetY: offsetY ?? _state.calibOffsetY,
+          isCalibrated: isCalibrated ?? _state.isCalibrated,
+          selectedMode: mode ?? _state.selectedMode,
+        );
+        _notify();
+      }
+    } catch (_) {}
+  }
+
+  /// Persiste a tara angular e modo de nivelamento para uso durante toda a sessão de ensaio.
+  Future<void> persistCalibration() async {
+    try {
+      final prefs = await _preferencesProvider();
+      await prefs.setDouble(_keyOffsetX, _state.calibOffsetX);
+      await prefs.setDouble(_keyOffsetY, _state.calibOffsetY);
+      await prefs.setBool(_keyIsCalibrated, _state.isCalibrated);
+      await prefs.setString(_keySelectedMode, _state.selectedMode.name);
+
+      // Sincroniza também com last_collection_configuration caso já exista
+      final rawConfig = prefs.getString(_collectionConfigKey);
+      if (rawConfig != null) {
+        final decoded = jsonDecode(rawConfig);
+        if (decoded is Map<String, dynamic>) {
+          decoded['calibrationOffsetX'] = _state.calibOffsetX;
+          decoded['calibrationOffsetY'] = _state.calibOffsetY;
+          decoded['isCalibrated'] = _state.isCalibrated;
+          decoded['levelingMode'] = _state.selectedMode.name;
+          await prefs.setString(_collectionConfigKey, jsonEncode(decoded));
+        }
+      }
+    } catch (_) {}
   }
 
   /// Define explicitamente os ângulos (útil para testes unitários ou sliders manuais).
@@ -71,7 +141,7 @@ class NivelBolhaViewModel extends ChangeNotifier {
       angleX: double.parse(x.toStringAsFixed(2)),
       angleY: double.parse(y.toStringAsFixed(2)),
     );
-    notifyListeners();
+    _notify();
   }
 
   /// Altera o modo de visualização escolhido pelo usuário e sincroniza a postura.
@@ -90,7 +160,8 @@ class NivelBolhaViewModel extends ChangeNotifier {
       selectedMode: mode,
       detectedOrientation: updatedOrientation,
     );
-    notifyListeners();
+    _notify();
+    unawaited(persistCalibration());
   }
 
   /// Calibra o nível na posição atual (grava tara angular da montagem).
@@ -102,7 +173,8 @@ class NivelBolhaViewModel extends ChangeNotifier {
       calibOffsetY: _state.angleY,
       isCalibrated: true,
     );
-    notifyListeners();
+    _notify();
+    unawaited(persistCalibration());
   }
 
   /// Restaura a calibração original de fábrica (remove a tara).
@@ -112,7 +184,8 @@ class NivelBolhaViewModel extends ChangeNotifier {
       calibOffsetY: 0.0,
       isCalibrated: false,
     );
-    notifyListeners();
+    _notify();
+    unawaited(persistCalibration());
   }
 
   void restoreCalibration({
@@ -125,7 +198,8 @@ class NivelBolhaViewModel extends ChangeNotifier {
       calibOffsetY: offsetY,
       isCalibrated: isCalibrated,
     );
-    notifyListeners();
+    _notify();
+    unawaited(persistCalibration());
   }
 
   /// Atualização direta a partir de valores de aceleração (útil para injeção manual ou testes).
@@ -156,14 +230,21 @@ class NivelBolhaViewModel extends ChangeNotifier {
     _state = _state.copyWith(
       angleX: degX,
       angleY: degY,
+      accelX: accelX,
+      accelY: accelY,
       accelZ: accelZ,
       detectedOrientation: detected,
     );
-    notifyListeners();
+    _notify();
+  }
+
+  void _notify() {
+    if (!_disposed) notifyListeners();
   }
 
   @override
   void dispose() {
+    _disposed = true;
     _orientationSubscription?.cancel();
     _orientationService.dispose();
     super.dispose();

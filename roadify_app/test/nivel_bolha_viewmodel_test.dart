@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sensors_plus/sensors_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:roadify_app/features/sensores/models/nivel_bolha_state.dart';
 import 'package:roadify_app/features/sensores/services/sensor_orientation_service.dart';
 import 'package:roadify_app/features/sensores/viewmodel/nivel_bolha_viewmodel.dart';
@@ -12,6 +13,7 @@ void main() {
     late NivelBolhaViewModel viewModel;
 
     setUp(() {
+      SharedPreferences.setMockInitialValues({});
       viewModel = NivelBolhaViewModel(autoStart: false);
     });
 
@@ -36,21 +38,30 @@ void main() {
       expect(viewModel.state.activeMode, BubbleDisplayMode.tubularT);
     });
 
-    test('Modo Auto resolve para Circular 2D quando deitado e Tubular T quando em pé', () {
-      viewModel.setMode(BubbleDisplayMode.auto);
+    test(
+      'Modo Auto resolve para Circular 2D quando deitado e Tubular T quando em pé',
+      () {
+        viewModel.setMode(BubbleDisplayMode.auto);
 
-      // Postura deitada (Z próximo de 9.81 m/s²)
-      viewModel.updateFromSensors(accelX: 0.0, accelY: 0.0, accelZ: 9.81);
-      expect(viewModel.state.detectedOrientation, DeviceOrientationMode.horizontal);
-      expect(viewModel.state.activeMode, BubbleDisplayMode.circular2D);
+        // Postura deitada (Z próximo de 9.81 m/s²)
+        viewModel.updateFromSensors(accelX: 0.0, accelY: 0.0, accelZ: 9.81);
+        expect(
+          viewModel.state.detectedOrientation,
+          DeviceOrientationMode.horizontal,
+        );
+        expect(viewModel.state.activeMode, BubbleDisplayMode.circular2D);
 
-      // Postura vertical (em suporte veicular, Z próximo de zero)
-      viewModel.updateFromSensors(accelX: 0.0, accelY: 9.81, accelZ: 0.5);
-      expect(viewModel.state.detectedOrientation, DeviceOrientationMode.vertical);
-      expect(viewModel.state.activeMode, BubbleDisplayMode.tubularT);
-    });
+        // Postura vertical (em suporte veicular, Z próximo de zero)
+        viewModel.updateFromSensors(accelX: 0.0, accelY: 9.81, accelZ: 0.5);
+        expect(
+          viewModel.state.detectedOrientation,
+          DeviceOrientationMode.vertical,
+        );
+        expect(viewModel.state.activeMode, BubbleDisplayMode.tubularT);
+      },
+    );
 
-    test('Calibração de Tara (Zerar Nível)', () {
+    test('Calibração de Tara (Zerar Nível) e Persistência (SP2-06)', () async {
       // Configura ângulos não zerados
       viewModel.setAngles(2.4, -1.8);
       expect(viewModel.state.calibratedAngleX, 2.4);
@@ -66,6 +77,16 @@ void main() {
       expect(viewModel.state.calibratedAngleX, 0.0);
       expect(viewModel.state.calibratedAngleY, 0.0);
       expect(viewModel.state.isLevel, true);
+
+      await viewModel.persistCalibration();
+
+      // Uma nova instância deve restaurar os offsets persistidos para toda a sessão
+      final restoredVm = NivelBolhaViewModel(autoStart: false);
+      addTearDown(restoredVm.dispose);
+      await restoredVm.loadPersistedCalibration();
+      expect(restoredVm.state.isCalibrated, isTrue);
+      expect(restoredVm.state.calibOffsetX, equals(2.4));
+      expect(restoredVm.state.calibOffsetY, equals(-1.8));
 
       // Ao resetar a calibração, volta aos ângulos brutos
       viewModel.resetCalibration();
@@ -89,37 +110,46 @@ void main() {
 
     test('Simulação de dados de sensores brutos (acelerômetro X, Y, Z)', () {
       viewModel.updateFromSensors(accelX: 0.0, accelY: 9.81, accelZ: 0.0);
-      expect(viewModel.state.detectedOrientation, DeviceOrientationMode.vertical);
+      expect(
+        viewModel.state.detectedOrientation,
+        DeviceOrientationMode.vertical,
+      );
       expect(viewModel.state.activeMode, BubbleDisplayMode.tubularT);
 
       viewModel.updateFromSensors(accelX: 0.0, accelY: 0.0, accelZ: 9.81);
-      expect(viewModel.state.detectedOrientation, DeviceOrientationMode.horizontal);
+      expect(
+        viewModel.state.detectedOrientation,
+        DeviceOrientationMode.horizontal,
+      );
       expect(viewModel.state.activeMode, BubbleDisplayMode.circular2D);
     });
   });
 
   group('SensorOrientationService Tests', () {
-    test('Processamento de leitura com filtro passa-baixa e conversão trigonométrica', () async {
-      final mockController = StreamController<AccelerometerEvent>();
-      final service = SensorOrientationService(
-        alpha: 0.2,
-        customAccelerometerStream: mockController.stream,
-      );
-      expect(service.alpha, 0.2);
+    test(
+      'Processamento de leitura com filtro passa-baixa e conversão trigonométrica',
+      () async {
+        final mockController = StreamController<AccelerometerEvent>();
+        final service = SensorOrientationService(
+          alpha: 0.2,
+          customAccelerometerStream: mockController.stream,
+        );
+        expect(service.alpha, 0.2);
 
-      service.startListening(allowMockFallback: false);
+        service.startListening(allowMockFallback: false);
 
-      // Injeta leitura de teste
-      mockController.add(AccelerometerEvent(0.5, 0.2, 9.81, DateTime.now()));
+        // Injeta leitura de teste
+        mockController.add(AccelerometerEvent(0.5, 0.2, 9.81, DateTime.now()));
 
-      final reading = await service.orientationStream.first;
-      expect(reading.accelZ, closeTo(9.81, 0.1));
-      expect(reading.roll, isA<double>());
-      expect(reading.pitch, isA<double>());
-      expect(reading.isFromHardware, true);
+        final reading = await service.orientationStream.first;
+        expect(reading.accelZ, closeTo(9.81, 0.1));
+        expect(reading.roll, isA<double>());
+        expect(reading.pitch, isA<double>());
+        expect(reading.isFromHardware, true);
 
-      service.dispose();
-      await mockController.close();
-    });
+        service.dispose();
+        await mockController.close();
+      },
+    );
   });
 }
