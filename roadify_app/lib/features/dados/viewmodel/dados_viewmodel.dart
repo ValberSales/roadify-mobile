@@ -28,13 +28,24 @@ class RunGpsCoordinatesSummary {
 
   String get startFormatted =>
       startLatitude != null && startLongitude != null
-      ? '${startLatitude!.toStringAsFixed(5)}, ${startLongitude!.toStringAsFixed(5)}'
-      : 'Não registrado';
+          ? '${startLatitude!.toStringAsFixed(5)}, ${startLongitude!.toStringAsFixed(5)}'
+          : 'Não registrado';
 
   String get endFormatted =>
       endLatitude != null && endLongitude != null
-      ? '${endLatitude!.toStringAsFixed(5)}, ${endLongitude!.toStringAsFixed(5)}'
-      : 'Não registrado';
+          ? '${endLatitude!.toStringAsFixed(5)}, ${endLongitude!.toStringAsFixed(5)}'
+          : 'Não registrado';
+}
+
+/// Contagem de fotos e vídeos de uma coleta.
+@immutable
+class RunMediaCounts {
+  final int photos;
+  final int videos;
+
+  const RunMediaCounts({this.photos = 0, this.videos = 0});
+
+  static const empty = RunMediaCounts();
 }
 
 @immutable
@@ -50,7 +61,10 @@ class RunListItem {
   final int accelerometerSampleCount;
   final int gpsPointCount;
   final int mediaCount;
+  final int photoCount;
+  final int videoCount;
   final int durationSeconds;
+  final int? vehicleId;
   final String? deviceManufacturer;
   final String? deviceModel;
   final int? initialBatteryPercent;
@@ -68,7 +82,10 @@ class RunListItem {
     this.accelerometerSampleCount = 0,
     this.gpsPointCount = 0,
     this.mediaCount = 0,
+    this.photoCount = 0,
+    this.videoCount = 0,
     this.durationSeconds = 0,
+    this.vehicleId,
     this.deviceManufacturer,
     this.deviceModel,
     this.initialBatteryPercent,
@@ -77,11 +94,21 @@ class RunListItem {
 
   double get finalOdometer => initialOdometer + km;
 
+  /// "Fabricante Modelo" do aparelho, ou "Não registrado".
+  String get deviceLabel {
+    final label = [deviceManufacturer, deviceModel]
+        .whereType<String>()
+        .map((s) => s.trim())
+        .where((s) => s.isNotEmpty)
+        .join(' ');
+    return label.isEmpty ? 'Não registrado' : label;
+  }
+
   String get dateLabel => formatRunDate(createdAt);
 
   String get metrics =>
       '${formatDecimal(km)} km • ${formatDecimal(sizeMb)} MB'
-      '${isFinished ? '' : ' • Incompleta'}';
+          '${isFinished ? '' : ' • Incompleta'}';
 }
 
 String formatDecimal(double value) =>
@@ -141,11 +168,11 @@ class DadosViewModel extends ChangeNotifier {
   final Map<int, double> _exportProgress = {};
 
   DadosViewModel(
-    this._dao,
-    this._exportService, {
-    Future<Directory> Function()? documentsDirectory,
-  }) : _documentsDirectory =
-           documentsDirectory ?? getApplicationDocumentsDirectory {
+      this._dao,
+      this._exportService, {
+        Future<Directory> Function()? documentsDirectory,
+      }) : _documentsDirectory =
+      documentsDirectory ?? getApplicationDocumentsDirectory {
     _listen();
   }
 
@@ -183,31 +210,31 @@ class DadosViewModel extends ChangeNotifier {
     try {
       final db = _dao.attachedDatabase;
       final firstPoint =
-          await (db.select(db.gpsPointsTable)
-                ..where((t) => t.runId.equals(runId))
-                ..orderBy([
-                  (t) => OrderingTerm(
-                    expression: t.recordedAt,
-                    mode: OrderingMode.asc,
-                  ),
-                  (t) => OrderingTerm(expression: t.id, mode: OrderingMode.asc),
-                ])
-                ..limit(1))
-              .getSingleOrNull();
+      await (db.select(db.gpsPointsTable)
+        ..where((t) => t.runId.equals(runId))
+        ..orderBy([
+              (t) => OrderingTerm(
+            expression: t.recordedAt,
+            mode: OrderingMode.asc,
+          ),
+              (t) => OrderingTerm(expression: t.id, mode: OrderingMode.asc),
+        ])
+        ..limit(1))
+          .getSingleOrNull();
 
       final lastPoint =
-          await (db.select(db.gpsPointsTable)
-                ..where((t) => t.runId.equals(runId))
-                ..orderBy([
-                  (t) => OrderingTerm(
-                    expression: t.recordedAt,
-                    mode: OrderingMode.desc,
-                  ),
-                  (t) =>
-                      OrderingTerm(expression: t.id, mode: OrderingMode.desc),
-                ])
-                ..limit(1))
-              .getSingleOrNull();
+      await (db.select(db.gpsPointsTable)
+        ..where((t) => t.runId.equals(runId))
+        ..orderBy([
+              (t) => OrderingTerm(
+            expression: t.recordedAt,
+            mode: OrderingMode.desc,
+          ),
+              (t) =>
+              OrderingTerm(expression: t.id, mode: OrderingMode.desc),
+        ])
+        ..limit(1))
+          .getSingleOrNull();
 
       return RunGpsCoordinatesSummary(
         startLatitude: firstPoint?.latitude,
@@ -220,39 +247,86 @@ class DadosViewModel extends ChangeNotifier {
     }
   }
 
+  /// Nome do veículo usado na coleta (ex.: "Hilux • ABC-1234"), ou `null`.
+  Future<String?> getRunVehicleLabel(int? vehicleId) async {
+    if (vehicleId == null) return null;
+    try {
+      final v = await _dao.attachedDatabase.vehicleDao.getVehicleById(
+        vehicleId,
+      );
+      final plate = v.licensePlate?.toString().trim() ?? '';
+      return plate.isEmpty ? v.name : '${v.name} • $plate';
+    } catch (_) {
+      // Veículo removido do banco.
+      return null;
+    }
+  }
+
+  /// Conta fotos e vídeos por coleta a partir dos registros de mídia.
+  Future<Map<int, RunMediaCounts>> _mediaCountsByRun(List<Run> runs) async {
+    final result = <int, RunMediaCounts>{};
+    try {
+      final db = _dao.attachedDatabase;
+      final records = await db.select(db.mediaRecordsTable).get();
+      final photos = <int, int>{};
+      final videos = <int, int>{};
+      for (final m in records) {
+        final type = m.mediaType.toLowerCase();
+        if (type.contains('video')) {
+          videos[m.runId] = (videos[m.runId] ?? 0) + 1;
+        } else {
+          photos[m.runId] = (photos[m.runId] ?? 0) + 1;
+        }
+      }
+      for (final run in runs) {
+        result[run.id] = RunMediaCounts(
+          photos: photos[run.id] ?? 0,
+          videos: videos[run.id] ?? 0,
+        );
+      }
+    } catch (_) {
+      // Falha na contagem não deve impedir a listagem.
+    }
+    return result;
+  }
+
   Future<void> _onRuns(List<Run> runs) async {
     // Descarta resultados antigos caso chegue um evento novo durante o cálculo de tamanho.
     final generation = ++_generation;
     final sizes = await _mediaSizesByRun(runs);
+    final mediaCounts = await _mediaCountsByRun(runs);
     if (_disposed || generation != _generation) return;
 
     _items = runs
         .map((r) {
-          final dataBytes =
-              r.accelerometerSampleCount * _bytesPerSensorSample +
+      final dataBytes =
+          r.accelerometerSampleCount * _bytesPerSensorSample +
               r.gpsPointCount * _bytesPerGpsPoint;
-          final totalBytes = dataBytes + (sizes[r.id] ?? 0);
-          return RunListItem(
-            id: r.id,
-            title: (r.title?.trim().isNotEmpty ?? false)
-                ? r.title!.trim()
-                : 'Coleta #${r.id}',
-            createdAt: r.recordedAt,
-            endedAt: r.endedAt,
-            km: r.distanceKm,
-            initialOdometer: r.odometer,
-            sizeMb: totalBytes / (1024 * 1024),
-            isFinished: r.endedAt != null,
-            accelerometerSampleCount: r.accelerometerSampleCount,
-            gpsPointCount: r.gpsPointCount,
-            mediaCount: r.mediaCount,
-            durationSeconds: r.durationSeconds,
-            deviceManufacturer: r.deviceManufacturer,
-            deviceModel: r.deviceModel,
-            initialBatteryPercent: r.initialBatteryPercent,
-            notes: r.notes,
-          );
-        })
+      final totalBytes = dataBytes + (sizes[r.id] ?? 0);
+      return RunListItem(
+        id: r.id,
+        title: (r.title?.trim().isNotEmpty ?? false)
+            ? r.title!.trim()
+            : 'Coleta #${r.id}',
+        createdAt: r.recordedAt,
+        endedAt: r.endedAt,
+        km: r.distanceKm,
+        initialOdometer: r.odometer,
+        sizeMb: totalBytes / (1024 * 1024),
+        isFinished: r.endedAt != null,
+        accelerometerSampleCount: r.accelerometerSampleCount,
+        gpsPointCount: r.gpsPointCount,
+        mediaCount: r.mediaCount,
+        photoCount: (mediaCounts[r.id] ?? RunMediaCounts.empty).photos,
+        videoCount: (mediaCounts[r.id] ?? RunMediaCounts.empty).videos,
+        vehicleId: r.vehicleId,
+        durationSeconds: r.durationSeconds,
+        deviceManufacturer: r.deviceManufacturer,
+        deviceModel: r.deviceModel,
+        initialBatteryPercent: r.initialBatteryPercent,
+        notes: r.notes,
+      );
+    })
         .toList(growable: false);
     _isLoading = false;
     _error = null;

@@ -50,7 +50,7 @@ class _DadosScreenState extends State<DadosScreen> {
     _ownsViewModel = widget.viewModel == null;
     _viewModel =
         widget.viewModel ??
-        DadosViewModel(getIt<RunDao>(), getIt<RunExportService>());
+            DadosViewModel(getIt<RunDao>(), getIt<RunExportService>());
   }
 
   @override
@@ -78,6 +78,7 @@ class _DadosScreenState extends State<DadosScreen> {
 
   void _openRunDetailsModal(RunListItem run) {
     final gpsFuture = _viewModel.getRunGpsCoordinates(run.id);
+    final vehicleFuture = _viewModel.getRunVehicleLabel(run.vehicleId);
 
     showModalBottomSheet<void>(
       context: context,
@@ -92,6 +93,7 @@ class _DadosScreenState extends State<DadosScreen> {
         return _RunDetailsBottomSheet(
           run: run,
           gpsCoordinatesFuture: gpsFuture,
+          vehicleLabelFuture: vehicleFuture,
           onExport: () {
             Navigator.of(modalContext).pop();
             _exportRun(run);
@@ -122,7 +124,7 @@ class _DadosScreenState extends State<DadosScreen> {
         list.sort((a, b) => b.km.compareTo(a.km));
       case _SortOption.alfabetica:
         list.sort(
-          (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+              (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
         );
       case _SortOption.tamanho:
         list.sort((a, b) => b.sizeMb.compareTo(a.sizeMb));
@@ -212,13 +214,13 @@ class _DadosScreenState extends State<DadosScreen> {
             },
             trailing: _searchQuery.isNotEmpty
                 ? [
-                    IconButton(
-                      icon: const Icon(Icons.clear_rounded),
-                      onPressed: () {
-                        setState(() => _searchQuery = '');
-                      },
-                    ),
-                  ]
+              IconButton(
+                icon: const Icon(Icons.clear_rounded),
+                onPressed: () {
+                  setState(() => _searchQuery = '');
+                },
+              ),
+            ]
                 : null,
           ),
 
@@ -386,13 +388,13 @@ class _RunItemCard extends StatelessWidget {
                       onPressed: isExporting ? null : onExport,
                       icon: isExporting
                           ? SizedBox(
-                              width: 16,
-                              height: 16,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                value: exportProgress,
-                              ),
-                            )
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          value: exportProgress,
+                        ),
+                      )
                           : const Icon(Icons.download_rounded, size: 16),
                       label: Text(
                         isExporting
@@ -421,13 +423,46 @@ class _RunItemCard extends StatelessWidget {
 class _RunDetailsBottomSheet extends StatelessWidget {
   final RunListItem run;
   final Future<RunGpsCoordinatesSummary> gpsCoordinatesFuture;
+  final Future<String?> vehicleLabelFuture;
   final VoidCallback onExport;
 
   const _RunDetailsBottomSheet({
     required this.run,
     required this.gpsCoordinatesFuture,
+    required this.vehicleLabelFuture,
     required this.onExport,
   });
+
+  String _formatEndedAt(DateTime? endedAt) =>
+      endedAt == null ? 'Não finalizada' : formatRunDate(endedAt);
+
+  Widget _sectionCard(BuildContext context, {required Widget child}) {
+    final colors = context.colors;
+    return Container(
+      padding: const EdgeInsets.all(AppDimensions.space16),
+      decoration: BoxDecoration(
+        color: colors.surfaceContainerLow,
+        borderRadius: AppDimensions.borderRadiusCard,
+        border: Border.all(color: colors.outlineVariant),
+      ),
+      child: child,
+    );
+  }
+
+  Widget _sectionTitle(BuildContext context, IconData icon, String title) {
+    final colors = context.colors;
+    final typography = context.typography;
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: colors.primary),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: typography.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+        ),
+      ],
+    );
+  }
 
   String _formatDuration(int totalSeconds) {
     final hours = (totalSeconds ~/ 3600).toString().padLeft(2, '0');
@@ -648,9 +683,8 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                     const SizedBox(width: AppDimensions.space12),
                     Expanded(
                       child: _DetailMetricTile(
-                        label: 'Mídias / Volume',
-                        value:
-                            '${run.mediaCount} • ${formatDecimal(run.sizeMb)} MB',
+                        label: 'Volume de Dados',
+                        value: '${formatDecimal(run.sizeMb)} MB',
                       ),
                     ),
                   ],
@@ -658,6 +692,99 @@ class _RunDetailsBottomSheet extends StatelessWidget {
               ],
             ),
           ),
+
+          const SizedBox(height: AppDimensions.space12),
+
+          // Seção 4: Mídias (fotos e vídeos)
+          _sectionCard(
+            context,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionTitle(
+                  context,
+                  Icons.perm_media_outlined,
+                  'Mídias Registradas',
+                ),
+                const SizedBox(height: AppDimensions.space12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: _DetailMetricTile(
+                        key: const ValueKey('run-details-photo-count'),
+                        label: 'Fotos',
+                        value: '${run.photoCount}',
+                      ),
+                    ),
+                    const SizedBox(width: AppDimensions.space12),
+                    Expanded(
+                      child: _DetailMetricTile(
+                        key: const ValueKey('run-details-video-count'),
+                        label: 'Vídeos',
+                        value: '${run.videoCount}',
+                      ),
+                    ),
+                    const SizedBox(width: AppDimensions.space12),
+                    Expanded(
+                      child: _DetailMetricTile(
+                        label: 'Total',
+                        value: '${run.mediaCount}',
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          const SizedBox(height: AppDimensions.space12),
+
+          // Seção 5: Status, dispositivo e veículo
+          _sectionCard(
+            context,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _sectionTitle(
+                  context,
+                  Icons.info_outline_rounded,
+                  'Informações da Coleta',
+                ),
+                const SizedBox(height: AppDimensions.space12),
+                _CoordinateRow(
+                  label: 'Status:',
+                  value: run.isFinished ? 'Finalizada' : 'Incompleta',
+                ),
+                const SizedBox(height: 6),
+                _CoordinateRow(
+                  label: 'Término:',
+                  value: _formatEndedAt(run.endedAt),
+                ),
+                const SizedBox(height: 6),
+                FutureBuilder<String?>(
+                  future: vehicleLabelFuture,
+                  builder: (context, snapshot) => _CoordinateRow(
+                    label: 'Veículo:',
+                    value: snapshot.data ?? 'Não informado',
+                  ),
+                ),
+                const SizedBox(height: 6),
+                _CoordinateRow(
+                  label: 'Dispositivo:',
+                  value: run.deviceLabel,
+                ),
+                const SizedBox(height: 6),
+                _CoordinateRow(
+                  label: 'Bateria inicial:',
+                  value: run.initialBatteryPercent != null
+                      ? '${run.initialBatteryPercent}%'
+                      : 'Não registrado',
+                ),
+              ],
+            ),
+          ),
+
+
 
           const SizedBox(height: AppDimensions.space20),
 
@@ -697,6 +824,7 @@ class _DetailMetricTile extends StatelessWidget {
   final bool highlight;
 
   const _DetailMetricTile({
+    super.key,
     required this.label,
     required this.value,
     this.highlight = false,
