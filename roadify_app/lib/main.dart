@@ -53,6 +53,8 @@ class _RoadifyAppState extends State<RoadifyApp> {
   late final bool _ownsLocaleController;
   late final SessionLifecycleOrchestrator _sessionOrchestrator;
   late final bool _ownsOrchestrator;
+  bool _isStartupComplete = false;
+  Object? _startupError;
 
   @override
   void initState() {
@@ -62,9 +64,6 @@ class _RoadifyAppState extends State<RoadifyApp> {
         .contains('Test');
     _ownsLocaleController = widget.localeController == null;
     _localeController = widget.localeController ?? LocaleController();
-    if (!isWidgetTest) {
-      unawaited(_localeController.loadSavedLocale());
-    }
 
     if (widget.sessionOrchestrator != null) {
       _sessionOrchestrator = widget.sessionOrchestrator!;
@@ -83,6 +82,26 @@ class _RoadifyAppState extends State<RoadifyApp> {
             !isWidgetTest || widget.sessionOrchestrator != null,
       ),
     );
+
+    final localeLoad = isWidgetTest
+        ? Future<void>.value()
+        : _localeController.loadSavedLocale();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      unawaited(
+        localeLoad.then<void>(
+          (_) {
+            if (mounted) {
+              setState(() => _isStartupComplete = true);
+            }
+          },
+          onError: (Object error, StackTrace stackTrace) {
+            if (mounted) {
+              setState(() => _startupError = error);
+            }
+          },
+        ),
+      );
+    });
   }
 
   @override
@@ -116,13 +135,93 @@ class _RoadifyAppState extends State<RoadifyApp> {
             GlobalCupertinoLocalizations.delegate,
           ],
           supportedLocales: LocaleController.supportedLocales,
-          home: RoadifyMainShell(
-            themeController: _themeController,
-            localeController: _localeController,
-            sessionOrchestrator: _sessionOrchestrator,
-          ),
+          home: _startupError != null
+              ? RoadifyStartupErrorScreen(error: _startupError!)
+              : _isStartupComplete
+              ? RoadifyMainShell(
+                  themeController: _themeController,
+                  localeController: _localeController,
+                  sessionOrchestrator: _sessionOrchestrator,
+                )
+              : const RoadifyLoadingScreen(),
         );
       },
+    );
+  }
+}
+
+class RoadifyLoadingScreen extends StatelessWidget {
+  const RoadifyLoadingScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF141414),
+      body: SafeArea(
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset(
+                'assets/launcher/roadify_foreground.png',
+                key: const ValueKey('roadify-startup-logo'),
+                width: 300,
+                fit: BoxFit.contain,
+              ),
+              const SizedBox(height: 28),
+              const Text(
+                'Roadify',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 32,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class RoadifyStartupErrorScreen extends StatelessWidget {
+  final Object error;
+
+  const RoadifyStartupErrorScreen({super.key, required this.error});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: const Color(0xFF141414),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Icon(
+                Icons.error_outline_rounded,
+                color: AppColors.limeAccent,
+                size: 48,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                'Não foi possível iniciar o Roadify.',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.white, fontSize: 18),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                '$error',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white70),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

@@ -145,10 +145,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: colors.primary,
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Icon(
-                                Icons.alt_route_rounded,
-                                color: Colors.white,
-                                size: 20,
+                              child: Image.asset(
+                                'assets/images/roadify_mark.png',
+                                width: 44,
+                                height: 18,
+                                fit: BoxFit.contain,
                               ),
                             ),
                             const SizedBox(width: AppDimensions.space12),
