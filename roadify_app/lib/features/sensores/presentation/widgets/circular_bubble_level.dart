@@ -5,6 +5,9 @@ import '../../../../core/theme/theme_extensions.dart';
 import '../../models/nivel_bolha_state.dart';
 
 /// Widget de Nível Bolha Circular 2D (Modo Mesa / Superfície Horizontal).
+///
+/// Simula o comportamento viscoelástico de uma bolha de nível físico imersa em líquido,
+/// oferecendo amortecimento fluido natural sem alterar a exatidão dos dados inerciais.
 class CircularBubbleLevel extends StatelessWidget {
   final NivelBolhaState state;
 
@@ -24,8 +27,9 @@ class CircularBubbleLevel extends StatelessWidget {
     const double bubbleDiameter = 44.0;
     const double maxRadius = (containerSize / 2) - (bubbleDiameter / 2) - 8.0;
 
-    // Sensibilidade: pixels por grau de inclinação
-    const double pixelsPerDegree = 16.0;
+    // Sensibilidade visual: pixels por grau de inclinação
+    // Calibrado para uma escala física fluida e realista (sem saltos bruscos às bordas)
+    const double pixelsPerDegree = 8.5;
 
     // Em uma bolha de nível real, a bolha sobe para o lado mais elevado (oposta ao vetor gravidade)
     double targetOffsetX = -state.calibratedAngleX * pixelsPerDegree;
@@ -119,10 +123,10 @@ class CircularBubbleLevel extends StatelessWidget {
                 ),
               ),
 
-              // Bolha fluida verde limão animada
+              // Bolha com amortecimento viscoso (fluida, sem trepidação instantânea)
               AnimatedPositioned(
-                duration: const Duration(milliseconds: 90),
-                curve: Curves.easeOutQuad,
+                duration: const Duration(milliseconds: 280),
+                curve: Curves.easeOutCubic,
                 left: (containerSize / 2) - (bubbleDiameter / 2) + targetOffsetX,
                 top: (containerSize / 2) - (bubbleDiameter / 2) + targetOffsetY,
                 child: Container(
@@ -170,7 +174,7 @@ class CircularBubbleLevel extends StatelessWidget {
                 ),
               ),
 
-              // Leitura angular central inferior
+              // Leitura angular central com transição suave nos dígitos
               Positioned(
                 bottom: 18,
                 child: Container(
@@ -194,13 +198,20 @@ class CircularBubbleLevel extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                       ],
-                      Text(
-                        '${state.totalInclination.toStringAsFixed(1)}°',
-                        style: TextStyle(
-                          fontWeight: FontWeight.w800,
-                          fontSize: 14,
-                          color: isLevel ? AppColors.success : null,
-                        ),
+                      TweenAnimationBuilder<double>(
+                        tween: Tween<double>(end: state.totalInclination),
+                        duration: const Duration(milliseconds: 200),
+                        curve: Curves.easeOutCubic,
+                        builder: (context, animTotal, _) {
+                          return Text(
+                            '${animTotal.toStringAsFixed(1)}°',
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 14,
+                              color: isLevel ? AppColors.success : null,
+                            ),
+                          );
+                        },
                       ),
                     ],
                   ),
