@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../l10n/app_localizations.dart';
 import 'package:roadify_app/core/database/app_database.dart';
 import 'package:roadify_app/core/di/setup_locator.dart';
 import 'package:roadify_app/core/theme/theme_extensions.dart';
@@ -110,7 +111,7 @@ class _IdentificacaoSectionWidgetState
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    'Selecione o veículo',
+                    AppLocalizations.of(context)!.text('selectVehicle'),
                     style: context.typography.titleLarge,
                   ),
                   FilledButton.icon(
@@ -140,8 +141,7 @@ class _IdentificacaoSectionWidgetState
                   if (snapshot.hasError) {
                     return Center(
                       child: Text(
-                        'Não foi possível carregar os veículos: '
-                        '${snapshot.error}',
+                        '${AppLocalizations.of(context)!.text('loadVehiclesError')}${snapshot.error}',
                       ),
                     );
                   }
@@ -179,18 +179,18 @@ class _IdentificacaoSectionWidgetState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text('Identificação', style: context.typography.titleMedium),
+        Text(AppLocalizations.of(context)!.text('identity'), style: context.typography.titleMedium),
         const SizedBox(height: AppDimensions.space12),
         TextFormField(
           key: const ValueKey('collection-route-field'),
           controller: _routeController,
           textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
+          decoration: InputDecoration(
             labelText: 'Trecho *',
             prefixIcon: Icon(Icons.route_rounded),
           ),
           validator: (value) => value == null || value.trim().isEmpty
-              ? 'Informe o trecho da coleta.'
+              ? AppLocalizations.of(context)!.text('enterCollectionSegment')
               : null,
         ),
         const SizedBox(height: AppDimensions.space16),
@@ -199,12 +199,12 @@ class _IdentificacaoSectionWidgetState
           controller: _collectionNameController,
           autovalidateMode: AutovalidateMode.onUserInteraction,
           textCapitalization: TextCapitalization.sentences,
-          decoration: const InputDecoration(
-            labelText: 'Identificador do ensaio *',
+          decoration: InputDecoration(
+            labelText: AppLocalizations.of(context)!.text('testIdentifier'),
             prefixIcon: Icon(Icons.tag_rounded),
           ),
           validator: (value) => value == null || value.trim().isEmpty
-              ? 'Informe o identificador do ensaio.'
+              ? AppLocalizations.of(context)!.text('enterTestIdentifier')
               : null,
         ),
         const SizedBox(height: AppDimensions.space16),
@@ -212,7 +212,7 @@ class _IdentificacaoSectionWidgetState
           initialValue: widget.initialVehicle,
           key: const ValueKey('collection-vehicle-field'),
           validator: (vehicle) =>
-              vehicle == null ? 'Selecione um veículo para a coleta.' : null,
+              vehicle == null ? AppLocalizations.of(context)!.text('selectVehicleForCollection') : null,
           builder: (fieldState) {
             final vehicle = _selectedVehicle;
 
@@ -237,7 +237,7 @@ class _IdentificacaoSectionWidgetState
                         },
                       ),
                       icon: const Icon(Icons.directions_car_rounded),
-                      label: const Text('Selecionar veículo *'),
+                      label: Text(AppLocalizations.of(context)!.text('selectVehicleRequired')),
                       style: OutlinedButton.styleFrom(
                         alignment: Alignment.centerLeft,
                         padding: const EdgeInsets.symmetric(
@@ -283,7 +283,7 @@ class _IdentificacaoSectionWidgetState
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Quilometragem inicial *',
                       suffixText: 'km',
                       prefixIcon: Icon(Icons.speed_rounded),
@@ -299,7 +299,7 @@ class _IdentificacaoSectionWidgetState
                           !odometer.isFinite ||
                           odometer < 0 ||
                           odometer > 2000000) {
-                        return 'Informe uma quilometragem entre 0 e 2.000.000 km.';
+                        return AppLocalizations.of(context)!.text('validMileageRange');
                       }
                       return null;
                     },

@@ -1,5 +1,6 @@
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/material.dart';
+import '../../../l10n/app_localizations.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/daos/run_dao.dart';
 import '../../../core/di/setup_locator.dart';
@@ -166,7 +167,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: AppDimensions.space4),
                         Text(
-                          'Coletor de Dados de Pavimento',
+                          AppLocalizations.of(context)!.text('dataCollector'),
                           style: typography.bodySmall,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -175,7 +176,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: AppDimensions.space8),
                   IconButton.filledTonal(
-                    tooltip: 'Alternar Tema Claro / Escuro',
+                    tooltip: AppLocalizations.of(context)!.text('themeToggle'),
                     onPressed: () => widget.themeController.toggleTheme(),
                     icon: Icon(
                       context.isDarkMode
@@ -225,8 +226,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: const Text(
-                              'VEÍCULO: TOYOTA HILUX (ABC-1234)',
+                            child: Text(
+                              AppLocalizations.of(context)!.text('vehicleExample'),
                               style: TextStyle(
                                 color: Colors.white,
                                 fontSize: 11,
@@ -250,7 +251,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: AppDimensions.space4),
                     Text(
-                      'Calibre os sensores com o nível bolha antes de rodar.',
+                      AppLocalizations.of(context)!.text('calibrateBeforeDriving'),
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.85),
                         fontSize: 13,
@@ -284,7 +285,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         label: Text(
-                          'Iniciar Coleta em Pista',
+                          AppLocalizations.of(context)!.text('startTrackCollection'),
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 15,
@@ -333,7 +334,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(width: AppDimensions.space8),
                         Expanded(
                           child: Text(
-                            'Armazenamento do Aparelho',
+                            AppLocalizations.of(context)!.text('deviceStorage'),
                             style: typography.titleMedium,
                           ),
                         ),
@@ -371,7 +372,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(width: AppDimensions.space8),
                         Flexible(
                           child: Text(
-                            '42 GB disponíveis',
+                            AppLocalizations.of(context)!.text('availableStorage'),
                             style: typography.bodySmall,
                             overflow: TextOverflow.ellipsis,
                             textAlign: TextAlign.end,
@@ -391,7 +392,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      'Últimas Coletas',
+                      AppLocalizations.of(context)!.text('latestCollections'),
                       style: typography.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),

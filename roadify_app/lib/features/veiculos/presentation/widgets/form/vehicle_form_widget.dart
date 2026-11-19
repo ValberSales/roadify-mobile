@@ -1,3 +1,4 @@
+import 'package:roadify_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:roadify_app/core/database/app_database.dart';
 import 'package:roadify_app/core/theme/theme_extensions.dart';
@@ -125,7 +126,7 @@ class _FormHeader extends StatelessWidget {
           IconButton(icon: const Icon(Icons.arrow_back), onPressed: onBack),
           Expanded(
             child: Text(
-              isEditing ? 'Editar Veículo' : 'Cadastrar Veículo',
+              isEditing ? AppLocalizations.of(context)!.text('editVehicle') : AppLocalizations.of(context)!.text('registerVehicle'),
               style: context.typography.titleLarge,
             ),
           ),
@@ -194,8 +195,8 @@ class _FormInputFields extends StatelessWidget {
       children: [
         TextFormField(
           controller: controller.nomeController,
-          decoration: const InputDecoration(
-            labelText: 'Identificação (Ex: Caminhonete 01)',
+          decoration: InputDecoration(
+            labelText: AppLocalizations.of(context)!.text('vehicleIdentity'),
           ),
           validator: (val) =>
               controller.validateText(val, max: 30), // Correção aplicada aqui!
@@ -209,8 +210,8 @@ class _FormInputFields extends StatelessWidget {
               flex: 2,
               child: TextFormField(
                 controller: controller.modeloController,
-                decoration: const InputDecoration(
-                  labelText: 'Marca / Modelo (Ex: Toyota Hilux)',
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.text('makeModel'),
                 ),
                 validator: (val) => controller.validateText(val, max: 30),
               ),
@@ -221,7 +222,7 @@ class _FormInputFields extends StatelessWidget {
               child: TextFormField(
                 controller: controller.anoController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(labelText: 'Ano'),
+                decoration: InputDecoration(labelText: AppLocalizations.of(context)!.text('year')),
                 validator: controller.validateYear,
               ),
             ),
@@ -232,7 +233,7 @@ class _FormInputFields extends StatelessWidget {
         TextFormField(
           controller: controller.placaController,
           textCapitalization: TextCapitalization.characters,
-          decoration: const InputDecoration(labelText: 'Placa'),
+          decoration: InputDecoration(labelText: AppLocalizations.of(context)!.text('plate')),
           validator: controller.validatePlate,
         ),
         const SizedBox(height: 16),
@@ -243,8 +244,8 @@ class _FormInputFields extends StatelessWidget {
             Expanded(
               child: DropdownButtonFormField<String>(
                 initialValue: controller.tracaoSelecionada,
-                decoration: const InputDecoration(
-                  labelText: 'Tração (Opcional)',
+                decoration: InputDecoration(
+                  labelText: AppLocalizations.of(context)!.text('tractionOptional'),
                 ),
                 items: const [
                   DropdownMenuItem(value: '4x2', child: Text('4x2')),
@@ -261,7 +262,7 @@ class _FormInputFields extends StatelessWidget {
         TextFormField(
           controller: controller.odometroController,
           keyboardType: const TextInputType.numberWithOptions(decimal: true),
-          decoration: const InputDecoration(labelText: 'Kilometragem Padrão (km)'),
+          decoration: InputDecoration(labelText: AppLocalizations.of(context)!.text('standardMileage')),
           validator: controller.validateOdometer,
         ),
         const SizedBox(height: 16),
@@ -269,8 +270,8 @@ class _FormInputFields extends StatelessWidget {
         TextFormField(
           controller: controller.descricaoController,
           maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Observações / Descrição (Opcional)',
+          decoration: InputDecoration(
+            labelText: AppLocalizations.of(context)!.text('notesOptional'),
             alignLabelWithHint: true,
           ),
           validator: controller.validateDescription,

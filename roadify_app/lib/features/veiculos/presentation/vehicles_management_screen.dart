@@ -1,3 +1,4 @@
+import 'package:roadify_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:roadify_app/core/database/app_database.dart';
 import 'package:roadify_app/core/di/setup_locator.dart';
@@ -39,16 +40,19 @@ class _VehiclesManagementScreenState extends State<VehiclesManagementScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: const Text('Excluir veículo'),
-        content: Text('Deseja remover "${vehicle.name}" da lista de veículos?'),
+        title: Text(AppLocalizations.of(context)!.text('deleteVehicle')),
+        content: Text(
+          AppLocalizations.of(context)!.text('removeVehicleConfirm')
+              .replaceAll('{name}', vehicle.name),
+        ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(dialogContext, false),
-            child: const Text('Cancelar'),
+            child: Text(AppLocalizations.of(context)!.text('cancel')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(dialogContext, true),
-            child: const Text('Excluir'),
+            child: Text(AppLocalizations.of(context)!.text('delete')),
           ),
         ],
       ),
@@ -59,7 +63,9 @@ class _VehiclesManagementScreenState extends State<VehiclesManagementScreen> {
       if (!context.mounted) return;
       SnackbarHelper.showSuccess(
         context,
-        message: 'Veículo "${vehicle.name}" removido.',
+        message: AppLocalizations.of(context)!
+            .text('vehicleRemoved')
+            .replaceAll('{name}', vehicle.name),
       );
     }
   }
@@ -70,7 +76,7 @@ class _VehiclesManagementScreenState extends State<VehiclesManagementScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Gestão de Veículos'),
+        title: Text(AppLocalizations.of(context)!.text('manageVehiclesTitle')),
         actions: [
           if (vm != null)
             Padding(
@@ -79,7 +85,7 @@ class _VehiclesManagementScreenState extends State<VehiclesManagementScreen> {
                 key: const ValueKey('add-vehicle-button'),
                 onPressed: () => VehicleUiHelper.showFormModal(context),
                 icon: const Icon(Icons.add_rounded, size: 18),
-                label: const Text('Novo'),
+                label: Text(AppLocalizations.of(context)!.text('newItem')),
               ),
             ),
         ],
@@ -99,8 +105,10 @@ class _VehiclesManagementScreenState extends State<VehiclesManagementScreen> {
                     widget.onDefaultVehicleSelected?.call(vehicle);
                     SnackbarHelper.showSuccess(
                       context,
-                      message:
-                          'Veículo padrão definido: ${vehicle.name} (${vehicle.licensePlate})',
+                      message: AppLocalizations.of(context)!
+                          .text('defaultVehicleSet')
+                          .replaceAll('{name}', vehicle.name)
+                          .replaceAll('{plate}', vehicle.licensePlate),
                     );
                     Navigator.of(context).pop(vehicle);
                   },

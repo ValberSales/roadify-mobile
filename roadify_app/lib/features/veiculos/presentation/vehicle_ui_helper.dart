@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:roadify_app/l10n/app_localizations.dart';
 import 'package:roadify_app/core/database/app_database.dart';
 import 'package:roadify_app/core/di/setup_locator.dart';
 import 'package:roadify_app/core/utils/snackbar_helper.dart';
@@ -45,7 +46,7 @@ class VehicleUiHelper {
 
             SnackbarHelper.showSuccess(
               context,
-              message: 'Veículo salvo com sucesso!',
+              message: AppLocalizations.of(context)!.text('saveVehicleSuccess'),
             );
 
             onFormClosed?.call(); // CORREÇÃO: Atualiza a lista da tela de trás
@@ -58,7 +59,7 @@ class VehicleUiHelper {
 
             SnackbarHelper.showError(
               context,
-              message: 'Não foi possível salvar o veículo. Tente novamente.',
+              message: AppLocalizations.of(context)!.text('saveVehicleError'),
             );
           }
         },

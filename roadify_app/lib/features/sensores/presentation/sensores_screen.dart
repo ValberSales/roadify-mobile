@@ -1,3 +1,4 @@
+import 'package:roadify_app/l10n/app_localizations.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
@@ -64,14 +65,14 @@ class _SensoresScreenState extends State<SensoresScreen>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Sensores & Nivelamento'),
+        title: Text(AppLocalizations.of(context)!.text('sensorScreenTitle')),
         bottom: TabBar(
           controller: _tabController,
           indicatorColor: colors.primary,
           labelColor: colors.primary,
-          tabs: const [
-            Tab(text: 'Nível Bolha', icon: Icon(Icons.screen_rotation_rounded)),
-            Tab(text: 'Sinais ao Vivo', icon: Icon(Icons.show_chart_rounded)),
+          tabs: [
+            Tab(text: AppLocalizations.of(context)!.text('bubbleLevel'), icon: Icon(Icons.screen_rotation_rounded)),
+            Tab(text: AppLocalizations.of(context)!.text('liveSignals'), icon: Icon(Icons.show_chart_rounded)),
           ],
         ),
       ),
@@ -98,7 +99,7 @@ class _SensoresScreenState extends State<SensoresScreen>
                   children: [
                     // Texto orientativo de alinhamento veicular
                     Text(
-                      'Posicione o smartphone no suporte veicular ou na bancada e calibre a referência.',
+                      AppLocalizations.of(context)!.text('levelingInstruction'),
                       style: typography.bodyMedium?.copyWith(
                         color: colors.onSurfaceVariant,
                       ),
@@ -210,7 +211,7 @@ class _SensoresScreenState extends State<SensoresScreen>
                         Expanded(
                           child: _AxisAngleCard(
                             label: 'EIXO X (ROLL)',
-                            subtitle: 'Inclinação Lateral',
+                            subtitle: AppLocalizations.of(context)!.text('sideTilt'),
                             angle: state.calibratedAngleX,
                             isLevel: state.isLevelX,
                           ),
@@ -219,7 +220,7 @@ class _SensoresScreenState extends State<SensoresScreen>
                         Expanded(
                           child: _AxisAngleCard(
                             label: 'EIXO Y (PITCH)',
-                            subtitle: 'Inclinação Frontal',
+                            subtitle: AppLocalizations.of(context)!.text('frontTilt'),
                             angle: state.calibratedAngleY,
                             isLevel: state.isLevelY,
                           ),
@@ -266,7 +267,7 @@ class _SensoresScreenState extends State<SensoresScreen>
                                 Text(
                                   state.isLevel
                                       ? 'Smartphone Perfeitamente Nivelado!'
-                                      : 'Desalinhado da Referência',
+                                      : AppLocalizations.of(context)!.text('misaligned'),
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 13,
@@ -577,7 +578,7 @@ class _SensorLiveCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  'AO VIVO',
+                  AppLocalizations.of(context)!.text('live'),
                   style: TextStyle(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,

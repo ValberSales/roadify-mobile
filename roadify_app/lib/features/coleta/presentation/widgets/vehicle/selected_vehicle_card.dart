@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:roadify_app/l10n/app_localizations.dart';
 import 'package:roadify_app/core/database/app_database.dart';
 import 'package:roadify_app/core/theme/theme_extensions.dart';
 import 'package:roadify_app/features/coleta/presentation/widgets/section_divider.dart';
@@ -67,7 +68,7 @@ class SelectedVehicleCard extends StatelessWidget {
                   ],
                 ),
               ),
-              TextButton(onPressed: onChange, child: const Text('Alterar')),
+              TextButton(onPressed: onChange, child: Text(AppLocalizations.of(context)!.text('change'))),
             ],
           ),
           const SizedBox(height: AppDimensions.space12),
@@ -80,13 +81,13 @@ class SelectedVehicleCard extends StatelessWidget {
               _VehicleDetail(label: 'Placa', value: vehicle.licensePlate),
               _VehicleDetail(label: 'Ano', value: vehicle.year.toString()),
               if (vehicle.traction?.trim().isNotEmpty == true)
-                _VehicleDetail(label: 'Tração', value: vehicle.traction!),
+                _VehicleDetail(label: AppLocalizations.of(context)!.text('traction'), value: vehicle.traction!),
             ],
           ),
           if (vehicle.description?.trim().isNotEmpty == true) ...[
             const SizedBox(height: AppDimensions.space12),
             Text(
-              'Descrição',
+              AppLocalizations.of(context)!.text('description'),
               style: typography.labelMedium?.copyWith(
                 color: colors.onSurfaceVariant,
               ),

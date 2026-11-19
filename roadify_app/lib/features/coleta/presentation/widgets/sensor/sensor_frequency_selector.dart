@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:roadify_app/l10n/app_localizations.dart';
 import 'package:flutter/services.dart';
 
 import '../../../../../core/theme/app_dimensions.dart';
@@ -164,7 +165,7 @@ class _SensorFrequencySelectorState extends State<SensorFrequencySelector> {
               keyboardType: TextInputType.number,
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: InputDecoration(
-                labelText: 'Digitar frequência customizada',
+                labelText: AppLocalizations.of(context)!.text('customFrequency'),
                 hintText: widget.inputHint,
                 suffixText: widget.unit,
                 prefixIcon: Icon(widget.inputIcon, size: 20),

@@ -116,7 +116,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                   vertical: AppDimensions.space8,
                 ),
                 child: Text(
-                  'Taxa Padrão do Acelerômetro',
+                  AppLocalizations.of(context)!.text('defaultAccelRate'),
                   style: context.typography.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -164,7 +164,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                   vertical: AppDimensions.space8,
                 ),
                 child: Text(
-                  'Selecionar Idioma',
+                  AppLocalizations.of(context)!.text('selectLanguage'),
                   style: context.typography.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),

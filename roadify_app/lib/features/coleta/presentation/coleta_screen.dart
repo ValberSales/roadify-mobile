@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import '../../../l10n/app_localizations.dart';
 import 'package:roadify_app/core/database/app_database.dart';
 import 'package:roadify_app/core/di/setup_locator.dart';
 import 'package:roadify_app/features/coleta/presentation/collection_orientation_setup_screen.dart';
@@ -220,7 +221,7 @@ class _ColetaScreenState extends State<ColetaScreen>
     if (!acelerometroSelecionado || !gpsSelecionado) {
       setState(() {
         _erroSelecaoSensores =
-            'Acelerômetro e GPS são obrigatórios para iniciar a coleta.';
+            AppLocalizations.of(context)!.text('requiredSensorsStart');
       });
       return;
     }
@@ -231,20 +232,20 @@ class _ColetaScreenState extends State<ColetaScreen>
       _intervaloMetrosController.text.trim().replaceAll(',', '.'),
     );
     if (taxaGps == null || intervaloMetros == null) {
-      _showValidationError('Revise as frequências e a distância informadas.');
+      _showValidationError(AppLocalizations.of(context)!.text('reviewFrequencies'));
       return;
     }
     final odometroInicial = double.tryParse(
       _identification.odometer.replaceAll(',', '.'),
     );
     if (odometroInicial == null || !odometroInicial.isFinite) {
-      _showValidationError('Informe uma quilometragem inicial válida.');
+      _showValidationError(AppLocalizations.of(context)!.text('validStartingMileage'));
       return;
     }
     if (_taxaAquisicaoHz <= 0) {
       setState(() {
         _erroSelecaoSensores =
-            'Informe uma frequência válida para o acelerômetro.';
+            AppLocalizations.of(context)!.text('validAccelerometerFrequency');
       });
       return;
     }

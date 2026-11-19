@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:roadify_app/l10n/app_localizations.dart';
 import 'package:roadify_app/core/theme/theme_extensions.dart';
 import 'package:roadify_app/features/coleta/presentation/widgets/sensor/sensor_configuration_card.dart';
 import 'package:roadify_app/features/coleta/presentation/widgets/sensor/sensor_frequency_selector.dart';
@@ -42,14 +43,14 @@ class RequiredSensorsSection extends StatelessWidget {
       children: [
         SensorSectionHeading(
           title: 'Sensores Obrigatórios',
-          subtitle: 'Necessários para registrar movimento e localização.',
+          subtitle: AppLocalizations.of(context)!.text('requiredSensorsSubtitle'),
           icon: Icons.priority_high_rounded,
         ),
         const SizedBox(height: AppDimensions.space12),
         SensorConfigurationCard(
           sensor: SensorColeta.acelerometro,
           title: 'Acelerômetro',
-          subtitle: 'Irregularidade e vibração da via',
+          subtitle: AppLocalizations.of(context)!.text('roadIrregularity'),
           icon: Icons.speed_rounded,
           selected: true,
           requiredSensor: true,
@@ -65,7 +66,7 @@ class RequiredSensorsSection extends StatelessWidget {
             onChanged: onAccelerometerRateChanged,
             validator: validateAccelerometerRate,
             inputHint: 'Ex: 250',
-            inputHelper: 'Limite de segurança do sensor',
+            inputHelper: AppLocalizations.of(context)!.text('sensorSafetyLimit'),
             inputIcon: Icons.speed_rounded,
           ),
         ),
@@ -73,7 +74,7 @@ class RequiredSensorsSection extends StatelessWidget {
         SensorConfigurationCard(
           sensor: SensorColeta.gps,
           title: 'GPS',
-          subtitle: 'Geolocalização e rotas da pista',
+          subtitle: AppLocalizations.of(context)!.text('gpsRoads'),
           icon: Icons.satellite_alt_rounded,
           selected: true,
           requiredSensor: true,
@@ -89,7 +90,7 @@ class RequiredSensorsSection extends StatelessWidget {
             onChanged: onGpsRateChanged,
             validator: validateGpsRate,
             inputHint: 'Ex: 8',
-            inputHelper: 'GNSS: 1 Hz até 10 Hz.',
+            inputHelper: AppLocalizations.of(context)!.text('gnssRange'),
             inputIcon: Icons.satellite_outlined,
           ),
         ),

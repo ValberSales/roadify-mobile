@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../l10n/app_localizations.dart';
 
 class AudioRecordingIndicator extends StatelessWidget {
   final bool isRecording;
@@ -45,7 +46,7 @@ class AudioRecordingIndicator extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  isRecording ? 'ÁUDIO GRAVANDO' : 'Áudio pronto',
+                  isRecording ? AppLocalizations.of(context)!.text('audioRecording') : AppLocalizations.of(context)!.text('audioReady'),
                   style: TextStyle(
                     color: isRecording ? colors.error : colors.onSurfaceVariant,
                     fontWeight: FontWeight.w800,

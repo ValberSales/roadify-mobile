@@ -1,3 +1,4 @@
+import 'package:roadify_app/l10n/app_localizations.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -33,31 +34,31 @@ class PillDockScaffold extends StatelessWidget {
     this.appBar,
   });
 
-  static const List<PillDockItem> items = [
+  static List<PillDockItem> items(BuildContext context) => [
     PillDockItem(
       icon: Icons.home_outlined,
       activeIcon: Icons.home_rounded,
-      label: 'Início',
+      label: AppLocalizations.of(context)!.text('navHome'),
     ),
     PillDockItem(
       icon: Icons.play_circle_outline_rounded,
       activeIcon: Icons.play_circle_fill_rounded,
-      label: 'Coleta',
+      label: AppLocalizations.of(context)!.text('navCollection'),
     ),
     PillDockItem(
       icon: Icons.sensors_outlined,
       activeIcon: Icons.sensors_rounded,
-      label: 'Sensores',
+      label: AppLocalizations.of(context)!.text('navSensors'),
     ),
     PillDockItem(
       icon: Icons.folder_outlined,
       activeIcon: Icons.folder_rounded,
-      label: 'Dados',
+      label: AppLocalizations.of(context)!.text('navData'),
     ),
     PillDockItem(
       icon: Icons.settings_outlined,
       activeIcon: Icons.settings_rounded,
-      label: 'Config',
+      label: AppLocalizations.of(context)!.text('navSettings'),
     ),
   ];
 
@@ -110,8 +111,8 @@ class PillDockScaffold extends StatelessWidget {
                 ),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: List.generate(items.length, (index) {
-                    final item = items[index];
+                    children: List.generate(items(context).length, (index) {
+                    final item = items(context)[index];
                     final isSelected = index == currentIndex;
                     final isCenterColeta = index == 1; // Destaque na Coleta
 

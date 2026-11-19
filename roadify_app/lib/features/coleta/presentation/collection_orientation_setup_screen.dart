@@ -1,3 +1,4 @@
+import 'package:roadify_app/l10n/app_localizations.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -107,9 +108,9 @@ class _CollectionOrientationSetupScreenState
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Orientação e nivelamento'),
+        title: Text(AppLocalizations.of(context)!.text('collectionOrientation')),
         leading: IconButton(
-          tooltip: 'Voltar à configuração',
+          tooltip: AppLocalizations.of(context)!.text('backToSettings'),
           onPressed: () => Navigator.of(context).pop(),
           icon: const Icon(Icons.arrow_back_rounded),
         ),
@@ -240,8 +241,8 @@ class _CollectionOrientationSetupScreenState
                         icon: const Icon(Icons.center_focus_strong_rounded),
                         label: Text(
                           state.isCalibrated
-                              ? 'Recalibrar nível'
-                              : 'Calibrar nível',
+                              ? AppLocalizations.of(context)!.text('recalibrateLevel')
+                              : AppLocalizations.of(context)!.text('calibrateLevel'),
                         ),
                       ),
                       if (state.isCalibrated)
@@ -251,7 +252,7 @@ class _CollectionOrientationSetupScreenState
                             _saveSetup();
                           },
                           icon: const Icon(Icons.restart_alt_rounded),
-                          label: const Text('Remover calibração'),
+                          label: Text(AppLocalizations.of(context)!.text('removeCalibration')),
                         ),
                     ],
                   ),
@@ -273,7 +274,7 @@ class _CollectionOrientationSetupScreenState
                       key: const ValueKey('continue-to-recording'),
                       onPressed: state.isCalibrated ? _continue : null,
                       icon: const Icon(Icons.play_arrow_rounded),
-                      label: const Text('Iniciar coleta'),
+                      label: Text(AppLocalizations.of(context)!.text('startCollection')),
                     ),
                   ),
                 ),

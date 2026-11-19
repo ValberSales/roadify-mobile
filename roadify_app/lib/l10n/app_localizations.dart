@@ -171,6 +171,10 @@ abstract class AppLocalizations {
   /// In pt, this message translates to:
   /// **'Idioma do Sistema'**
   String get systemLanguageLabel;
+  String get recordingsTitle;
+
+  /// Returns a localized visible UI string by catalog key.
+  String text(String key);
 }
 
 class _AppLocalizationsDelegate

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../../l10n/app_localizations.dart';
 import 'package:flutter/services.dart';
 import 'package:roadify_app/core/theme/theme_extensions.dart';
 import 'package:roadify_app/features/coleta/presentation/widgets/sensor/sensor_section_heading.dart';
@@ -22,11 +23,11 @@ class AcquisitionParametersSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SensorSectionHeading(
-          title: 'Parâmetros',
+        SensorSectionHeading(
+          title: AppLocalizations.of(context)!.text('parameters'),
           subtitle:
-              'Defina a distância mínima entre os pontos GPS armazenados. '
-              'As taxas dos outros sensores são configuradas acima.',
+              '${AppLocalizations.of(context)!.text('gpsDistanceDescription')}'
+              '${AppLocalizations.of(context)!.text('otherSensorsDescription')}',
           icon: Icons.straighten_rounded,
         ),
         const SizedBox(height: AppDimensions.space12),
@@ -45,12 +46,12 @@ class AcquisitionParametersSection extends StatelessWidget {
             inputFormatters: [
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
             ],
-            decoration: const InputDecoration(
-              labelText: 'Distância mínima entre pontos GPS',
+            decoration: InputDecoration(
+              labelText: AppLocalizations.of(context)!.text('minGpsDistance'),
               suffixText: 'm',
               prefixIcon: Icon(Icons.straighten_rounded),
               helperText:
-                  'O GPS continua lendo na frequência escolhida; um ponto só é salvo após deslocar pelo menos esta distância.',
+                  AppLocalizations.of(context)!.text('gpsDistanceHelp'),
             ),
             validator: validator,
           ),

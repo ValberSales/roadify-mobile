@@ -1,5 +1,6 @@
 import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
+import '../../../../l10n/app_localizations.dart';
 
 import '../../coleta/viewmodels/coleta_viewmodel.dart';
 
@@ -52,7 +53,7 @@ class CameraCaptureControls extends StatelessWidget {
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
-              errorMessage ?? 'Preparando câmera...',
+              errorMessage ?? AppLocalizations.of(context)!.text('cameraPreparing'),
               textAlign: TextAlign.center,
               style: TextStyle(color: colors.onSurfaceVariant),
             ),
@@ -79,8 +80,8 @@ class CameraCaptureControls extends StatelessWidget {
           _CaptureButton(
             key: const ValueKey('botao-capturar-foto'),
             icon: Icons.camera_alt_rounded,
-            label: 'TIRAR FOTO DA VIA',
-            detail: 'Registrar imagem da ocorrência',
+            label: AppLocalizations.of(context)!.text('takeRoadPhoto'),
+            detail: AppLocalizations.of(context)!.text('incidentImage'),
             onPressed: cameraReady && !isBusy && !isVideoRecording
                 ? onTakePhoto
                 : null,
@@ -91,7 +92,7 @@ class CameraCaptureControls extends StatelessWidget {
             icon: isVideoRecording
                 ? Icons.stop_rounded
                 : Icons.videocam_rounded,
-            label: isVideoRecording ? 'FINALIZAR VÍDEO' : 'GRAVAR VÍDEO',
+            label: isVideoRecording ? AppLocalizations.of(context)!.text('finishVideo') : AppLocalizations.of(context)!.text('recordVideo'),
             detail: 'Duração máxima: $videoDurationSeconds segundos',
             isRecording: isVideoRecording,
             onPressed: cameraReady && !isBusy ? onToggleVideo : null,
@@ -117,9 +118,9 @@ class CameraCaptureControls extends StatelessWidget {
                   icon: isVideoRecording
                       ? Icons.stop_rounded
                       : Icons.videocam_rounded,
-                  label: isVideoRecording ? 'PARAR VÍDEO' : 'VÍDEO',
+                  label: isVideoRecording ? AppLocalizations.of(context)!.text('stopVideo') : AppLocalizations.of(context)!.text('video'),
                   detail: isVideoRecording
-                      ? 'Toque para salvar'
+                      ? AppLocalizations.of(context)!.text('tapToSave')
                       : 'Máx. $videoDurationSeconds s',
                   isRecording: isVideoRecording,
                   onPressed: cameraReady && !isBusy ? onToggleVideo : null,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:roadify_app/l10n/app_localizations.dart';
 import 'package:roadify_app/core/database/app_database.dart';
 import 'package:roadify_app/core/theme/theme_extensions.dart';
 import 'package:roadify_app/core/widgets/empty_state_widget.dart';
@@ -20,9 +21,9 @@ class VehicleListWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (vehicles.isEmpty) {
-      return const EmptyStateWidget(
+      return EmptyStateWidget(
         icon: Icons.directions_car_outlined,
-        message: 'Nenhum veículo cadastrado.',
+        message: AppLocalizations.of(context)!.text('noVehicles'),
       );
     }
 
@@ -160,7 +161,7 @@ class VehicleListWidget extends StatelessWidget {
 
                 // 5. AÇÕES (Editar / Excluir)
                 if (onEditTap != null || onDeleteTap != null)
-                  _buildTrailingActions(vehicle, colors),
+                  _buildTrailingActions(context, vehicle, colors),
               ],
             ),
           ),
@@ -172,14 +173,18 @@ class VehicleListWidget extends StatelessWidget {
   String _formatOdometer(double value) =>
       value == value.truncateToDouble() ? value.toStringAsFixed(0) : '$value';
 
-  Widget _buildTrailingActions(Vehicle vehicle, dynamic colors) {
+  Widget _buildTrailingActions(
+    BuildContext context,
+    Vehicle vehicle,
+    ColorScheme colors,
+  ) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
         if (onEditTap != null)
           IconButton(
             icon: Icon(Icons.edit_rounded, color: colors.primary, size: 22),
-            tooltip: 'Editar Veículo',
+            tooltip: AppLocalizations.of(context)!.text('editVehicle'),
             onPressed: () => onEditTap!(vehicle),
           ),
         if (onDeleteTap != null)
@@ -189,7 +194,7 @@ class VehicleListWidget extends StatelessWidget {
               color: colors.error,
               size: 22,
             ),
-            tooltip: 'Excluir Veículo',
+            tooltip: AppLocalizations.of(context)!.text('deleteVehicle'),
             onPressed: () => onDeleteTap!(vehicle),
           ),
       ],

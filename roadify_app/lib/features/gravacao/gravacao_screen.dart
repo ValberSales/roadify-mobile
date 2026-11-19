@@ -4,6 +4,7 @@ import 'package:battery_plus/battery_plus.dart';
 import 'package:camera/camera.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
+import '../../../l10n/app_localizations.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -1030,7 +1031,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Finalizar Coleta?'),
+        title: Text(AppLocalizations.of(context)!.text('finishCollection')),
         content: Text(
           'Deseja encerrar este ensaio? Serão salvos $_sensorSampleCount amostras inerciais, '
           '$_gpsPointCount pontos GPS e $_mediaCount arquivos de mídia no armazenamento local.',
@@ -1038,7 +1039,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Continuar Coletando'),
+            child: Text(AppLocalizations.of(context)!.text('continueCollecting2')),
           ),
           FilledButton.icon(
             style: FilledButton.styleFrom(
@@ -1047,7 +1048,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
             icon: const Icon(Icons.check_rounded, size: 18),
-            label: const Text('Finalizar e Salvar'),
+            label: Text(AppLocalizations.of(context)!.text('finishSave2')),
           ),
         ],
       ),
@@ -1130,7 +1131,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
         },
         child: Scaffold(
           appBar: AppBar(
-            title: const Text('Coleta em Andamento'),
+            title: Text(AppLocalizations.of(context)!.text('collectionProgress')),
             automaticallyImplyLeading: false,
             actions: [
               if (widget.configuracao.sensoresSelecionados.contains(
@@ -1140,7 +1141,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                       CameraMediaType.videos)
                 IconButton.filled(
                   key: const ValueKey('quick-capture-photo'),
-                  tooltip: 'Foto rápida da via',
+                  tooltip: AppLocalizations.of(context)!.text('quickRoadPhoto'),
                   onPressed:
                       _cameraController?.value.isInitialized == true &&
                           !_isCapturingMedia &&
@@ -1228,7 +1229,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                     ),
                     const SizedBox(width: 14),
                     _StickyMetric(
-                      label: 'DISTÂNCIA',
+                      label: AppLocalizations.of(context)!.text('distanceUpper'),
                       value:
                           '${(_distanceMeters / 1000).toStringAsFixed(2)} km',
                       icon: Icons.route_rounded,
@@ -1308,7 +1309,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                             ),
                             const SizedBox(width: 8),
                             Text(
-                              'Sensores e parâmetros',
+                              AppLocalizations.of(context)!.text('sensorParams'),
                               style: typography.titleSmall?.copyWith(
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1526,7 +1527,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                             ),
                             const SizedBox(width: 6),
                             Text(
-                              'Monitoramento do dispositivo',
+                              AppLocalizations.of(context)!.text('deviceMonitoring'),
                               style: typography.labelMedium?.copyWith(
                                 fontWeight: FontWeight.w700,
                               ),
@@ -1539,7 +1540,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                             Expanded(
                               child: _DeviceResourceMetric(
                                 key: const ValueKey('app-memory-usage'),
-                                label: 'RAM DO APP',
+                                label: AppLocalizations.of(context)!.text('appRam'),
                                 value: _memoryUsageBytes == null
                                     ? '-- MB'
                                     : '${(_memoryUsageBytes! / (1024 * 1024)).toStringAsFixed(1)} MB',
@@ -1802,8 +1803,8 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                             ),
                             label: Text(
                               _isRecordingAudio
-                                  ? 'Parar áudio'
-                                  : 'Iniciar gravação de áudio',
+                                  ? AppLocalizations.of(context)!.text('audioStop')
+                                  : AppLocalizations.of(context)!.text('audioStart'),
                             ),
                             style: FilledButton.styleFrom(
                               backgroundColor: _isRecordingAudio

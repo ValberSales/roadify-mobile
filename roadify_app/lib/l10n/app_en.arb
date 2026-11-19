@@ -11,5 +11,641 @@
   "defaultVehicleLabel": "Default Vehicle",
   "manageVehiclesTitle": "Vehicle Management",
   "accelerometerRateLabel": "Accelerometer Rate",
-  "systemLanguageLabel": "System Language"
+  "systemLanguageLabel": "System Language",
+  "navHome": "Home",
+  "@navHome": {
+    "description": "Visible UI text: navHome"
+  },
+  "navCollection": "Collection",
+  "@navCollection": {
+    "description": "Visible UI text: navCollection"
+  },
+  "navSensors": "Sensors",
+  "@navSensors": {
+    "description": "Visible UI text: navSensors"
+  },
+  "navData": "Data",
+  "@navData": {
+    "description": "Visible UI text: navData"
+  },
+  "navSettings": "Settings",
+  "@navSettings": {
+    "description": "Visible UI text: navSettings"
+  },
+  "selectLanguage": "Select Language",
+  "@selectLanguage": {
+    "description": "Visible UI text: selectLanguage"
+  },
+  "defaultAccelRate": "Default Accelerometer Rate",
+  "@defaultAccelRate": {
+    "description": "Visible UI text: defaultAccelRate"
+  },
+  "recommended": "Recommended",
+  "@recommended": {
+    "description": "Visible UI text: recommended"
+  },
+  "collectionOrientation": "Orientation and leveling",
+  "@collectionOrientation": {
+    "description": "Visible UI text: collectionOrientation"
+  },
+  "backToSettings": "Back to settings",
+  "@backToSettings": {
+    "description": "Visible UI text: backToSettings"
+  },
+  "startCollection": "Start collection",
+  "@startCollection": {
+    "description": "Visible UI text: startCollection"
+  },
+  "removeCalibration": "Remove calibration",
+  "@removeCalibration": {
+    "description": "Visible UI text: removeCalibration"
+  },
+  "recalibrateLevel": "Recalibrate level",
+  "@recalibrateLevel": {
+    "description": "Visible UI text: recalibrateLevel"
+  },
+  "calibrateLevel": "Calibrate level",
+  "@calibrateLevel": {
+    "description": "Visible UI text: calibrateLevel"
+  },
+  "newItem": "New",
+  "@newItem": {
+    "description": "Visible UI text: newItem"
+  },
+  "cancel": "Cancel",
+  "@cancel": {
+    "description": "Visible UI text: cancel"
+  },
+  "delete": "Delete",
+  "@delete": {
+    "description": "Visible UI text: delete"
+  },
+  "close": "Close",
+  "@close": {
+    "description": "Visible UI text: close"
+  },
+  "retry": "Try again",
+  "@retry": {
+    "description": "Visible UI text: retry"
+  },
+  "sort": "Sort",
+  "@sort": {
+    "description": "Visible UI text: sort"
+  },
+  "exportZip": "Export ZIP",
+  "@exportZip": {
+    "description": "Visible UI text: exportZip"
+  },
+  "deleteVehicle": "Delete vehicle",
+  "@deleteVehicle": {
+    "description": "Visible UI text: deleteVehicle"
+  },
+  "removeVehicleConfirm": "Remove \"{name}\" from the vehicle list?",
+  "@removeVehicleConfirm": {
+    "description": "Visible UI text: removeVehicleConfirm"
+  },
+  "vehicleRemoved": "Vehicle \"{name}\" removed.",
+  "@vehicleRemoved": {
+    "description": "Visible UI text: vehicleRemoved"
+  },
+  "defaultVehicleSet": "Default vehicle set: {name} ({plate})",
+  "@defaultVehicleSet": {
+    "description": "Visible UI text: defaultVehicleSet"
+  },
+  "editVehicle": "Edit Vehicle",
+  "@editVehicle": {
+    "description": "Visible UI text: editVehicle"
+  },
+  "registerVehicle": "Register Vehicle",
+  "@registerVehicle": {
+    "description": "Visible UI text: registerVehicle"
+  },
+  "vehicleIdentity": "Identification (e.g. Pickup 01)",
+  "@vehicleIdentity": {
+    "description": "Visible UI text: vehicleIdentity"
+  },
+  "makeModel": "Make / Model (e.g. Toyota Hilux)",
+  "@makeModel": {
+    "description": "Visible UI text: makeModel"
+  },
+  "year": "Year",
+  "@year": {
+    "description": "Visible UI text: year"
+  },
+  "plate": "License plate",
+  "@plate": {
+    "description": "Visible UI text: plate"
+  },
+  "tractionOptional": "Drivetrain (Optional)",
+  "@tractionOptional": {
+    "description": "Visible UI text: tractionOptional"
+  },
+  "standardMileage": "Default Mileage (km)",
+  "@standardMileage": {
+    "description": "Visible UI text: standardMileage"
+  },
+  "notesOptional": "Notes / Description (Optional)",
+  "@notesOptional": {
+    "description": "Visible UI text: notesOptional"
+  },
+  "loadingRecordings": "Could not load recordings.",
+  "@loadingRecordings": {
+    "description": "Visible UI text: loadingRecordings"
+  },
+  "searchRuns": "Search by name, date or road",
+  "@searchRuns": {
+    "description": "Visible UI text: searchRuns"
+  },
+  "savedRunsDescription": "Collections saved locally on the device and ready for ZIP export.",
+  "@savedRunsDescription": {
+    "description": "Visible UI text: savedRunsDescription"
+  },
+  "odometerStart": "Starting Odometer",
+  "@odometerStart": {
+    "description": "Visible UI text: odometerStart"
+  },
+  "odometerEnd": "Ending Odometer",
+  "@odometerEnd": {
+    "description": "Visible UI text: odometerEnd"
+  },
+  "distance": "Distance",
+  "@distance": {
+    "description": "Visible UI text: distance"
+  },
+  "initialPoint": "Starting Point (Lat, Lng):",
+  "@initialPoint": {
+    "description": "Visible UI text: initialPoint"
+  },
+  "finalPoint": "Ending Point (Lat, Lng):",
+  "@finalPoint": {
+    "description": "Visible UI text: finalPoint"
+  },
+  "inertialSamples": "Inertial Samples",
+  "@inertialSamples": {
+    "description": "Visible UI text: inertialSamples"
+  },
+  "gpsPoints": "GPS Points",
+  "@gpsPoints": {
+    "description": "Visible UI text: gpsPoints"
+  },
+  "mediaVolume": "Media / Volume",
+  "@mediaVolume": {
+    "description": "Visible UI text: mediaVolume"
+  },
+  "permissionRequired": "Permissions required",
+  "@permissionRequired": {
+    "description": "Visible UI text: permissionRequired"
+  },
+  "openSettings": "Open settings",
+  "@openSettings": {
+    "description": "Visible UI text: openSettings"
+  },
+  "back": "Back",
+  "@back": {
+    "description": "Visible UI text: back"
+  },
+  "preparingRecording": "Preparing recording...",
+  "@preparingRecording": {
+    "description": "Visible UI text: preparingRecording"
+  },
+  "continueRecording": "Continue to recording",
+  "@continueRecording": {
+    "description": "Visible UI text: continueRecording"
+  },
+  "finishCollectionQuestion": "Finish collection?",
+  "@finishCollectionQuestion": {
+    "description": "Visible UI text: finishCollectionQuestion"
+  },
+  "continueCollecting": "Continue collecting",
+  "@continueCollecting": {
+    "description": "Visible UI text: continueCollecting"
+  },
+  "finishAndSave": "Finish and save",
+  "@finishAndSave": {
+    "description": "Visible UI text: finishAndSave"
+  },
+  "collectionInProgress": "Collection in progress",
+  "@collectionInProgress": {
+    "description": "Visible UI text: collectionInProgress"
+  },
+  "sensorScreenTitle": "Sensors & Leveling",
+  "@sensorScreenTitle": {
+    "description": "Visible UI text: sensorScreenTitle"
+  },
+  "bubbleLevel": "Bubble Level",
+  "@bubbleLevel": {
+    "description": "Visible UI text: bubbleLevel"
+  },
+  "requiredSensors": "Required Sensors",
+  "@requiredSensors": {
+    "description": "Visible UI text: requiredSensors"
+  },
+  "optionalSensors": "Additional sensors",
+  "@optionalSensors": {
+    "description": "Visible UI text: optionalSensors"
+  },
+  "accelerometer": "Accelerometer",
+  "@accelerometer": {
+    "description": "Visible UI text: accelerometer"
+  },
+  "gyroscope": "Gyroscope",
+  "@gyroscope": {
+    "description": "Visible UI text: gyroscope"
+  },
+  "camera": "Camera",
+  "@camera": {
+    "description": "Visible UI text: camera"
+  },
+  "audio": "Audio",
+  "@audio": {
+    "description": "Visible UI text: audio"
+  },
+  "gps": "GPS",
+  "@gps": {
+    "description": "Visible UI text: gps"
+  },
+  "noVehicles": "No vehicles registered.",
+  "@noVehicles": {
+    "description": "Visible UI text: noVehicles"
+  },
+  "saveVehicleSuccess": "Vehicle saved successfully!",
+  "@saveVehicleSuccess": {
+    "description": "Visible UI text: saveVehicleSuccess"
+  },
+  "saveVehicleError": "Could not save the vehicle. Try again.",
+  "@saveVehicleError": {
+    "description": "Visible UI text: saveVehicleError"
+  },
+  "recordingsTitle": "Recordings",
+  "@recordingsTitle": {
+    "description": "Visible UI text: recordings title"
+  },
+  "themeToggle": "Toggle Light / Dark Theme",
+  "@themeToggle": {
+    "description": "Visible UI text: themeToggle"
+  },
+  "dataCollector": "Pavement Data Collector",
+  "@dataCollector": {
+    "description": "Visible UI text: dataCollector"
+  },
+  "vehicleExample": "VEHICLE: TOYOTA HILUX (ABC-1234)",
+  "@vehicleExample": {
+    "description": "Visible UI text: vehicleExample"
+  },
+  "calibrateBeforeDriving": "Calibrate the sensors with the bubble level before driving.",
+  "@calibrateBeforeDriving": {
+    "description": "Visible UI text: calibrateBeforeDriving"
+  },
+  "startTrackCollection": "Start Track Collection",
+  "@startTrackCollection": {
+    "description": "Visible UI text: startTrackCollection"
+  },
+  "deviceStorage": "Device Storage",
+  "@deviceStorage": {
+    "description": "Visible UI text: deviceStorage"
+  },
+  "availableStorage": "42 GB available",
+  "@availableStorage": {
+    "description": "Visible UI text: availableStorage"
+  },
+  "latestCollections": "Latest Collections",
+  "@latestCollections": {
+    "description": "Visible UI text: latestCollections"
+  },
+  "lowBattery": "Battery below the safe limit ({batteryLevel}%)",
+  "@lowBattery": {
+    "description": "Visible UI text: lowBattery"
+  },
+  "batteryRecommendation": "Recommended minimum level: {threshold}%. Connect the vehicle charger before starting the test.",
+  "@batteryRecommendation": {
+    "description": "Visible UI text: batteryRecommendation"
+  },
+  "loadSettingsError": "Could not load the latest settings: {error}",
+  "@loadSettingsError": {
+    "description": "Visible UI text: loadSettingsError"
+  },
+  "savePreferencesError": "Could not save preferences: {error}",
+  "@savePreferencesError": {
+    "description": "Visible UI text: savePreferencesError"
+  },
+  "requiredSensorsStart": "Accelerometer and GPS are required to start collection.",
+  "@requiredSensorsStart": {
+    "description": "Visible UI text: requiredSensorsStart"
+  },
+  "reviewFrequencies": "Review the entered frequencies and distance.",
+  "@reviewFrequencies": {
+    "description": "Visible UI text: reviewFrequencies"
+  },
+  "validStartingMileage": "Enter a valid starting mileage.",
+  "@validStartingMileage": {
+    "description": "Visible UI text: validStartingMileage"
+  },
+  "validAccelerometerFrequency": "Enter a valid accelerometer frequency.",
+  "@validAccelerometerFrequency": {
+    "description": "Visible UI text: validAccelerometerFrequency"
+  },
+  "sensorsPrepared": "Collection prepared with {count} sensors.",
+  "@sensorsPrepared": {
+    "description": "Visible UI text: sensorsPrepared"
+  },
+  "recordingStartError": "Could not start recording: {error}",
+  "@recordingStartError": {
+    "description": "Visible UI text: recordingStartError"
+  },
+  "parameters": "Parameters",
+  "@parameters": {
+    "description": "Visible UI text: parameters"
+  },
+  "gpsDistanceDescription": "Set the minimum distance between stored GPS points. ",
+  "@gpsDistanceDescription": {
+    "description": "Visible UI text: gpsDistanceDescription"
+  },
+  "otherSensorsDescription": "Other sensor rates are configured above.",
+  "@otherSensorsDescription": {
+    "description": "Visible UI text: otherSensorsDescription"
+  },
+  "minGpsDistance": "Minimum distance between GPS points",
+  "@minGpsDistance": {
+    "description": "Visible UI text: minGpsDistance"
+  },
+  "gpsDistanceHelp": "GPS continues reading at the selected rate; a point is saved only after moving at least this distance.",
+  "@gpsDistanceHelp": {
+    "description": "Visible UI text: gpsDistanceHelp"
+  },
+  "selectVehicle": "Select the vehicle",
+  "@selectVehicle": {
+    "description": "Visible UI text: selectVehicle"
+  },
+  "loadVehiclesError": "Could not load vehicles: ",
+  "@loadVehiclesError": {
+    "description": "Visible UI text: loadVehiclesError"
+  },
+  "identity": "Identification",
+  "@identity": {
+    "description": "Visible UI text: identity"
+  },
+  "enterCollectionSegment": "Enter the collection segment.",
+  "@enterCollectionSegment": {
+    "description": "Visible UI text: enterCollectionSegment"
+  },
+  "testIdentifier": "Test identifier *",
+  "@testIdentifier": {
+    "description": "Visible UI text: testIdentifier"
+  },
+  "enterTestIdentifier": "Enter the test identifier.",
+  "@enterTestIdentifier": {
+    "description": "Visible UI text: enterTestIdentifier"
+  },
+  "selectVehicleForCollection": "Select a vehicle for collection.",
+  "@selectVehicleForCollection": {
+    "description": "Visible UI text: selectVehicleForCollection"
+  },
+  "selectVehicleRequired": "Select vehicle *",
+  "@selectVehicleRequired": {
+    "description": "Visible UI text: selectVehicleRequired"
+  },
+  "validMileageRange": "Enter mileage between 0 and 2,000,000 km.",
+  "@validMileageRange": {
+    "description": "Visible UI text: validMileageRange"
+  },
+  "customFrequencyError": "Enter a whole-number frequency.",
+  "@customFrequencyError": {
+    "description": "Visible UI text: customFrequencyError"
+  },
+  "frequencyRange": "Use a value between 50 and 500 Hz.",
+  "@frequencyRange": {
+    "description": "Visible UI text: frequencyRange"
+  },
+  "durationIntegerError": "Enter a whole-number duration.",
+  "@durationIntegerError": {
+    "description": "Visible UI text: durationIntegerError"
+  },
+  "videoDurationRange": "Between 1 and 120 seconds (2 minutes) to limit storage.",
+  "@videoDurationRange": {
+    "description": "Visible UI text: videoDurationRange"
+  },
+  "audioDurationRange": "Between 1 and 300 seconds to limit storage.",
+  "@audioDurationRange": {
+    "description": "Visible UI text: audioDurationRange"
+  },
+  "content": "Content",
+  "@content": {
+    "description": "Visible UI text: content"
+  },
+  "videos": "Videos",
+  "@videos": {
+    "description": "Visible UI text: videos"
+  },
+  "photosAndVideos": "Photos and videos",
+  "@photosAndVideos": {
+    "description": "Visible UI text: photosAndVideos"
+  },
+  "cameraUsed": "Camera used",
+  "@cameraUsed": {
+    "description": "Visible UI text: cameraUsed"
+  },
+  "front": "Front",
+  "@front": {
+    "description": "Visible UI text: front"
+  },
+  "rear": "Rear",
+  "@rear": {
+    "description": "Visible UI text: rear"
+  },
+  "videoMaxDuration": "Maximum video duration",
+  "@videoMaxDuration": {
+    "description": "Visible UI text: videoMaxDuration"
+  },
+  "automaticCapture": "Automatic capture",
+  "@automaticCapture": {
+    "description": "Visible UI text: automaticCapture"
+  },
+  "optionalByTimeDistance": "Optional • by time or distance traveled",
+  "@optionalByTimeDistance": {
+    "description": "Visible UI text: optionalByTimeDistance"
+  },
+  "automaticRecording": "Automatic recording",
+  "@automaticRecording": {
+    "description": "Visible UI text: automaticRecording"
+  },
+  "recordingDuration": "Duration of each recording",
+  "@recordingDuration": {
+    "description": "Visible UI text: recordingDuration"
+  },
+  "minutes": "Minutes",
+  "@minutes": {
+    "description": "Visible UI text: minutes"
+  },
+  "hours": "Hours",
+  "@hours": {
+    "description": "Visible UI text: hours"
+  },
+  "meters": "Meters",
+  "@meters": {
+    "description": "Visible UI text: meters"
+  },
+  "kilometers": "Kilometers",
+  "@kilometers": {
+    "description": "Visible UI text: kilometers"
+  },
+  "requiredSensorsSubtitle": "Required to record movement and location.",
+  "@requiredSensorsSubtitle": {
+    "description": "Visible UI text: requiredSensorsSubtitle"
+  },
+  "roadIrregularity": "Road irregularity and vibration",
+  "@roadIrregularity": {
+    "description": "Visible UI text: roadIrregularity"
+  },
+  "sensorSafetyLimit": "Sensor safety limit",
+  "@sensorSafetyLimit": {
+    "description": "Visible UI text: sensorSafetyLimit"
+  },
+  "gpsRoads": "Geolocation and track routes",
+  "@gpsRoads": {
+    "description": "Visible UI text: gpsRoads"
+  },
+  "gnssRange": "GNSS: 1 Hz to 10 Hz.",
+  "@gnssRange": {
+    "description": "Visible UI text: gnssRange"
+  },
+  "customFrequency": "Enter custom frequency",
+  "@customFrequency": {
+    "description": "Visible UI text: customFrequency"
+  },
+  "change": "Change",
+  "@change": {
+    "description": "Visible UI text: change"
+  },
+  "traction": "Drivetrain",
+  "@traction": {
+    "description": "Visible UI text: traction"
+  },
+  "description": "Description",
+  "@description": {
+    "description": "Visible UI text: description"
+  },
+  "liveSignals": "Live Signals",
+  "@liveSignals": {
+    "description": "Visible UI text: liveSignals"
+  },
+  "levelingInstruction": "Place the smartphone on the vehicle mount or bench and calibrate the reference.",
+  "@levelingInstruction": {
+    "description": "Visible UI text: levelingInstruction"
+  },
+  "view": "View: {mode}",
+  "@view": {
+    "description": "Visible UI text: view"
+  },
+  "sideTilt": "Side Tilt",
+  "@sideTilt": {
+    "description": "Visible UI text: sideTilt"
+  },
+  "frontTilt": "Front Tilt",
+  "@frontTilt": {
+    "description": "Visible UI text: frontTilt"
+  },
+  "misaligned": "Misaligned with Reference",
+  "@misaligned": {
+    "description": "Visible UI text: misaligned"
+  },
+  "live": "LIVE",
+  "@live": {
+    "description": "Visible UI text: live"
+  },
+  "finishCollection": "Finish Collection?",
+  "@finishCollection": {
+    "description": "Visible UI text: finishCollection"
+  },
+  "continueCollecting2": "Continue Collecting",
+  "@continueCollecting2": {
+    "description": "Visible UI text: continueCollecting2"
+  },
+  "finishSave2": "Finish and Save",
+  "@finishSave2": {
+    "description": "Visible UI text: finishSave2"
+  },
+  "collectionProgress": "Collection in Progress",
+  "@collectionProgress": {
+    "description": "Visible UI text: collectionProgress"
+  },
+  "quickRoadPhoto": "Quick road photo",
+  "@quickRoadPhoto": {
+    "description": "Visible UI text: quickRoadPhoto"
+  },
+  "distanceUpper": "DISTANCE",
+  "@distanceUpper": {
+    "description": "Visible UI text: distanceUpper"
+  },
+  "sensorParams": "Sensors and parameters",
+  "@sensorParams": {
+    "description": "Visible UI text: sensorParams"
+  },
+  "deviceMonitoring": "Device monitoring",
+  "@deviceMonitoring": {
+    "description": "Visible UI text: deviceMonitoring"
+  },
+  "appRam": "APP RAM",
+  "@appRam": {
+    "description": "Visible UI text: appRam"
+  },
+  "audioStop": "Stop audio",
+  "@audioStop": {
+    "description": "Visible UI text: audioStop"
+  },
+  "audioStart": "Start audio recording",
+  "@audioStart": {
+    "description": "Visible UI text: audioStart"
+  },
+  "cameraPreparing": "Preparing camera...",
+  "@cameraPreparing": {
+    "description": "Visible UI text: cameraPreparing"
+  },
+  "takeRoadPhoto": "TAKE ROAD PHOTO",
+  "@takeRoadPhoto": {
+    "description": "Visible UI text: takeRoadPhoto"
+  },
+  "incidentImage": "Record incident image",
+  "@incidentImage": {
+    "description": "Visible UI text: incidentImage"
+  },
+  "finishVideo": "FINISH VIDEO",
+  "@finishVideo": {
+    "description": "Visible UI text: finishVideo"
+  },
+  "recordVideo": "RECORD VIDEO",
+  "@recordVideo": {
+    "description": "Visible UI text: recordVideo"
+  },
+  "stopVideo": "STOP VIDEO",
+  "@stopVideo": {
+    "description": "Visible UI text: stopVideo"
+  },
+  "video": "VIDEO",
+  "@video": {
+    "description": "Visible UI text: video"
+  },
+  "tapToSave": "Tap to save",
+  "@tapToSave": {
+    "description": "Visible UI text: tapToSave"
+  },
+  "audioRecording": "AUDIO RECORDING",
+  "@audioRecording": {
+    "description": "Visible UI text: audioRecording"
+  },
+  "audioReady": "Audio ready",
+  "@audioReady": {
+    "description": "Visible UI text: audioReady"
+  },
+  "closeFile": "Could not open file: ",
+  "@closeFile": {
+    "description": "Visible UI text: closeFile"
+  },
+  "time": "Time: ",
+  "@time": {
+    "description": "Visible UI text: time"
+  },
+  "gpsUnavailable": "GPS: unavailable",
+  "@gpsUnavailable": {
+    "description": "Visible UI text: gpsUnavailable"
+  }
 }
