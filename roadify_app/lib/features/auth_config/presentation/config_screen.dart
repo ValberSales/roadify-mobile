@@ -6,6 +6,8 @@ import '../../../core/l10n/locale_controller.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../../core/di/setup_locator.dart';
+import '../../../features/veiculos/viewmodels/vehicle_viewmodel.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../veiculos/presentation/vehicles_management_screen.dart';
 
@@ -30,14 +32,11 @@ class ConfigScreen extends StatefulWidget {
 }
 
 class _ConfigScreenState extends State<ConfigScreen> {
-  static const String _prefDefaultVehicleLabelKey =
-      'roadify_default_vehicle_label';
   static const String _prefDefaultAccelHzKey = 'roadify_default_accel_hz';
 
   late final LocaleController _localeController;
   late final bool _ownsLocaleController;
 
-  String _defaultVehicleLabel = 'Toyota Hilux (ABC-1234)';
   int _defaultAccelerometerHz = 200;
 
   @override
@@ -59,45 +58,22 @@ class _ConfigScreenState extends State<ConfigScreen> {
   Future<void> _loadPreferences() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final savedVehicle = prefs.getString(_prefDefaultVehicleLabelKey);
       final savedHz = prefs.getInt(_prefDefaultAccelHzKey);
       if (!mounted) return;
       setState(() {
-        if (savedVehicle != null && savedVehicle.isNotEmpty) {
-          _defaultVehicleLabel = savedVehicle;
-        }
         if (savedHz != null) {
           _defaultAccelerometerHz = savedHz;
         }
       });
-    } catch (_) {}
-  }
-
-  Future<void> _openVehiclesManagement() async {
-    final selected = await Navigator.of(context).push<Vehicle>(
-      MaterialPageRoute(
-        builder: (_) => VehiclesManagementScreen(
-          onDefaultVehicleSelected: (vehicle) {
-            final label = '${vehicle.name} (${vehicle.licensePlate})';
-            setState(() => _defaultVehicleLabel = label);
-            unawaited(_saveDefaultVehicleLabel(label));
-          },
-        ),
-      ),
-    );
-
-    if (selected != null && mounted) {
-      final label = '${selected.name} (${selected.licensePlate})';
-      setState(() => _defaultVehicleLabel = label);
-      await _saveDefaultVehicleLabel(label);
+    } catch (error) {
+      debugPrint('Falha ao carregar as preferências: $error');
     }
   }
 
-  Future<void> _saveDefaultVehicleLabel(String label) async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(_prefDefaultVehicleLabelKey, label);
-    } catch (_) {}
+  Future<void> _openVehiclesManagement() async {
+    await Navigator.of(context).push<Vehicle>(
+      MaterialPageRoute(builder: (_) => const VehiclesManagementScreen()),
+    );
   }
 
   Future<void> _selectAccelerometerRate() async {
@@ -125,9 +101,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
               for (final hz in options)
                 ListTile(
                   leading: const Icon(Icons.speed_rounded),
-                  title: Text(
-                    hz == 200 ? '$hz Hz (Recomendado)' : '$hz Hz',
-                  ),
+                  title: Text(hz == 200 ? '$hz Hz (Recomendado)' : '$hz Hz'),
                   trailing: _defaultAccelerometerHz == hz
                       ? Icon(Icons.check_rounded, color: context.colors.primary)
                       : null,
@@ -204,9 +178,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
       listenable: _localeController,
       builder: (context, _) {
         return Scaffold(
-          appBar: AppBar(
-            title: Text(l10n?.settingsTitle ?? 'Configurações'),
-          ),
+          appBar: AppBar(title: Text(l10n?.settingsTitle ?? 'Configurações')),
           body: SafeArea(
             bottom: false,
             child: ListView(
@@ -262,9 +234,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                                   ),
                                   ButtonSegment(
                                     value: ThemeMode.system,
-                                    label: Text(
-                                      l10n?.themeSystem ?? 'Sistema',
-                                    ),
+                                    label: Text(l10n?.themeSystem ?? 'Sistema'),
                                     icon: const Icon(
                                       Icons.brightness_auto_rounded,
                                     ),
@@ -308,7 +278,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                         title: Text(
                           l10n?.defaultVehicleLabel ?? 'Veículo Padrão',
                         ),
-                        subtitle: Text(_defaultVehicleLabel),
+                        subtitle: _buildDefaultVehicleSubtitle(),
                         trailing: const Icon(Icons.chevron_right_rounded),
                         onTap: _openVehiclesManagement,
                       ),
@@ -346,6 +316,26 @@ class _ConfigScreenState extends State<ConfigScreen> {
             ),
           ),
         );
+      },
+    );
+  }
+
+  Widget _buildDefaultVehicleSubtitle() {
+    if (!getIt.isRegistered<VehicleViewModel>()) {
+      return const Text('Nenhum veículo cadastrado.');
+    }
+    return StreamBuilder<Vehicle?>(
+      stream: getIt<VehicleViewModel>().defaultVehicleStream,
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Text('Não foi possível carregar o veículo padrão.');
+        }
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Text('Carregando veículo...');
+        }
+        final vehicle = snapshot.data;
+        if (vehicle == null) return const Text('Nenhum veículo cadastrado.');
+        return Text('${vehicle.name} (${vehicle.licensePlate})');
       },
     );
   }

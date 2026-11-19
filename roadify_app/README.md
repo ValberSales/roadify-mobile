@@ -43,6 +43,7 @@ Este projeto utiliza a biblioteca **`flex_color_scheme`** combinada com **Materi
 Qualquer membro do time pode acessar as cores e tipografias diretamente do `BuildContext` sem decorar códigos hexadecimais:
 
 #### 1. Acessando as Cores Principais
+
 ```dart
 import 'package:roadify_app/core/theme/theme_extensions.dart';
 
@@ -56,6 +57,7 @@ Container(
 ```
 
 #### 2. Acessando as Cores da Escala de Pavimento (5 Níveis)
+
 ```dart
 final quality = context.roadQualityColors;
 
@@ -67,6 +69,7 @@ final quality = context.roadQualityColors;
 ```
 
 #### 3. Acessando a Tipografia Padronizada (Google Fonts Inter)
+
 ```dart
 final typography = context.typography;
 
@@ -76,6 +79,7 @@ Text('Legenda', style: typography.labelSmall);
 ```
 
 #### 4. Verificando Modo Escuro
+
 ```dart
 if (context.isDarkMode) {
   // Ajuste condicional caso necessário

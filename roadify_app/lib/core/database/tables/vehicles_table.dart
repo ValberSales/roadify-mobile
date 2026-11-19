@@ -17,6 +17,7 @@ class Vehicles extends Table {
 
   // Controle de Estado
   BoolColumn get isActive => boolean().withDefault(const Constant(true))();
+  BoolColumn get isDefault => boolean().withDefault(const Constant(false))();
   DateTimeColumn get createdAt => dateTime().withDefault(currentDateAndTime)();
   DateTimeColumn get updatedAt => dateTime().nullable()();
 }

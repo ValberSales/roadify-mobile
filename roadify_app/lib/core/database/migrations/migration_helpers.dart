@@ -46,6 +46,19 @@ class DatabaseMigrationHelper {
         await m.createTable(db.gpsPointsTable);
         await m.createTable(db.mediaRecordsTable);
         break;
+      case 3:
+        await m.addColumn(db.vehicles, db.vehicles.isDefault);
+        await db.customStatement('''
+          UPDATE vehicles
+          SET is_default = 1
+          WHERE id = (
+            SELECT id FROM vehicles
+            WHERE is_active = 1
+            ORDER BY created_at, id
+            LIMIT 1
+          )
+        ''');
+        break;
       default:
         break;
     }

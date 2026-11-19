@@ -12,7 +12,15 @@ class VehicleViewModel extends ChangeNotifier {
   Stream<List<Vehicle>> get activeVehiclesStream =>
       _dao.watchAllActiveVehicles();
 
+  Stream<Vehicle?> get defaultVehicleStream => _dao.watchDefaultVehicle();
+
   Future<List<Vehicle>> getActiveVehicles() => _dao.getAllActiveVehicles();
+
+  Future<Vehicle?> getDefaultVehicle() => _dao.getDefaultVehicle();
+
+  Future<void> setDefaultVehicle(Vehicle vehicle) async {
+    await _dao.setDefaultVehicle(vehicle.id);
+  }
 
   // Lógica centralizada de salvamento (criação ou atualização)
   Future<void> saveVehicle({

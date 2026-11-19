@@ -50,6 +50,9 @@ class _ColetaScreenState extends State<ColetaScreen>
   int _taxaAquisicaoHz = 100;
   String? _erroSelecaoSensores;
   bool _isStartingRecording = false;
+  StreamSubscription<Vehicle?>? _defaultVehicleSubscription;
+  int? _lastDefaultVehicleId;
+  int _vehicleSelectionVersion = 0;
   CollectionIdentification _identification = const CollectionIdentification(
     route: '',
     identifier: '',
@@ -79,10 +82,12 @@ class _ColetaScreenState extends State<ColetaScreen>
     try {
       final configuration = await _preferences.load();
       Vehicle? vehicle;
-      final savedVehicleId = configuration?.vehicleId;
-      if (savedVehicleId != null) {
-        if (getIt.isRegistered<VehicleViewModel>()) {
-          final vehicles = await getIt<VehicleViewModel>().getActiveVehicles();
+      Vehicle? defaultVehicle;
+      if (getIt.isRegistered<VehicleViewModel>()) {
+        final vehicleViewModel = getIt<VehicleViewModel>();
+        final vehicles = await vehicleViewModel.getActiveVehicles();
+        final savedVehicleId = configuration?.vehicleId;
+        if (savedVehicleId != null) {
           for (final candidate in vehicles) {
             if (candidate.id == savedVehicleId) {
               vehicle = candidate;
@@ -90,12 +95,13 @@ class _ColetaScreenState extends State<ColetaScreen>
             }
           }
         }
+        defaultVehicle = await vehicleViewModel.getDefaultVehicle();
+        vehicle ??= defaultVehicle;
       }
 
       if (!mounted) return;
       if (configuration != null) {
         _restoredConfiguration = configuration;
-        _restoredVehicle = vehicle;
         _sensoresSelecionados
           ..clear()
           ..addAll(configuration.sensoresSelecionados);
@@ -104,15 +110,22 @@ class _ColetaScreenState extends State<ColetaScreen>
         _intervaloMetrosController.text = configuration.intervaloMetros
             .toString();
         _optionalSensorSettings = configuration.sensoresOpcionais;
-        _identification = CollectionIdentification(
-          route: configuration.trecho,
-          identifier: configuration.identificador,
-          vehicle: vehicle,
-          odometer: vehicle == null
-              ? ''
-              : configuration.odometroInicial.toString(),
-        );
       }
+      _restoredVehicle = vehicle;
+      _lastDefaultVehicleId = defaultVehicle?.id;
+      final savedVehicleMatches =
+          vehicle != null && configuration?.vehicleId == vehicle.id;
+      _identification = CollectionIdentification(
+        route: configuration?.trecho ?? '',
+        identifier: configuration?.identificador ?? '',
+        vehicle: vehicle,
+        odometer: vehicle == null
+            ? ''
+            : savedVehicleMatches
+            ? configuration!.odometroInicial.toString()
+            : vehicle.defaultOdometer.toString(),
+      );
+      _watchDefaultVehicleUpdates();
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -128,9 +141,52 @@ class _ColetaScreenState extends State<ColetaScreen>
     }
   }
 
+  void _watchDefaultVehicleUpdates() {
+    if (!getIt.isRegistered<VehicleViewModel>()) return;
+    _defaultVehicleSubscription = getIt<VehicleViewModel>().defaultVehicleStream
+        .listen(
+          _handleDefaultVehicleChanged,
+          onError: (Object error) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(
+                  'Não foi possível acompanhar o veículo padrão: $error',
+                ),
+              ),
+            );
+          },
+        );
+  }
+
+  void _handleDefaultVehicleChanged(Vehicle? vehicle) {
+    if (!mounted) return;
+    final previousDefaultId = _lastDefaultVehicleId;
+    if (previousDefaultId == vehicle?.id) return;
+    _lastDefaultVehicleId = vehicle?.id;
+
+    final currentVehicle = _identification.vehicle;
+    if (currentVehicle != null && currentVehicle.id != previousDefaultId) {
+      return;
+    }
+
+    setState(() {
+      _restoredVehicle = vehicle;
+      _vehicleSelectionVersion++;
+      _identification = CollectionIdentification(
+        route: _identification.route,
+        identifier: _identification.identifier,
+        vehicle: vehicle,
+        odometer: vehicle?.defaultOdometer.toString() ?? '',
+      );
+    });
+    unawaited(_persistCurrentConfiguration());
+  }
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    unawaited(_defaultVehicleSubscription?.cancel());
     unawaited(_persistCurrentConfiguration());
     _frequenciaGpsController.removeListener(_persistCurrentConfiguration);
     _intervaloMetrosController.removeListener(_persistCurrentConfiguration);
@@ -379,14 +435,16 @@ class _ColetaScreenState extends State<ColetaScreen>
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       IdentificacaoSectionWidget(
-                        key: const ValueKey('collection-identification'),
+                        key: ValueKey(
+                          'collection-identification-$_vehicleSelectionVersion',
+                        ),
                         initialRoute: _restoredConfiguration?.trecho,
                         initialIdentifier:
                             _restoredConfiguration?.identificador,
                         initialVehicle: _restoredVehicle,
-                        initialOdometer: _restoredVehicle == null
-                            ? null
-                            : _restoredConfiguration?.odometroInicial,
+                        initialOdometer: double.tryParse(
+                          _identification.odometer.replaceAll(',', '.'),
+                        ),
                         onChanged: (identification) {
                           _identification = identification;
                           unawaited(_persistCurrentConfiguration());
