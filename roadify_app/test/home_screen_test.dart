@@ -4,6 +4,8 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:roadify_app/core/database/app_database.dart';
+import 'package:roadify_app/core/theme/app_colors.dart';
+import 'package:roadify_app/core/theme/app_theme.dart';
 import 'package:roadify_app/core/theme/theme_controller.dart';
 import 'package:roadify_app/features/home/models/device_health_state.dart';
 import 'package:roadify_app/features/home/presentation/home_screen.dart';
@@ -98,7 +100,9 @@ void main() {
       // 2. Modo Escuro
       await tester.pumpWidget(
         MaterialApp(
-          theme: ThemeData.dark(),
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: ThemeMode.dark,
           home: HomeScreen(
             themeController: controller,
             onStartCollection: () {},
@@ -108,6 +112,12 @@ void main() {
 
       expect(find.text('Iniciar Coleta em Pista'), findsOneWidget);
       expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+      final logoBadge = tester.widget<Container>(
+        find.byKey(const ValueKey('home-brand-logo-badge')),
+      );
+      final logoDecoration = logoBadge.decoration as BoxDecoration;
+      expect(logoDecoration.color, equals(AppColors.primary));
+      expect(logoDecoration.color, isNot(equals(AppColors.limeAccent)));
       expect(tester.takeException(), isNull);
     },
   );

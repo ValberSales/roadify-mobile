@@ -405,12 +405,21 @@ class _HomeScreenState extends State<HomeScreen> {
                         Row(
                           children: [
                             Container(
+                              key: const ValueKey('home-brand-logo-badge'),
                               padding: const EdgeInsets.all(
                                 AppDimensions.space8,
                               ),
                               decoration: BoxDecoration(
-                                color: colors.primary,
+                                color: AppColors.primary,
                                 borderRadius: BorderRadius.circular(10),
+                                border: isDark
+                                    ? Border.all(
+                                        color: AppColors.limeAccent.withValues(
+                                          alpha: 0.35,
+                                        ),
+                                        width: 1,
+                                      )
+                                    : null,
                               ),
                               child: Image.asset(
                                 'assets/images/roadify_mark.png',
