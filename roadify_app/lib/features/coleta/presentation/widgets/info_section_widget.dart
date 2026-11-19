@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../../l10n/app_localizations.dart';
 import 'package:roadify_app/core/database/app_database.dart';
-import 'package:roadify_app/core/di/setup_locator.dart';
 import 'package:roadify_app/core/theme/theme_extensions.dart';
 import 'package:roadify_app/features/coleta/presentation/widgets/vehicle/selected_vehicle_card.dart';
 import 'package:roadify_app/features/veiculos/presentation/vehicle_ui_helper.dart';
-import 'package:roadify_app/features/veiculos/presentation/widgets/list/vehicle_list_widget.dart';
-import 'package:roadify_app/features/veiculos/viewmodels/vehicle_viewmodel.dart';
 
 import '../../../../core/theme/app_dimensions.dart';
 
@@ -91,84 +88,9 @@ class _IdentificacaoSectionWidgetState
   void _abrirModalSelecaoVeiculo({
     required ValueChanged<Vehicle> onVehicleSelected,
   }) {
-    final vehicleViewModel = getIt<VehicleViewModel>();
-
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (sheetContext) => Container(
-        height: MediaQuery.of(sheetContext).size.height * 0.9,
-        decoration: BoxDecoration(
-          color: Theme.of(sheetContext).scaffoldBackgroundColor,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-        ),
-        child: Column(
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    AppLocalizations.of(context)!.text('selectVehicle'),
-                    style: context.typography.titleLarge,
-                  ),
-                  FilledButton.icon(
-                    icon: const Icon(Icons.add),
-                    label: const Text('Novo'),
-                    onPressed: () {
-                      Navigator.pop(sheetContext);
-                      VehicleUiHelper.showFormModal(
-                        context,
-                        onFormClosed: () => _abrirModalSelecaoVeiculo(
-                          onVehicleSelected: onVehicleSelected,
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: StreamBuilder<List<Vehicle>>(
-                stream: vehicleViewModel.activeVehiclesStream,
-                builder: (context, snapshot) {
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-                  if (snapshot.hasError) {
-                    return Center(
-                      child: Text(
-                        '${AppLocalizations.of(context)!.text('loadVehiclesError')}${snapshot.error}',
-                      ),
-                    );
-                  }
-
-                  return VehicleListWidget(
-                    vehicles: snapshot.data ?? [],
-                    onEditTap: (vehicle) {
-                      Navigator.pop(sheetContext);
-                      VehicleUiHelper.showFormModal(
-                        context,
-                        vehicle: vehicle,
-                        onFormClosed: () => _abrirModalSelecaoVeiculo(
-                          onVehicleSelected: onVehicleSelected,
-                        ),
-                      );
-                    },
-                    onVehicleTap: (vehicle) {
-                      onVehicleSelected(vehicle);
-                      Navigator.pop(sheetContext);
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
+    VehicleUiHelper.showSelectionModal(
+      context,
+      onVehicleSelected: onVehicleSelected,
     );
   }
 

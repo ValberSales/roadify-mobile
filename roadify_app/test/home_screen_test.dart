@@ -1,10 +1,15 @@
 import 'package:battery_plus/battery_plus.dart';
+import 'package:drift/drift.dart' hide isNull, isNotNull;
+import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:roadify_app/core/database/app_database.dart';
 import 'package:roadify_app/core/theme/theme_controller.dart';
 import 'package:roadify_app/features/home/models/device_health_state.dart';
 import 'package:roadify_app/features/home/presentation/home_screen.dart';
 import 'package:roadify_app/features/home/viewmodel/home_health_viewmodel.dart';
+import 'package:roadify_app/features/veiculos/viewmodels/vehicle_viewmodel.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   testWidgets(
@@ -176,6 +181,104 @@ void main() {
         find.textContaining('Bateria abaixo do limite seguro (14%)'),
         findsOneWidget,
       );
+    },
+  );
+
+  testWidgets(
+    'HomeScreen: card Nova Vistoria exibe último veículo utilizado e abre modal para selecionar veículo cadastrado',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+
+      // Cadastra dois veículos: o primeiro é marcado como padrão automaticamente,
+      // mas o segundo foi utilizado na última coleta registrada.
+      final firstVehicleId = await db.vehicleDao.insertVehicle(
+        VehiclesCompanion.insert(
+          name: 'Caminhonete 01',
+          model: 'Toyota Hilux',
+          licensePlate: 'ABC1234',
+          defaultOdometer: 10000,
+          year: 2022,
+        ),
+      );
+      final secondVehicleId = await db.vehicleDao.insertVehicle(
+        VehiclesCompanion.insert(
+          name: 'Viatura 02',
+          model: 'Fiat Strada',
+          licensePlate: 'XYZ9876',
+          defaultOdometer: 25000,
+          year: 2024,
+        ),
+      );
+
+      // Registra uma coleta recente utilizando o segundo veículo (Viatura 02)
+      await db.runDao.insertRun(
+        RunsTableCompanion.insert(
+          title: const Value('BR-116 • Sul'),
+          recordedAt: Value(DateTime(2026, 11, 18, 14, 0)),
+          vehicleId: Value(secondVehicleId),
+          odometer: const Value(25000),
+          distanceKm: const Value(12.4),
+        ),
+      );
+
+      final vehicleVm = VehicleViewModel(db.vehicleDao);
+      addTearDown(vehicleVm.dispose);
+      final controller = ThemeController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomeScreen(
+            themeController: controller,
+            onStartCollection: () {},
+            runDao: db.runDao,
+            vehicleViewModel: vehicleVm,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // 1. Verifica que o card "Nova Vistoria" exibe o último veículo utilizado (Viatura 02)
+      expect(
+        find.text('VEÍCULO: Viatura 02 (XYZ9876)'),
+        findsOneWidget,
+      );
+
+      // 2. Clica no veículo dentro do card de Nova Vistoria para abrir o modal de seleção
+      final vehicleChip = find.byKey(
+        const ValueKey('home-select-vehicle-chip'),
+      );
+      expect(vehicleChip, findsOneWidget);
+      await tester.tap(vehicleChip);
+      await tester.pumpAndSettle();
+
+      // 3. Verifica que o modal de seleção de veículos abriu com os veículos cadastrados
+      expect(
+        find.byKey(const ValueKey('vehicle-selection-modal')),
+        findsOneWidget,
+      );
+      expect(find.text('Selecione o veículo'), findsOneWidget);
+      expect(find.text('Caminhonete 01'), findsOneWidget);
+      expect(find.text('Viatura 02'), findsOneWidget);
+
+      // 4. Seleciona "Caminhonete 01" no modal
+      await tester.tap(find.text('Caminhonete 01'));
+      await tester.pumpAndSettle();
+
+      // 5. Modal fecha e o card de Nova Vistoria passa a exibir o veículo selecionado
+      expect(
+        find.byKey(const ValueKey('vehicle-selection-modal')),
+        findsNothing,
+      );
+      expect(
+        find.text('VEÍCULO: Caminhonete 01 (ABC1234)'),
+        findsOneWidget,
+      );
+      expect(vehicleVm.lastUsedVehicleId, equals(firstVehicleId));
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 1));
     },
   );
 }

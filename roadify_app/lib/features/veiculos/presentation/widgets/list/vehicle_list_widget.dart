@@ -180,7 +180,9 @@ class VehicleListWidget extends StatelessWidget {
   }
 
   String _formatOdometer(double value) =>
-      value == value.truncateToDouble() ? value.toStringAsFixed(0) : '$value';
+      value == value.truncateToDouble()
+      ? value.toStringAsFixed(0)
+      : value.toStringAsFixed(1);
 
   Widget _buildTrailingActions(
     BuildContext context,

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
@@ -8,6 +10,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../../core/utils/snackbar_helper.dart';
+import '../../veiculos/presentation/vehicle_ui_helper.dart';
 import '../../veiculos/viewmodels/vehicle_viewmodel.dart';
 import '../models/device_health_state.dart';
 import '../viewmodel/home_health_viewmodel.dart';
@@ -39,6 +43,7 @@ class HomeScreen extends StatefulWidget {
   final VoidCallback onStartCollection;
   final RunDao? runDao;
   final HomeHealthViewModel? healthViewModel;
+  final VehicleViewModel? vehicleViewModel;
 
   const HomeScreen({
     super.key,
@@ -46,6 +51,7 @@ class HomeScreen extends StatefulWidget {
     required this.onStartCollection,
     this.runDao,
     this.healthViewModel,
+    this.vehicleViewModel,
   });
 
   @override
@@ -56,8 +62,17 @@ class _HomeScreenState extends State<HomeScreen> {
   RunDao? get _dao =>
       widget.runDao ?? (getIt.isRegistered<RunDao>() ? getIt<RunDao>() : null);
 
+  VehicleViewModel? get _vehicleViewModel =>
+      widget.vehicleViewModel ??
+      (getIt.isRegistered<VehicleViewModel>()
+          ? getIt<VehicleViewModel>()
+          : null);
+
   late final HomeHealthViewModel _healthViewModel;
   late final bool _ownsHealthViewModel;
+  Vehicle? _selectedVehicleOverride;
+  Stream<List<Vehicle>>? _activeVehiclesStream;
+  Stream<List<Run>>? _runsStream;
 
   // Coletas de demonstração exibidas quando o banco ainda não possuir registros gravados
   late List<_HomeRunItem> _demoRuns;
@@ -71,6 +86,7 @@ class _HomeScreenState extends State<HomeScreen> {
     _ownsHealthViewModel = widget.healthViewModel == null;
     _healthViewModel =
         widget.healthViewModel ?? HomeHealthViewModel(autoStart: !isWidgetTest);
+    _initStreams();
 
     _demoRuns = [
       const _HomeRunItem(
@@ -95,6 +111,20 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
+  void didUpdateWidget(covariant HomeScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.vehicleViewModel != widget.vehicleViewModel ||
+        oldWidget.runDao != widget.runDao) {
+      _initStreams();
+    }
+  }
+
+  void _initStreams() {
+    _activeVehiclesStream = _vehicleViewModel?.activeVehiclesStream;
+    _runsStream = _dao?.watchAllRuns();
+  }
+
+  @override
   void dispose() {
     if (_ownsHealthViewModel) {
       _healthViewModel.dispose();
@@ -102,40 +132,145 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
-  Widget _buildDefaultVehicleSummary() {
-    if (!getIt.isRegistered<VehicleViewModel>()) {
-      return const Text(
-        'VEÍCULO: NENHUM CADASTRADO',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
-        ),
-        overflow: TextOverflow.ellipsis,
-      );
+  Vehicle? _resolveLastUsedVehicle(
+    List<Vehicle> activeVehicles,
+    List<Run> recentRuns,
+  ) {
+    if (activeVehicles.isEmpty) return null;
+
+    // 1. Prioriza o veículo explicitamente selecionado ou último utilizado salvo nas preferências
+    final preferredId =
+        _selectedVehicleOverride?.id ?? _vehicleViewModel?.lastUsedVehicleId;
+    if (preferredId != null) {
+      for (final vehicle in activeVehicles) {
+        if (vehicle.id == preferredId) return vehicle;
+      }
     }
 
-    return StreamBuilder<Vehicle?>(
-      stream: getIt<VehicleViewModel>().defaultVehicleStream,
-      builder: (context, snapshot) {
-        final vehicle = snapshot.data;
-        final label = snapshot.hasError
-            ? 'VEÍCULO: INDISPONÍVEL'
-            : snapshot.connectionState == ConnectionState.waiting
-            ? 'VEÍCULO: CARREGANDO...'
-            : vehicle == null
-            ? 'VEÍCULO: NENHUM CADASTRADO'
-            : 'VEÍCULO PADRÃO: ${vehicle.name} (${vehicle.licensePlate})';
-        return Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
+    // 2. Verifica o veículo vinculado à coleta mais recente gravada no banco
+    for (final run in recentRuns) {
+      final runVehicleId = run.vehicleId;
+      if (runVehicleId != null) {
+        for (final vehicle in activeVehicles) {
+          if (vehicle.id == runVehicleId) return vehicle;
+        }
+      }
+    }
+
+    // 3. Fallback para o veículo marcado como padrão ou o primeiro veículo ativo
+    for (final vehicle in activeVehicles) {
+      if (vehicle.isDefault) return vehicle;
+    }
+    return activeVehicles.first;
+  }
+
+  Future<void> _openVehicleSelectionModal() async {
+    await VehicleUiHelper.showSelectionModal(
+      context,
+      viewModel: _vehicleViewModel,
+      onVehicleSelected: (vehicle) async {
+        setState(() => _selectedVehicleOverride = vehicle);
+        try {
+          await _vehicleViewModel?.setDefaultVehicle(vehicle);
+          if (!mounted) return;
+          SnackbarHelper.showSuccess(
+            context,
+            message: AppLocalizations.of(context)!
+                .text('defaultVehicleSet')
+                .replaceAll('{name}', vehicle.name)
+                .replaceAll('{plate}', vehicle.licensePlate),
+          );
+        } catch (error) {
+          if (!mounted) return;
+          SnackbarHelper.showError(
+            context,
+            message: 'Não foi possível selecionar o veículo: $error',
+          );
+        }
+      },
+    );
+  }
+
+  Widget _buildVehicleLabelText(String label) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Icon(
+          Icons.directions_car_filled_rounded,
+          color: Colors.white,
+          size: 14,
+        ),
+        const SizedBox(width: 6),
+        Flexible(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 11,
+              fontWeight: FontWeight.w700,
+              letterSpacing: 0.5,
+            ),
+            overflow: TextOverflow.ellipsis,
           ),
-          overflow: TextOverflow.ellipsis,
+        ),
+        const SizedBox(width: 4),
+        const Icon(
+          Icons.keyboard_arrow_down_rounded,
+          color: Colors.white,
+          size: 16,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildLastUsedVehicleSummary() {
+    final l10n = AppLocalizations.of(context)!;
+    final vehicleVm = _vehicleViewModel;
+    if (vehicleVm == null) {
+      final override = _selectedVehicleOverride;
+      final label = override == null
+          ? l10n.text('vehicleNoneRegistered')
+          : '${l10n.text('vehiclePrefix')}: ${override.name} (${override.licensePlate})';
+      return _buildVehicleLabelText(label);
+    }
+
+    final vehiclesStream =
+        _activeVehiclesStream ?? vehicleVm.activeVehiclesStream;
+    final runsStream =
+        _runsStream ??
+        (_dao != null
+            ? _dao!.watchAllRuns()
+            : Stream<List<Run>>.value(const <Run>[]));
+
+    return StreamBuilder<List<Vehicle>>(
+      stream: vehiclesStream,
+      builder: (context, vehiclesSnapshot) {
+        if (vehiclesSnapshot.hasError) {
+          return _buildVehicleLabelText(l10n.text('vehicleUnavailable'));
+        }
+        if (vehiclesSnapshot.connectionState == ConnectionState.waiting &&
+            !vehiclesSnapshot.hasData) {
+          return _buildVehicleLabelText(l10n.text('vehicleLoading'));
+        }
+        final activeVehicles = vehiclesSnapshot.data ?? const <Vehicle>[];
+        return StreamBuilder<List<Run>>(
+          stream: runsStream,
+          builder: (context, runsSnapshot) {
+            final recentRuns = runsSnapshot.data ?? const <Run>[];
+            return ListenableBuilder(
+              listenable: vehicleVm,
+              builder: (context, _) {
+                final vehicle = _resolveLastUsedVehicle(
+                  activeVehicles,
+                  recentRuns,
+                );
+                final label = vehicle == null
+                    ? l10n.text('vehicleNoneRegistered')
+                    : '${l10n.text('vehiclePrefix')}: ${vehicle.name} (${vehicle.licensePlate})';
+                return _buildVehicleLabelText(label);
+              },
+            );
+          },
         );
       },
     );
@@ -258,16 +393,24 @@ class _HomeScreenState extends State<HomeScreen> {
                     Row(
                       children: [
                         Flexible(
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: AppDimensions.space8,
-                              vertical: AppDimensions.space4,
-                            ),
-                            decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.2),
+                          child: Material(
+                            color: Colors.transparent,
+                            child: InkWell(
+                              key: const ValueKey('home-select-vehicle-chip'),
                               borderRadius: BorderRadius.circular(6),
+                              onTap: _openVehicleSelectionModal,
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: AppDimensions.space8,
+                                  vertical: AppDimensions.space4,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: Colors.white.withValues(alpha: 0.2),
+                                  borderRadius: BorderRadius.circular(6),
+                                ),
+                                child: _buildLastUsedVehicleSummary(),
+                              ),
                             ),
-                            child: _buildDefaultVehicleSummary(),
                           ),
                         ),
                       ],
@@ -445,7 +588,7 @@ class _HomeScreenState extends State<HomeScreen> {
               // Renderiza coletas reativas do banco Drift ou coletas de demonstração
               if (_dao != null)
                 StreamBuilder<List<Run>>(
-                  stream: _dao!.watchAllRuns(),
+                  stream: _runsStream ?? _dao!.watchAllRuns(),
                   builder: (context, snapshot) {
                     final dbRuns = snapshot.data;
                     if (dbRuns != null && dbRuns.isNotEmpty) {
@@ -558,7 +701,9 @@ class _LowBatteryAlertBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Bateria abaixo do limite seguro ($batteryLevel%)',
+                  AppLocalizations.of(context)!
+                      .text('lowBattery')
+                      .replaceAll('{batteryLevel}', '$batteryLevel'),
                   style: typography.labelLarge?.copyWith(
                     color: AppColors.error,
                     fontWeight: FontWeight.w800,
@@ -566,7 +711,12 @@ class _LowBatteryAlertBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Nível mínimo recomendado: ${DeviceHealthState.safeBatteryThreshold}%. Conecte o carregador veicular antes de iniciar o ensaio.',
+                  AppLocalizations.of(context)!
+                      .text('batteryRecommendation')
+                      .replaceAll(
+                        '{threshold}',
+                        '${DeviceHealthState.safeBatteryThreshold}',
+                      ),
                   style: typography.bodySmall?.copyWith(
                     color: context.colors.onSurface,
                   ),

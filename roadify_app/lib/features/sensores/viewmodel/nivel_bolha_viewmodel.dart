@@ -344,17 +344,14 @@ class NivelBolhaViewModel extends ChangeNotifier {
     double gyroY = 0.0,
     double gyroZ = 0.0,
   }) {
-    final rollRad = (accelX != 0 || accelY != 0 || accelZ != 0)
-        ? (accelX /
-              (accelY * accelY + accelZ * accelZ > 0
-                  ? (accelY * accelY + accelZ * accelZ)
-                  : 1))
-        : 0.0;
-    final degX = double.parse(
-      (rollRad * 180.0 / 3.1415926535).toStringAsFixed(2),
-    );
-    final degY = double.parse(
-      ((accelY) * 180.0 / (3.1415926535 * 9.81)).toStringAsFixed(2),
+    final reading = SensorOrientationService.calculateAngles(
+      accelX,
+      accelY,
+      accelZ,
+      gyroX: gyroX,
+      gyroY: gyroY,
+      gyroZ: gyroZ,
+      isFromHardware: false,
     );
 
     final detected = accelZ.abs() > 6.5
@@ -362,8 +359,8 @@ class NivelBolhaViewModel extends ChangeNotifier {
         : DeviceOrientationMode.vertical;
 
     _state = _state.copyWith(
-      angleX: degX,
-      angleY: degY,
+      angleX: reading.roll,
+      angleY: reading.pitch,
       accelX: accelX,
       accelY: accelY,
       accelZ: accelZ,

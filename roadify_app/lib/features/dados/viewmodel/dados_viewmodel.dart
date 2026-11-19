@@ -254,7 +254,7 @@ class DadosViewModel extends ChangeNotifier {
       final v = await _dao.attachedDatabase.vehicleDao.getVehicleById(
         vehicleId,
       );
-      final plate = v.licensePlate?.toString().trim() ?? '';
+      final plate = v.licensePlate.trim();
       return plate.isEmpty ? v.name : '${v.name} • $plate';
     } catch (_) {
       // Veículo removido do banco.
@@ -265,6 +265,9 @@ class DadosViewModel extends ChangeNotifier {
   /// Conta fotos e vídeos por coleta a partir dos registros de mídia.
   Future<Map<int, RunMediaCounts>> _mediaCountsByRun(List<Run> runs) async {
     final result = <int, RunMediaCounts>{};
+    if (runs.isEmpty || runs.every((r) => r.mediaCount == 0)) {
+      return result;
+    }
     try {
       final db = _dao.attachedDatabase;
       final records = await db.select(db.mediaRecordsTable).get();

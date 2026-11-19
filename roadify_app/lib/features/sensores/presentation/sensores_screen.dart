@@ -178,7 +178,9 @@ class _SensoresScreenState extends State<SensoresScreen>
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
-                              'Visualização: ${state.activeMode.label}',
+                              AppLocalizations.of(context)!
+                                  .text('view')
+                                  .replaceAll('{mode}', state.activeMode.label),
                               style: TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w700,
@@ -781,7 +783,7 @@ class _SensorLiveCard extends StatelessWidget {
           const SizedBox(height: AppDimensions.space12),
           chart,
           if (footerBadges.isNotEmpty) ...[
-            const SizedBox(height: AppDimensions.space10),
+            const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               runSpacing: 6,

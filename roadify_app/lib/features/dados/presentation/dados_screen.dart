@@ -478,62 +478,73 @@ class _RunDetailsBottomSheet extends StatelessWidget {
     final colors = context.colors;
     final typography = context.typography;
 
-    return SingleChildScrollView(
+    return ConstrainedBox(
       key: const ValueKey('run-details-bottom-sheet'),
-      padding: const EdgeInsets.fromLTRB(
-        AppDimensions.space20,
-        AppDimensions.space4,
-        AppDimensions.space20,
-        AppDimensions.space24,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.sizeOf(context).height * 0.85,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          // Cabeçalho com título + botão de fechamento (X)
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      run.title,
-                      style: typography.titleLarge?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.schedule_rounded,
-                          size: 14,
-                          color: colors.onSurfaceVariant,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(
+          AppDimensions.space20,
+          AppDimensions.space4,
+          AppDimensions.space20,
+          AppDimensions.space24,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Cabeçalho com título + botão de fechamento (X)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        run.title,
+                        style: typography.titleLarge?.copyWith(
+                          fontWeight: FontWeight.w800,
                         ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${run.dateLabel} • Duração: ${_formatDuration(run.durationSeconds)}',
-                          style: typography.bodySmall?.copyWith(
+                      ),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.schedule_rounded,
+                            size: 14,
                             color: colors.onSurfaceVariant,
                           ),
-                        ),
-                      ],
-                    ),
-                  ],
+                          const SizedBox(width: 4),
+                          Text(
+                            '${run.dateLabel} • Duração: ${_formatDuration(run.durationSeconds)}',
+                            style: typography.bodySmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              IconButton(
-                key: const ValueKey('close-run-details-icon-button'),
-                tooltip: 'Fechar detalhes',
-                onPressed: () => Navigator.of(context).pop(),
-                icon: const Icon(Icons.close_rounded),
-              ),
-            ],
-          ),
+                IconButton(
+                  key: const ValueKey('close-run-details-icon-button'),
+                  tooltip: 'Fechar detalhes',
+                  onPressed: () => Navigator.of(context).pop(),
+                  icon: const Icon(Icons.close_rounded),
+                ),
+              ],
+            ),
 
-          const SizedBox(height: AppDimensions.space16),
+            const SizedBox(height: AppDimensions.space12),
+
+            Flexible(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
 
           // Seção 1: Odômetro Inicial, Odômetro Final e Distância Percorrida
           Container(
@@ -785,36 +796,41 @@ class _RunDetailsBottomSheet extends StatelessWidget {
               ],
             ),
           ),
-
-
-
-          const SizedBox(height: AppDimensions.space20),
-
-          // Botões de ação: Exportar ZIP e Fechar
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  key: const ValueKey('close-run-details-button'),
-                  onPressed: () => Navigator.of(context).pop(),
-                  child: Text(AppLocalizations.of(context)!.text('close')),
+                  ],
                 ),
               ),
-              const SizedBox(width: AppDimensions.space12),
-              Expanded(
-                child: FilledButton.icon(
-                  style: FilledButton.styleFrom(
-                    backgroundColor: AppColors.primary,
-                    foregroundColor: Colors.white,
+            ),
+
+            const SizedBox(height: AppDimensions.space16),
+
+            // Botões de ação: Exportar ZIP e Fechar
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    key: const ValueKey('close-run-details-button'),
+                    onPressed: () => Navigator.of(context).pop(),
+                    child: Text(AppLocalizations.of(context)!.text('close')),
                   ),
-                  onPressed: onExport,
-                  icon: const Icon(Icons.download_rounded, size: 18),
-                  label: Text(AppLocalizations.of(context)!.text('exportZip')),
                 ),
-              ),
-            ],
-          ),
-        ],
+                const SizedBox(width: AppDimensions.space12),
+                Expanded(
+                  child: FilledButton.icon(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      foregroundColor: Colors.white,
+                    ),
+                    onPressed: onExport,
+                    icon: const Icon(Icons.download_rounded, size: 18),
+                    label: Text(
+                      AppLocalizations.of(context)!.text('exportZip'),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

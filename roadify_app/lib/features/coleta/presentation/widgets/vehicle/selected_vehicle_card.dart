@@ -78,10 +78,19 @@ class SelectedVehicleCard extends StatelessWidget {
             spacing: AppDimensions.space8,
             runSpacing: AppDimensions.space8,
             children: [
-              _VehicleDetail(label: 'Placa', value: vehicle.licensePlate),
-              _VehicleDetail(label: 'Ano', value: vehicle.year.toString()),
+              _VehicleDetail(
+                label: AppLocalizations.of(context)!.text('plate'),
+                value: vehicle.licensePlate,
+              ),
+              _VehicleDetail(
+                label: AppLocalizations.of(context)!.text('year'),
+                value: vehicle.year.toString(),
+              ),
               if (vehicle.traction?.trim().isNotEmpty == true)
-                _VehicleDetail(label: AppLocalizations.of(context)!.text('traction'), value: vehicle.traction!),
+                _VehicleDetail(
+                  label: AppLocalizations.of(context)!.text('traction'),
+                  value: vehicle.traction!,
+                ),
             ],
           ),
           if (vehicle.description?.trim().isNotEmpty == true) ...[

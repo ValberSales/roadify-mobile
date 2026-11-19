@@ -88,7 +88,8 @@ class _ColetaScreenState extends State<ColetaScreen>
       if (getIt.isRegistered<VehicleViewModel>()) {
         final vehicleViewModel = getIt<VehicleViewModel>();
         final vehicles = await vehicleViewModel.getActiveVehicles();
-        final savedVehicleId = configuration?.vehicleId;
+        final savedVehicleId =
+            configuration?.vehicleId ?? vehicleViewModel.lastUsedVehicleId;
         if (savedVehicleId != null) {
           for (final candidate in vehicles) {
             if (candidate.id == savedVehicleId) {
@@ -99,6 +100,9 @@ class _ColetaScreenState extends State<ColetaScreen>
         }
         defaultVehicle = await vehicleViewModel.getDefaultVehicle();
         vehicle ??= defaultVehicle;
+        if (vehicle != null) {
+          unawaited(vehicleViewModel.setLastUsedVehicleId(vehicle.id));
+        }
       }
 
       if (!mounted) return;
@@ -166,11 +170,6 @@ class _ColetaScreenState extends State<ColetaScreen>
     final previousDefaultId = _lastDefaultVehicleId;
     if (previousDefaultId == vehicle?.id) return;
     _lastDefaultVehicleId = vehicle?.id;
-
-    final currentVehicle = _identification.vehicle;
-    if (currentVehicle != null && currentVehicle.id != previousDefaultId) {
-      return;
-    }
 
     setState(() {
       _restoredVehicle = vehicle;
@@ -448,7 +447,17 @@ class _ColetaScreenState extends State<ColetaScreen>
                           _identification.odometer.replaceAll(',', '.'),
                         ),
                         onChanged: (identification) {
+                          final prevVehicleId = _identification.vehicle?.id;
                           _identification = identification;
+                          if (identification.vehicle != null &&
+                              identification.vehicle!.id != prevVehicleId &&
+                              getIt.isRegistered<VehicleViewModel>()) {
+                            unawaited(
+                              getIt<VehicleViewModel>().setLastUsedVehicleId(
+                                identification.vehicle!.id,
+                              ),
+                            );
+                          }
                           unawaited(_persistCurrentConfiguration());
                         },
                       ),

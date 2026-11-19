@@ -109,7 +109,7 @@ class SensorOrientationService {
           _filteredY = (alpha * event.y) + ((1.0 - alpha) * _filteredY);
           _filteredZ = (alpha * event.z) + ((1.0 - alpha) * _filteredZ);
 
-          final reading = _calculateAngles(
+          final reading = calculateAngles(
             _filteredX,
             _filteredY,
             _filteredZ,
@@ -136,27 +136,30 @@ class SensorOrientationService {
       }
     }
 
-    try {
-      final Stream<GyroscopeEvent> rawGyroStream = customGyroscopeStream ??
-          gyroscopeEventStream(samplingPeriod: SensorInterval.gameInterval);
+    if (customGyroscopeStream != null || customAccelerometerStream == null) {
+      try {
+        final Stream<GyroscopeEvent> rawGyroStream =
+            customGyroscopeStream ??
+            gyroscopeEventStream(samplingPeriod: SensorInterval.gameInterval);
 
-      _gyroscopeSubscription = rawGyroStream.listen(
-        (GyroscopeEvent event) {
-          _currentGyroX = event.x;
-          _currentGyroY = event.y;
-          _currentGyroZ = event.z;
-        },
-        onError: (_) {},
-        cancelOnError: false,
-      );
-    } catch (_) {}
+        _gyroscopeSubscription = rawGyroStream.listen(
+          (GyroscopeEvent event) {
+            _currentGyroX = event.x;
+            _currentGyroY = event.y;
+            _currentGyroZ = event.z;
+          },
+          onError: (_) {},
+          cancelOnError: false,
+        );
+      } catch (_) {}
+    }
   }
 
   /// Inicia a simulação harmônica mockada (para emuladores e ambiente de desenvolvimento).
   void _startMockSimulation() {
     _cancelMockTimer();
 
-    final initialReading = _calculateAngles(
+    final initialReading = calculateAngles(
       _filteredX,
       _filteredY,
       _filteredZ,
@@ -186,7 +189,7 @@ class SensorOrientationService {
       _filteredY = (alpha * mockY) + ((1.0 - alpha) * _filteredY);
       _filteredZ = (alpha * mockZ) + ((1.0 - alpha) * _filteredZ);
 
-      final reading = _calculateAngles(
+      final reading = calculateAngles(
         _filteredX,
         _filteredY,
         _filteredZ,
@@ -203,7 +206,7 @@ class SensorOrientationService {
   }
 
   /// Converte acelerações cartesianas (X, Y, Z) em ângulos de Roll e Pitch em graus.
-  OrientationReading _calculateAngles(
+  static OrientationReading calculateAngles(
     double ax,
     double ay,
     double az, {

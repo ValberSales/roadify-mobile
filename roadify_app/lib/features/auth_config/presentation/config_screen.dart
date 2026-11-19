@@ -36,6 +36,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
 
   late final LocaleController _localeController;
   late final bool _ownsLocaleController;
+  Stream<Vehicle?>? _defaultVehicleStream;
 
   int _defaultAccelerometerHz = 200;
 
@@ -44,6 +45,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
     super.initState();
     _ownsLocaleController = widget.localeController == null;
     _localeController = widget.localeController ?? LocaleController();
+    if (getIt.isRegistered<VehicleViewModel>()) {
+      _defaultVehicleStream = getIt<VehicleViewModel>().defaultVehicleStream;
+    }
     unawaited(_loadPreferences());
   }
 
@@ -322,19 +326,24 @@ class _ConfigScreenState extends State<ConfigScreen> {
 
   Widget _buildDefaultVehicleSubtitle() {
     if (!getIt.isRegistered<VehicleViewModel>()) {
-      return const Text('Nenhum veículo cadastrado.');
+      return Text(AppLocalizations.of(context)!.text('noVehicles'));
     }
     return StreamBuilder<Vehicle?>(
-      stream: getIt<VehicleViewModel>().defaultVehicleStream,
+      stream:
+          _defaultVehicleStream ??
+          getIt<VehicleViewModel>().defaultVehicleStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return const Text('Não foi possível carregar o veículo padrão.');
         }
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting &&
+            !snapshot.hasData) {
           return const Text('Carregando veículo...');
         }
         final vehicle = snapshot.data;
-        if (vehicle == null) return const Text('Nenhum veículo cadastrado.');
+        if (vehicle == null) {
+          return Text(AppLocalizations.of(context)!.text('noVehicles'));
+        }
         return Text('${vehicle.name} (${vehicle.licensePlate})');
       },
     );
