@@ -96,6 +96,7 @@ void main() {
       defaultOdometer: 1234.5,
       year: 2020,
       isActive: true,
+      isDefault: false,
       createdAt: DateTime(2026),
     );
     final formKey = GlobalKey<FormState>();

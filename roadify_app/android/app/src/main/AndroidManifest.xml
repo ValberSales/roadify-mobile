@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <application
-        android:label="roadify_app"
+        android:label="Roadify"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

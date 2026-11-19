@@ -51,7 +51,9 @@ class VehicleListWidget extends StatelessWidget {
             decoration: BoxDecoration(
               color: colors.surface,
               borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.5)),
+              border: Border.all(
+                color: colors.outlineVariant.withValues(alpha: 0.5),
+              ),
               boxShadow: [
                 BoxShadow(
                   color: colors.shadow.withValues(alpha: 0.04),
@@ -124,6 +126,13 @@ class VehicleListWidget extends StatelessWidget {
                               label: vehicle.traction!,
                               background: colors.secondaryContainer,
                               foreground: colors.onSecondaryContainer,
+                            ),
+                          if (vehicle.isDefault)
+                            _VehicleDetail(
+                              label: 'VEÍCULO PADRÃO',
+                              background: colors.primaryContainer,
+                              foreground: colors.onPrimaryContainer,
+                              emphasized: true,
                             ),
                           Row(
                             mainAxisSize: MainAxisSize.min,

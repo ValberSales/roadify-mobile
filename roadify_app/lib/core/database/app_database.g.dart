@@ -107,6 +107,21 @@ class $VehiclesTable extends Vehicles with TableInfo<$VehiclesTable, Vehicle> {
     ),
     defaultValue: const Constant(true),
   );
+  static const VerificationMeta _isDefaultMeta = const VerificationMeta(
+    'isDefault',
+  );
+  @override
+  late final GeneratedColumn<bool> isDefault = GeneratedColumn<bool>(
+    'is_default',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_default" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   static const VerificationMeta _createdAtMeta = const VerificationMeta(
     'createdAt',
   );
@@ -141,6 +156,7 @@ class $VehiclesTable extends Vehicles with TableInfo<$VehiclesTable, Vehicle> {
     description,
     traction,
     isActive,
+    isDefault,
     createdAt,
     updatedAt,
   ];
@@ -226,6 +242,12 @@ class $VehiclesTable extends Vehicles with TableInfo<$VehiclesTable, Vehicle> {
         isActive.isAcceptableOrUnknown(data['is_active']!, _isActiveMeta),
       );
     }
+    if (data.containsKey('is_default')) {
+      context.handle(
+        _isDefaultMeta,
+        isDefault.isAcceptableOrUnknown(data['is_default']!, _isDefaultMeta),
+      );
+    }
     if (data.containsKey('created_at')) {
       context.handle(
         _createdAtMeta,
@@ -283,6 +305,10 @@ class $VehiclesTable extends Vehicles with TableInfo<$VehiclesTable, Vehicle> {
         DriftSqlType.bool,
         data['${effectivePrefix}is_active'],
       )!,
+      isDefault: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_default'],
+      )!,
       createdAt: attachedDatabase.typeMapping.read(
         DriftSqlType.dateTime,
         data['${effectivePrefix}created_at'],
@@ -310,6 +336,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
   final String? description;
   final String? traction;
   final bool isActive;
+  final bool isDefault;
   final DateTime createdAt;
   final DateTime? updatedAt;
   const Vehicle({
@@ -322,6 +349,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
     this.description,
     this.traction,
     required this.isActive,
+    required this.isDefault,
     required this.createdAt,
     this.updatedAt,
   });
@@ -341,6 +369,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
       map['traction'] = Variable<String>(traction);
     }
     map['is_active'] = Variable<bool>(isActive);
+    map['is_default'] = Variable<bool>(isDefault);
     map['created_at'] = Variable<DateTime>(createdAt);
     if (!nullToAbsent || updatedAt != null) {
       map['updated_at'] = Variable<DateTime>(updatedAt);
@@ -363,6 +392,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
           ? const Value.absent()
           : Value(traction),
       isActive: Value(isActive),
+      isDefault: Value(isDefault),
       createdAt: Value(createdAt),
       updatedAt: updatedAt == null && nullToAbsent
           ? const Value.absent()
@@ -385,6 +415,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
       description: serializer.fromJson<String?>(json['description']),
       traction: serializer.fromJson<String?>(json['traction']),
       isActive: serializer.fromJson<bool>(json['isActive']),
+      isDefault: serializer.fromJson<bool>(json['isDefault']),
       createdAt: serializer.fromJson<DateTime>(json['createdAt']),
       updatedAt: serializer.fromJson<DateTime?>(json['updatedAt']),
     );
@@ -402,6 +433,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
       'description': serializer.toJson<String?>(description),
       'traction': serializer.toJson<String?>(traction),
       'isActive': serializer.toJson<bool>(isActive),
+      'isDefault': serializer.toJson<bool>(isDefault),
       'createdAt': serializer.toJson<DateTime>(createdAt),
       'updatedAt': serializer.toJson<DateTime?>(updatedAt),
     };
@@ -417,6 +449,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
     Value<String?> description = const Value.absent(),
     Value<String?> traction = const Value.absent(),
     bool? isActive,
+    bool? isDefault,
     DateTime? createdAt,
     Value<DateTime?> updatedAt = const Value.absent(),
   }) => Vehicle(
@@ -429,6 +462,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
     description: description.present ? description.value : this.description,
     traction: traction.present ? traction.value : this.traction,
     isActive: isActive ?? this.isActive,
+    isDefault: isDefault ?? this.isDefault,
     createdAt: createdAt ?? this.createdAt,
     updatedAt: updatedAt.present ? updatedAt.value : this.updatedAt,
   );
@@ -449,6 +483,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
           : this.description,
       traction: data.traction.present ? data.traction.value : this.traction,
       isActive: data.isActive.present ? data.isActive.value : this.isActive,
+      isDefault: data.isDefault.present ? data.isDefault.value : this.isDefault,
       createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
       updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
     );
@@ -466,6 +501,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
           ..write('description: $description, ')
           ..write('traction: $traction, ')
           ..write('isActive: $isActive, ')
+          ..write('isDefault: $isDefault, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -483,6 +519,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
     description,
     traction,
     isActive,
+    isDefault,
     createdAt,
     updatedAt,
   );
@@ -499,6 +536,7 @@ class Vehicle extends DataClass implements Insertable<Vehicle> {
           other.description == this.description &&
           other.traction == this.traction &&
           other.isActive == this.isActive &&
+          other.isDefault == this.isDefault &&
           other.createdAt == this.createdAt &&
           other.updatedAt == this.updatedAt);
 }
@@ -513,6 +551,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
   final Value<String?> description;
   final Value<String?> traction;
   final Value<bool> isActive;
+  final Value<bool> isDefault;
   final Value<DateTime> createdAt;
   final Value<DateTime?> updatedAt;
   const VehiclesCompanion({
@@ -525,6 +564,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
     this.description = const Value.absent(),
     this.traction = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.isDefault = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   });
@@ -538,6 +578,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
     this.description = const Value.absent(),
     this.traction = const Value.absent(),
     this.isActive = const Value.absent(),
+    this.isDefault = const Value.absent(),
     this.createdAt = const Value.absent(),
     this.updatedAt = const Value.absent(),
   }) : name = Value(name),
@@ -555,6 +596,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
     Expression<String>? description,
     Expression<String>? traction,
     Expression<bool>? isActive,
+    Expression<bool>? isDefault,
     Expression<DateTime>? createdAt,
     Expression<DateTime>? updatedAt,
   }) {
@@ -568,6 +610,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
       if (description != null) 'description': description,
       if (traction != null) 'traction': traction,
       if (isActive != null) 'is_active': isActive,
+      if (isDefault != null) 'is_default': isDefault,
       if (createdAt != null) 'created_at': createdAt,
       if (updatedAt != null) 'updated_at': updatedAt,
     });
@@ -583,6 +626,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
     Value<String?>? description,
     Value<String?>? traction,
     Value<bool>? isActive,
+    Value<bool>? isDefault,
     Value<DateTime>? createdAt,
     Value<DateTime?>? updatedAt,
   }) {
@@ -596,6 +640,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
       description: description ?? this.description,
       traction: traction ?? this.traction,
       isActive: isActive ?? this.isActive,
+      isDefault: isDefault ?? this.isDefault,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -631,6 +676,9 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
     if (isActive.present) {
       map['is_active'] = Variable<bool>(isActive.value);
     }
+    if (isDefault.present) {
+      map['is_default'] = Variable<bool>(isDefault.value);
+    }
     if (createdAt.present) {
       map['created_at'] = Variable<DateTime>(createdAt.value);
     }
@@ -652,6 +700,7 @@ class VehiclesCompanion extends UpdateCompanion<Vehicle> {
           ..write('description: $description, ')
           ..write('traction: $traction, ')
           ..write('isActive: $isActive, ')
+          ..write('isDefault: $isDefault, ')
           ..write('createdAt: $createdAt, ')
           ..write('updatedAt: $updatedAt')
           ..write(')'))
@@ -3455,6 +3504,7 @@ typedef $$VehiclesTableCreateCompanionBuilder =
       Value<String?> description,
       Value<String?> traction,
       Value<bool> isActive,
+      Value<bool> isDefault,
       Value<DateTime> createdAt,
       Value<DateTime?> updatedAt,
     });
@@ -3469,6 +3519,7 @@ typedef $$VehiclesTableUpdateCompanionBuilder =
       Value<String?> description,
       Value<String?> traction,
       Value<bool> isActive,
+      Value<bool> isDefault,
       Value<DateTime> createdAt,
       Value<DateTime?> updatedAt,
     });
@@ -3548,6 +3599,11 @@ class $$VehiclesTableFilterComposer
 
   ColumnFilters<bool> get isActive => $composableBuilder(
     column: $table.isActive,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -3641,6 +3697,11 @@ class $$VehiclesTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<bool> get isDefault => $composableBuilder(
+    column: $table.isDefault,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<DateTime> get createdAt => $composableBuilder(
     column: $table.createdAt,
     builder: (column) => ColumnOrderings(column),
@@ -3693,6 +3754,9 @@ class $$VehiclesTableAnnotationComposer
 
   GeneratedColumn<bool> get isActive =>
       $composableBuilder(column: $table.isActive, builder: (column) => column);
+
+  GeneratedColumn<bool> get isDefault =>
+      $composableBuilder(column: $table.isDefault, builder: (column) => column);
 
   GeneratedColumn<DateTime> get createdAt =>
       $composableBuilder(column: $table.createdAt, builder: (column) => column);
@@ -3763,6 +3827,7 @@ class $$VehiclesTableTableManager
                 Value<String?> description = const Value.absent(),
                 Value<String?> traction = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime?> updatedAt = const Value.absent(),
               }) => VehiclesCompanion(
@@ -3775,6 +3840,7 @@ class $$VehiclesTableTableManager
                 description: description,
                 traction: traction,
                 isActive: isActive,
+                isDefault: isDefault,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),
@@ -3789,6 +3855,7 @@ class $$VehiclesTableTableManager
                 Value<String?> description = const Value.absent(),
                 Value<String?> traction = const Value.absent(),
                 Value<bool> isActive = const Value.absent(),
+                Value<bool> isDefault = const Value.absent(),
                 Value<DateTime> createdAt = const Value.absent(),
                 Value<DateTime?> updatedAt = const Value.absent(),
               }) => VehiclesCompanion.insert(
@@ -3801,6 +3868,7 @@ class $$VehiclesTableTableManager
                 description: description,
                 traction: traction,
                 isActive: isActive,
+                isDefault: isDefault,
                 createdAt: createdAt,
                 updatedAt: updatedAt,
               ),

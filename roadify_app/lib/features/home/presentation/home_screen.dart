@@ -8,6 +8,7 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../../core/theme/theme_extensions.dart';
+import '../../veiculos/viewmodels/vehicle_viewmodel.dart';
 import '../models/device_health_state.dart';
 import '../viewmodel/home_health_viewmodel.dart';
 
@@ -101,6 +102,45 @@ class _HomeScreenState extends State<HomeScreen> {
     super.dispose();
   }
 
+  Widget _buildDefaultVehicleSummary() {
+    if (!getIt.isRegistered<VehicleViewModel>()) {
+      return const Text(
+        'VEÍCULO: NENHUM CADASTRADO',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
+        ),
+        overflow: TextOverflow.ellipsis,
+      );
+    }
+
+    return StreamBuilder<Vehicle?>(
+      stream: getIt<VehicleViewModel>().defaultVehicleStream,
+      builder: (context, snapshot) {
+        final vehicle = snapshot.data;
+        final label = snapshot.hasError
+            ? 'VEÍCULO: INDISPONÍVEL'
+            : snapshot.connectionState == ConnectionState.waiting
+            ? 'VEÍCULO: CARREGANDO...'
+            : vehicle == null
+            ? 'VEÍCULO: NENHUM CADASTRADO'
+            : 'VEÍCULO PADRÃO: ${vehicle.name} (${vehicle.licensePlate})';
+        return Text(
+          label,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
+          overflow: TextOverflow.ellipsis,
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
@@ -146,10 +186,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                 color: colors.primary,
                                 borderRadius: BorderRadius.circular(10),
                               ),
-                              child: const Icon(
-                                Icons.alt_route_rounded,
-                                color: Colors.white,
-                                size: 20,
+                              child: Image.asset(
+                                'assets/images/roadify_mark.png',
+                                width: 44,
+                                height: 18,
+                                fit: BoxFit.contain,
                               ),
                             ),
                             const SizedBox(width: AppDimensions.space12),
@@ -205,7 +246,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   borderRadius: AppDimensions.borderRadiusCard,
                   boxShadow: [
                     BoxShadow(
-                      color: colors.primary.withValues(alpha: 0.25),
+                      color: AppColors.primary.withValues(alpha: 0.25),
                       blurRadius: 16,
                       offset: const Offset(0, 8),
                     ),
@@ -226,16 +267,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               color: Colors.white.withValues(alpha: 0.2),
                               borderRadius: BorderRadius.circular(6),
                             ),
-                            child: Text(
-                              AppLocalizations.of(context)!.text('vehicleExample'),
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w700,
-                                letterSpacing: 0.5,
-                              ),
-                              overflow: TextOverflow.ellipsis,
-                            ),
+                            child: _buildDefaultVehicleSummary(),
                           ),
                         ),
                       ],

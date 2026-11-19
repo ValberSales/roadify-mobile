@@ -59,13 +59,45 @@ class _VehiclesManagementScreenState extends State<VehiclesManagementScreen> {
     );
 
     if (confirmed == true) {
-      await vm.deleteVehicle(vehicle);
-      if (!context.mounted) return;
+      try {
+        await vm.deleteVehicle(vehicle);
+        if (!context.mounted) return;
+        SnackbarHelper.showSuccess(
+          context,
+          message: AppLocalizations.of(context)!
+              .text('vehicleRemoved')
+              .replaceAll('{name}', vehicle.name),
+        );
+      } catch (error) {
+        if (!context.mounted) return;
+        SnackbarHelper.showError(
+          context,
+          message: 'Não foi possível remover o veículo: $error',
+        );
+      }
+    }
+  }
+
+  Future<void> _selectDefaultVehicle(Vehicle vehicle) async {
+    final vm = _viewModel;
+    if (vm == null) return;
+    try {
+      await vm.setDefaultVehicle(vehicle);
+      if (!mounted) return;
+      widget.onDefaultVehicleSelected?.call(vehicle);
       SnackbarHelper.showSuccess(
         context,
         message: AppLocalizations.of(context)!
-            .text('vehicleRemoved')
-            .replaceAll('{name}', vehicle.name),
+            .text('defaultVehicleSet')
+            .replaceAll('{name}', vehicle.name)
+            .replaceAll('{plate}', vehicle.licensePlate),
+      );
+      Navigator.of(context).pop(vehicle);
+    } catch (error) {
+      if (!mounted) return;
+      SnackbarHelper.showError(
+        context,
+        message: 'Não foi possível definir o veículo padrão: $error',
       );
     }
   }
@@ -98,20 +130,18 @@ class _VehiclesManagementScreenState extends State<VehiclesManagementScreen> {
                 if (snapshot.connectionState == ConnectionState.waiting) {
                   return const Center(child: CircularProgressIndicator());
                 }
+                if (snapshot.hasError) {
+                  return Center(
+                    child: Text(
+                      'Não foi possível carregar os veículos: ${snapshot.error}',
+                      textAlign: TextAlign.center,
+                    ),
+                  );
+                }
                 final vehicles = snapshot.data ?? const <Vehicle>[];
                 return VehicleListWidget(
                   vehicles: vehicles,
-                  onVehicleTap: (vehicle) {
-                    widget.onDefaultVehicleSelected?.call(vehicle);
-                    SnackbarHelper.showSuccess(
-                      context,
-                      message: AppLocalizations.of(context)!
-                          .text('defaultVehicleSet')
-                          .replaceAll('{name}', vehicle.name)
-                          .replaceAll('{plate}', vehicle.licensePlate),
-                    );
-                    Navigator.of(context).pop(vehicle);
-                  },
+                  onVehicleTap: _selectDefaultVehicle,
                   onEditTap: (vehicle) =>
                       VehicleUiHelper.showFormModal(context, vehicle: vehicle),
                   onDeleteTap: (vehicle) => _confirmDelete(context, vehicle),

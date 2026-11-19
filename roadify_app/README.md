@@ -4,9 +4,32 @@ Aplicação móvel do **Roadify**, desenvolvida em Flutter para Android e iOS, f
 
 ---
 
+## Ícone e carregamento
+
+- `assets/launcher/roadify_icon.png`: ícone quadrado opaco usado no iOS e no ícone legado do Android.
+- `assets/launcher/roadify_foreground.png`: logo transparente dimensionada para a área segura do ícone adaptável do Android.
+- A tela estática de abertura permanece visível apenas enquanto o app lê o idioma salvo; a inicialização de permissões e do ciclo de sessão ocorre em segundo plano.
+
+Para regenerar os ícones nativos depois de atualizar as imagens:
+
+```bash
+dart run flutter_launcher_icons
+```
+
+O splash nativo exibe a marca sobre o fundo escuro desde a abertura do sistema até o primeiro frame do Flutter. Para regenerá-lo após atualizar a imagem:
+
+```bash
+dart run flutter_native_splash:create
+```
+
+Após alterar imagens ou configurações do splash nativo, é necessário reinstalar ou reabrir o app; hot reload não atualiza essa tela.
+
+---
+
 ## 🎨 Sistema de Temas e Design System (Guia para o Time)
 
 Este projeto utiliza a biblioteca **`flex_color_scheme`** combinada com **Material 3** e extensões personalizadas de tema (`ThemeExtension`), garantindo:
+
 - **Modo Claro de Alto Contraste (Padrão):** Otimizado para visualização nítida sob incidência solar direta no para-brisa.
 - **Modo Escuro (Dark Mode):** Otimizado para condução noturna.
 - **Adaptação Multiplataforma:** Transições e comportamentos com sensação nativa no Android e iOS.
@@ -20,6 +43,7 @@ Este projeto utiliza a biblioteca **`flex_color_scheme`** combinada com **Materi
 Qualquer membro do time pode acessar as cores e tipografias diretamente do `BuildContext` sem decorar códigos hexadecimais:
 
 #### 1. Acessando as Cores Principais
+
 ```dart
 import 'package:roadify_app/core/theme/theme_extensions.dart';
 
@@ -33,6 +57,7 @@ Container(
 ```
 
 #### 2. Acessando as Cores da Escala de Pavimento (5 Níveis)
+
 ```dart
 final quality = context.roadQualityColors;
 
@@ -44,6 +69,7 @@ final quality = context.roadQualityColors;
 ```
 
 #### 3. Acessando a Tipografia Padronizada (Google Fonts Inter)
+
 ```dart
 final typography = context.typography;
 
@@ -53,6 +79,7 @@ Text('Legenda', style: typography.labelSmall);
 ```
 
 #### 4. Verificando Modo Escuro
+
 ```dart
 if (context.isDarkMode) {
   // Ajuste condicional caso necessário
