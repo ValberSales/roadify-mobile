@@ -24,20 +24,22 @@ class NivelBolhaViewModel extends ChangeNotifier {
   final Future<SharedPreferences> Function() _preferencesProvider;
   StreamSubscription<OrientationReading>? _orientationSubscription;
   Timer? _telemetryHeartbeatTimer;
+  Timer? _sensorUiNotificationTimer;
   DateTime _lastHardwareSampleAt = DateTime.fromMillisecondsSinceEpoch(0);
   bool _disposed = false;
 
-  final List<SensorSignalSample> _signalHistory = List<SensorSignalSample>.generate(
-    24,
-    (_) => const SensorSignalSample(
-      accelX: 0.0,
-      accelY: 0.0,
-      accelZ: 9.81,
-      roll: 0.0,
-      pitch: 0.0,
-    ),
-    growable: true,
-  );
+  final List<SensorSignalSample> _signalHistory =
+      List<SensorSignalSample>.generate(
+        24,
+        (_) => const SensorSignalSample(
+          accelX: 0.0,
+          accelY: 0.0,
+          accelZ: 9.81,
+          roll: 0.0,
+          pitch: 0.0,
+        ),
+        growable: true,
+      );
   int _sampleTick = 0;
 
   NivelBolhaState _state = const NivelBolhaState(
@@ -99,7 +101,7 @@ class NivelBolhaViewModel extends ChangeNotifier {
       );
       _lastHardwareSampleAt = DateTime.now();
       _pushSignalSample();
-      _notify();
+      _scheduleSensorUiNotification();
     });
 
     _orientationService.startListening(allowMockFallback: true);
@@ -114,10 +116,18 @@ class NivelBolhaViewModel extends ChangeNotifier {
             .inMilliseconds;
         if (elapsedMs >= 90) {
           _pushSignalSample();
-          _notify();
+          _scheduleSensorUiNotification();
         }
       },
     );
+  }
+
+  void _scheduleSensorUiNotification() {
+    if (_sensorUiNotificationTimer?.isActive == true) return;
+    _sensorUiNotificationTimer = Timer(const Duration(milliseconds: 100), () {
+      _sensorUiNotificationTimer = null;
+      _notify();
+    });
   }
 
   void _pushSignalSample() {
@@ -304,6 +314,7 @@ class NivelBolhaViewModel extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _telemetryHeartbeatTimer?.cancel();
+    _sensorUiNotificationTimer?.cancel();
     _orientationSubscription?.cancel();
     _orientationService.dispose();
     super.dispose();

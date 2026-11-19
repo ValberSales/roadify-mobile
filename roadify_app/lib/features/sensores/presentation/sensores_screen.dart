@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:roadify_app/core/widgets/app_loading_indicator.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/theme_extensions.dart';
@@ -29,6 +30,7 @@ class _SensoresScreenState extends State<SensoresScreen>
   late TabController _tabController;
   late final NivelBolhaViewModel _viewModel;
   late final bool _ownsViewModel;
+  bool _isLoadingCalibration = true;
 
   @override
   void initState() {
@@ -40,7 +42,13 @@ class _SensoresScreenState extends State<SensoresScreen>
     _ownsViewModel = widget.viewModel == null;
     _viewModel =
         widget.viewModel ?? NivelBolhaViewModel(autoStart: !isWidgetTest);
-    unawaited(_viewModel.loadPersistedCalibration());
+    unawaited(_loadPersistedCalibration());
+  }
+
+  Future<void> _loadPersistedCalibration() async {
+    await _viewModel.loadPersistedCalibration();
+    if (!mounted) return;
+    setState(() => _isLoadingCalibration = false);
   }
 
   @override
@@ -80,6 +88,10 @@ class _SensoresScreenState extends State<SensoresScreen>
         builder: (context, _) {
           final state = _viewModel.state;
           final isDark = context.isDarkMode;
+
+          if (_isLoadingCalibration) {
+            return const AppLoadingIndicator();
+          }
 
           return TabBarView(
             controller: _tabController,
@@ -160,15 +172,15 @@ class _SensoresScreenState extends State<SensoresScreen>
                               vertical: 2,
                             ),
                             decoration: BoxDecoration(
-                              color: AppColors.primary.withValues(alpha: 0.12),
+                              color: colors.primary.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
                               'Visualização: ${state.activeMode.label}',
-                              style: const TextStyle(
+                              style: TextStyle(
                                 fontSize: 10.5,
                                 fontWeight: FontWeight.w700,
-                                color: AppColors.primary,
+                                color: colors.primary,
                               ),
                             ),
                           ),
@@ -298,8 +310,8 @@ class _SensoresScreenState extends State<SensoresScreen>
                       height: AppDimensions.buttonHeight,
                       child: ElevatedButton(
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppColors.primary,
-                          foregroundColor: Colors.white,
+                          backgroundColor: colors.primary,
+                          foregroundColor: colors.onPrimary,
                           shape: const RoundedRectangleBorder(
                             borderRadius: AppDimensions.borderRadiusMedium,
                           ),
@@ -638,9 +650,7 @@ class _LiveWaveformChart extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surfaceContainerHighest.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: colors.outlineVariant.withValues(alpha: 0.5),
-        ),
+        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.5)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -771,7 +781,8 @@ class _LiveWaveformPainter extends CustomPainter {
 
     double mapY(double value) {
       final normalized = (value - effectiveMin) / range;
-      return (size.height - 6) - (normalized.clamp(0.0, 1.0) * (size.height - 12));
+      return (size.height - 6) -
+          (normalized.clamp(0.0, 1.0) * (size.height - 12));
     }
 
     for (final s in series) {
@@ -789,7 +800,9 @@ class _LiveWaveformPainter extends CustomPainter {
       Offset lastPoint = Offset.zero;
 
       for (var i = 0; i < count; i++) {
-        final x = count == 1 ? size.width : (i / (count - 1)) * (size.width - 6);
+        final x = count == 1
+            ? size.width
+            : (i / (count - 1)) * (size.width - 6);
         final y = mapY(s.values[i]);
         final pt = Offset(x, y);
         if (i == 0) {
@@ -876,7 +889,10 @@ class _TareReferenceBarChart extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final halfWidth = constraints.maxWidth / 2;
-              final barWidth = (clamped.abs() * halfWidth).clamp(2.0, halfWidth);
+              final barWidth = (clamped.abs() * halfWidth).clamp(
+                2.0,
+                halfWidth,
+              );
               final left = clamped >= 0 ? halfWidth : halfWidth - barWidth;
               return Stack(
                 children: [
@@ -926,9 +942,7 @@ class _TareReferenceBarChart extends StatelessWidget {
       decoration: BoxDecoration(
         color: colors.surfaceContainerHighest.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-          color: colors.outlineVariant.withValues(alpha: 0.5),
-        ),
+        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.5)),
       ),
       child: Column(
         children: [

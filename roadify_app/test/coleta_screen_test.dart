@@ -1,8 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:roadify_app/core/widgets/app_loading_indicator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:roadify_app/core/theme/app_theme.dart';
 import 'package:roadify_app/features/coleta/presentation/coleta_screen.dart';
+import 'package:roadify_app/features/coleta/services/collection_preferences.dart';
 import 'package:roadify_app/features/coleta/viewmodels/coleta_viewmodel.dart';
 
 class _RecordingColetaViewModel implements ColetaViewModel {
@@ -20,6 +24,35 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
   });
+
+  testWidgets(
+    'uses the standard loading indicator for collection preferences',
+    (tester) async {
+      final preferencesLoad = Completer<SharedPreferences>();
+      final preferences = CollectionPreferences(
+        preferencesProvider: () => preferencesLoad.future,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          home: ColetaScreen(
+            viewModel: _RecordingColetaViewModel(),
+            preferences: preferences,
+          ),
+        ),
+      );
+
+      expect(find.byType(AppLoadingIndicator), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      preferencesLoad.complete(await SharedPreferences.getInstance());
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AppLoadingIndicator), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+    },
+  );
 
   testWidgets('requires vehicle selection before starting collection', (
     tester,

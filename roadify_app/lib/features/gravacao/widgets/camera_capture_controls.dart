@@ -1,10 +1,8 @@
-import 'package:camera/camera.dart';
 import 'package:flutter/material.dart';
 
 import '../../coleta/viewmodels/coleta_viewmodel.dart';
 
 class CameraCaptureControls extends StatelessWidget {
-  final CameraController? controller;
   final CameraMediaType mediaType;
   final bool isVideoRecording;
   final bool isBusy;
@@ -16,7 +14,6 @@ class CameraCaptureControls extends StatelessWidget {
 
   const CameraCaptureControls({
     super.key,
-    required this.controller,
     required this.mediaType,
     required this.isVideoRecording,
     required this.isBusy,
@@ -29,35 +26,16 @@ class CameraCaptureControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final cameraReady = controller?.value.isInitialized == true;
     final colors = Theme.of(context).colorScheme;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (cameraReady)
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: AspectRatio(
-              aspectRatio: controller!.value.aspectRatio,
-              child: CameraPreview(controller!),
-            ),
-          )
-        else
-          Container(
-            height: 150,
-            alignment: Alignment.center,
-            decoration: BoxDecoration(
-              color: colors.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Text(
-              errorMessage ?? 'Preparando câmera...',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: colors.onSurfaceVariant),
-            ),
+        if (errorMessage != null)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 10),
+            child: Text(errorMessage!, style: TextStyle(color: colors.error)),
           ),
-        const SizedBox(height: 12),
         if (isVideoRecording) ...[
           Row(
             children: [
@@ -81,9 +59,7 @@ class CameraCaptureControls extends StatelessWidget {
             icon: Icons.camera_alt_rounded,
             label: 'TIRAR FOTO DA VIA',
             detail: 'Registrar imagem da ocorrência',
-            onPressed: cameraReady && !isBusy && !isVideoRecording
-                ? onTakePhoto
-                : null,
+            onPressed: !isBusy && !isVideoRecording ? onTakePhoto : null,
           )
         else if (mediaType == CameraMediaType.videos)
           _CaptureButton(
@@ -94,7 +70,7 @@ class CameraCaptureControls extends StatelessWidget {
             label: isVideoRecording ? 'FINALIZAR VÍDEO' : 'GRAVAR VÍDEO',
             detail: 'Duração máxima: $videoDurationSeconds segundos',
             isRecording: isVideoRecording,
-            onPressed: cameraReady && !isBusy ? onToggleVideo : null,
+            onPressed: !isBusy ? onToggleVideo : null,
           )
         else
           Row(
@@ -105,9 +81,7 @@ class CameraCaptureControls extends StatelessWidget {
                   icon: Icons.camera_alt_rounded,
                   label: 'FOTO',
                   detail: 'Registrar imagem',
-                  onPressed: cameraReady && !isBusy && !isVideoRecording
-                      ? onTakePhoto
-                      : null,
+                  onPressed: !isBusy && !isVideoRecording ? onTakePhoto : null,
                 ),
               ),
               const SizedBox(width: 10),
@@ -122,7 +96,7 @@ class CameraCaptureControls extends StatelessWidget {
                       ? 'Toque para salvar'
                       : 'Máx. $videoDurationSeconds s',
                   isRecording: isVideoRecording,
-                  onPressed: cameraReady && !isBusy ? onToggleVideo : null,
+                  onPressed: !isBusy ? onToggleVideo : null,
                 ),
               ),
             ],
