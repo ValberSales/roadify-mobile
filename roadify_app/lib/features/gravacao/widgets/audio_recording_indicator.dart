@@ -102,7 +102,9 @@ class AudioRecordingIndicator extends StatelessWidget {
           Align(
             alignment: Alignment.centerRight,
             child: Text(
-              'Limite de $maxDurationSeconds s',
+              AppLocalizations.of(context)
+                  .text('limitSeconds')
+                  .replaceAll('{seconds}', '$maxDurationSeconds'),
               style: Theme.of(context).textTheme.labelSmall,
             ),
           ),

@@ -22,8 +22,10 @@ class NivelBolhaViewModel extends ChangeNotifier {
   static const String _keySelectedMode = 'roadify_tare_selected_mode';
   static const String _collectionConfigKey = 'last_collection_configuration';
 
-  /// Capacidade rigorosa do buffer circular (50 amostras conforme critério de aceite da Sprint 4).
-  static const int maxHistoryPoints = 50;
+  /// Janela temporal contínua de 1 minuto (60 segundos a 10 Hz / 100 ms por amostra = 600 pontos).
+  static const Duration chartWindowDuration = Duration(seconds: 60);
+  static const int chartSampleIntervalMs = 100;
+  static const int maxHistoryPoints = 600;
 
   final SensorOrientationService _orientationService;
   final Future<SharedPreferences> Function() _preferencesProvider;
@@ -31,10 +33,10 @@ class NivelBolhaViewModel extends ChangeNotifier {
   StreamSubscription<Position>? _gpsSubscription;
   Timer? _telemetryHeartbeatTimer;
   Timer? _sensorUiNotificationTimer;
-  DateTime _lastHardwareSampleAt = DateTime.fromMillisecondsSinceEpoch(0);
+  DateTime _lastChartSampleAt = DateTime.fromMillisecondsSinceEpoch(0);
   bool _disposed = false;
 
-  /// Buffer circular de capacidade 50 amostras (O(1) sem realocação dinâmica de memória).
+  /// Buffer circular de capacidade 600 amostras (janela contínua de 1 minuto sem realocação dinâmica).
   final CircularBuffer<SensorSignalSample> _circularBuffer =
       CircularBuffer<SensorSignalSample>(maxHistoryPoints);
 
@@ -116,22 +118,28 @@ class NivelBolhaViewModel extends ChangeNotifier {
         detectedOrientation: resolvedOrientation,
         isReadingFromHardware: reading.isFromHardware,
       );
-      _lastHardwareSampleAt = DateTime.now();
-      _pushSignalSample();
+      final now = DateTime.now();
+      if (now.difference(_lastChartSampleAt).inMilliseconds >=
+          chartSampleIntervalMs) {
+        _lastChartSampleAt = now;
+        _pushSignalSample();
+      }
       _scheduleSensorUiNotification();
     });
 
     _orientationService.startListening(allowMockFallback: true);
 
-    // Heartbeat de alta taxa (~60 FPS) para manter o osciloscópio fluido e vivo
+    // Cadência contínua de 10 Hz (100 ms) para preencher a janela de 1 minuto (600 amostras = 60s)
     _telemetryHeartbeatTimer = Timer.periodic(
-      const Duration(milliseconds: 16),
+      const Duration(milliseconds: chartSampleIntervalMs),
       (_) {
         if (_disposed) return;
-        final elapsedMs = DateTime.now()
-            .difference(_lastHardwareSampleAt)
+        final now = DateTime.now();
+        final elapsedChartMs = now
+            .difference(_lastChartSampleAt)
             .inMilliseconds;
-        if (elapsedMs >= 30) {
+        if (elapsedChartMs >= chartSampleIntervalMs) {
+          _lastChartSampleAt = now;
           _pushSignalSample();
           _scheduleSensorUiNotification();
         }

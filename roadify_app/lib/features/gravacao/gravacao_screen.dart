@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:ui';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:camera/camera.dart';
 import 'package:device_info_plus/device_info_plus.dart';
@@ -71,6 +72,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
   final Stopwatch _sensorClock = Stopwatch();
   SensorSamplingIsolate? _sensorSampler;
   final SensorTraceBuffer _sensorTrace = SensorTraceBuffer();
+  int? _lastTraceSampleElapsedMicros;
   final List<RecordedSensorSample> _pendingSensorSamples = [];
   final List<RecordedGpsPoint> _pendingGpsPoints = [];
   double _currentX = 0.0;
@@ -348,11 +350,17 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
     _currentX = event.x;
     _currentY = event.y;
     _currentZ = event.z;
-    _sensorTrace.add(event.x, event.y, event.z);
+    final elapsedMicros = _sensorClock.elapsedMicroseconds;
+    const traceIntervalMicros = SensorTraceBuffer.sampleIntervalMs * 1000;
+    if (_lastTraceSampleElapsedMicros == null ||
+        elapsedMicros - _lastTraceSampleElapsedMicros! >= traceIntervalMicros) {
+      _lastTraceSampleElapsedMicros = elapsedMicros;
+      _sensorTrace.add(event.x, event.y, event.z);
+    }
 
     try {
       sampler.addAccelerometer(
-        elapsedMicroseconds: _sensorClock.elapsedMicroseconds,
+        elapsedMicroseconds: elapsedMicros,
         x: event.x,
         y: event.y,
         z: event.z,
@@ -934,17 +942,21 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
     return '$hours:$minutes:$seconds.$tenths';
   }
 
-  String get _batteryChangeDescription {
+  String _batteryChangeDescription(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final initialBatteryPercent = _initialBatteryPercent;
     final batteryPercent = _batteryPercent;
     if (initialBatteryPercent == null || batteryPercent == null) {
-      return 'Variação desde o início indisponível';
+      return l10n.text('batteryChangeUnavailable');
     }
 
     final change = batteryPercent - initialBatteryPercent;
-    if (change == 0) return 'Sem variação desde o início';
+    if (change == 0) return l10n.text('batteryNoChange');
     final sign = change < 0 ? '−' : '+';
-    return '$sign${change.abs()} p.p. desde o início';
+    return l10n
+        .text('batteryChangeFromStart')
+        .replaceAll('{sign}', sign)
+        .replaceAll('{change}', '${change.abs()}');
   }
 
   String _intervalLabel(CaptureIntervalUnit unit) => switch (unit) {
@@ -1045,7 +1057,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
           return _buildInformationRow(
             context,
             icon: _iconForSensor(sensor),
-            title: _nameForSensor(sensor),
+            title: _nameForSensor(context, sensor),
             value: _sensorConfigurationDescription(sensor),
           );
         })
@@ -1058,6 +1070,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
     final collectionName = config.nomeColeta?.trim().isNotEmpty == true
         ? config.nomeColeta!.trim()
         : config.identificador;
+    final l10n = AppLocalizations.of(context);
 
     return showDialog<void>(
       context: context,
@@ -1065,10 +1078,10 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
         titlePadding: const EdgeInsets.fromLTRB(24, 16, 16, 0),
         title: Row(
           children: [
-            const Expanded(child: Text('Informações da coleta')),
+            Expanded(child: Text(l10n.text('collectionInfoDialogTitle'))),
             IconButton(
               key: const ValueKey('close-recording-info'),
-              tooltip: 'Fechar informações',
+              tooltip: l10n.text('closeInfoTooltip'),
               onPressed: () => Navigator.of(modalContext).pop(),
               icon: const Icon(Icons.close_rounded),
             ),
@@ -1084,73 +1097,81 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
             children: [
               _buildInformationSection(
                 modalContext,
-                title: 'Sensores e configurações',
+                title: l10n.text('sensorsAndSettingsTitle'),
                 children: _buildSensorInformationRows(modalContext),
               ),
               _buildInformationSection(
                 modalContext,
-                title: 'Identificação e veículo',
+                title: l10n.text('identificationAndVehicleTitle'),
                 children: [
                   _buildInformationRow(
                     modalContext,
                     icon: Icons.badge_outlined,
-                    title: 'Coleta',
+                    title: l10n.text('collectionLabel'),
                     value: collectionName,
                   ),
                   _buildInformationRow(
                     modalContext,
                     icon: Icons.route_outlined,
-                    title: 'Trecho',
+                    title: l10n.text('segmentLabel'),
                     value: config.trecho,
                   ),
                   _buildInformationRow(
                     modalContext,
                     icon: Icons.tag_rounded,
-                    title: 'Identificador',
+                    title: l10n.text('identifierLabel'),
                     value: config.identificador,
                   ),
                   _buildInformationRow(
                     modalContext,
                     icon: Icons.directions_car_outlined,
-                    title: 'Veículo',
+                    title: l10n.text('vehicleSimpleLabel'),
                     value: config.vehicleId == null
-                        ? 'Não vinculado'
+                        ? l10n.text('notLinked')
                         : 'ID ${config.vehicleId}',
                   ),
                   _buildInformationRow(
                     modalContext,
                     icon: Icons.speed_rounded,
-                    title: 'Odômetro inicial',
+                    title: l10n.text('initialOdometerSimple'),
                     value: '${config.odometroInicial.toStringAsFixed(1)} km',
                   ),
                   _buildInformationRow(
                     modalContext,
                     icon: Icons.screen_rotation_rounded,
-                    title: 'Orientação e postura',
+                    title: l10n.text('orientationAndPostureLabel'),
                     value:
-                        '${config.orientation == CollectionOrientation.vertical ? 'Vertical' : 'Horizontal'} • '
-                        '${config.posture == CollectionPosture.standing ? 'Em pé' : 'Deitado'}',
+                        '${config.orientation == CollectionOrientation.vertical ? l10n.text('verticalOrientation') : l10n.text('horizontalOrientation')} • '
+                        '${config.posture == CollectionPosture.standing ? l10n.text('standingPosture') : l10n.text('lyingDownPosture')}',
                   ),
                 ],
               ),
               _buildInformationSection(
                 modalContext,
-                title: 'Nivelamento',
+                title: l10n.text('levelingTitle'),
                 children: [
                   _buildInformationRow(
                     modalContext,
                     icon: Icons.screen_rotation_alt_rounded,
-                    title: 'Modo',
+                    title: l10n.text('modeLabel'),
                     value: config.levelingMode.label,
                   ),
                   _buildInformationRow(
                     modalContext,
                     icon: Icons.tune_rounded,
-                    title: 'Calibração',
+                    title: l10n.text('calibrationLabel'),
                     value: config.isCalibrated
-                        ? 'Calibrada • X ${config.calibrationOffsetX.toStringAsFixed(2)}°, '
-                              'Y ${config.calibrationOffsetY.toStringAsFixed(2)}°'
-                        : 'Sem calibração personalizada',
+                        ? l10n
+                              .text('calibratedWithOffsets')
+                              .replaceAll(
+                                '{x}',
+                                config.calibrationOffsetX.toStringAsFixed(2),
+                              )
+                              .replaceAll(
+                                '{y}',
+                                config.calibrationOffsetY.toStringAsFixed(2),
+                              )
+                        : l10n.text('noCustomCalibration'),
                   ),
                 ],
               ),
@@ -1171,6 +1192,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
   }
 
   Widget _capturedMediaGallery(ColorScheme colors) {
+    final l10n = AppLocalizations.of(context);
     return Container(
       key: const ValueKey('captured-media-gallery'),
       width: double.infinity,
@@ -1184,7 +1206,9 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'Arquivos capturados (${_capturedMedia.length})',
+            l10n
+                .text('capturedFilesCount')
+                .replaceAll('{count}', '${_capturedMedia.length}'),
             style: context.typography.titleSmall,
           ),
           const SizedBox(height: AppDimensions.space8),
@@ -1256,6 +1280,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
 
   Future<void> _confirmarFinalizacao() async {
     unawaited(HapticFeedback.mediumImpact());
+    final l10n = AppLocalizations.of(context);
     final config = widget.configuracao;
     final collectionName = config.nomeColeta?.trim().isNotEmpty == true
         ? config.nomeColeta!.trim()
@@ -1264,14 +1289,17 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
         (_isRecordingVideo ? 1 : 0) + (_isRecordingAudio ? 1 : 0);
     final mediaToSave = _mediaCount + activeMediaCount;
     final mediaDetails = activeMediaCount == 0
-        ? '$_mediaCount já capturados'
-        : '$_mediaCount já capturados + $activeMediaCount em gravação';
+        ? l10n.text('alreadyCapturedCount').replaceAll('{count}', '$_mediaCount')
+        : l10n
+              .text('alreadyCapturedPlusActive')
+              .replaceAll('{count}', '$_mediaCount')
+              .replaceAll('{active}', '$activeMediaCount');
     final finalOdometer = config.odometroInicial + _distanceMeters / 1000;
 
     final confirmar = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Resumo da coleta'),
+        title: Text(l10n.text('collectionSummaryTitle')),
         content: SizedBox(
           width: double.maxFinite,
           child: ConstrainedBox(
@@ -1282,99 +1310,95 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    'Confira o que será encerrado e salvo localmente ao finalizar. '
-                    'Amostras que ainda estiverem no buffer serão descarregadas antes de salvar.',
-                  ),
+                  Text(l10n.text('collectionSummaryDescription')),
                   const SizedBox(height: AppDimensions.space12),
                   _buildInformationSection(
                     ctx,
-                    title: 'Resumo do que será salvo',
+                    title: l10n.text('summaryWhatWillBeSaved'),
                     children: [
                       _buildInformationRow(
                         ctx,
                         icon: Icons.timer_outlined,
-                        title: 'Duração',
+                        title: l10n.text('durationLabel'),
                         value: _formatDuration(_elapsed),
                       ),
                       _buildInformationRow(
                         ctx,
                         icon: Icons.show_chart_rounded,
-                        title: 'Amostras inerciais',
+                        title: l10n.text('inertialSamplesLower'),
                         value:
-                            '$_sensorSampleCount • acelerômetro'
-                            '${config.sensoresSelecionados.contains(SensorColeta.giroscopio) ? ' e giroscópio' : ''}',
+                            '$_sensorSampleCount • ${l10n.text('accelerometerLower')}'
+                            '${config.sensoresSelecionados.contains(SensorColeta.giroscopio) ? l10n.text('andGyroscopeLower') : ''}',
                       ),
                       _buildInformationRow(
                         ctx,
                         icon: Icons.gps_fixed_rounded,
-                        title: 'Pontos GPS',
+                        title: l10n.text('gpsPoints'),
                         value:
                             '$_gpsPointCount • ${(_distanceMeters / 1000).toStringAsFixed(2)} km',
                       ),
                       _buildInformationRow(
                         ctx,
                         icon: Icons.perm_media_outlined,
-                        title: 'Arquivos de mídia',
+                        title: l10n.text('mediaFilesLabel'),
                         value: '$mediaToSave • $mediaDetails',
                       ),
                       _buildInformationRow(
                         ctx,
                         icon: Icons.storage_rounded,
-                        title: 'Destino',
-                        value:
-                            'Leituras no banco local e mídias no armazenamento do app',
+                        title: l10n.text('destinationLabel'),
+                        value: l10n.text('destinationValue'),
                       ),
                     ],
                   ),
                   _buildInformationSection(
                     ctx,
-                    title: 'Identificação e veículo',
+                    title: l10n.text('identificationAndVehicleTitle'),
                     children: [
                       _buildInformationRow(
                         ctx,
                         icon: Icons.badge_outlined,
-                        title: 'Coleta',
+                        title: l10n.text('collectionLabel'),
                         value: collectionName,
                       ),
                       _buildInformationRow(
                         ctx,
                         icon: Icons.route_outlined,
-                        title: 'Trecho',
+                        title: l10n.text('segmentLabel'),
                         value: config.trecho,
                       ),
                       _buildInformationRow(
                         ctx,
                         icon: Icons.directions_car_outlined,
-                        title: 'Veículo',
+                        title: l10n.text('vehicleSimpleLabel'),
                         value: config.vehicleId == null
-                            ? 'Não vinculado'
+                            ? l10n.text('notLinked')
                             : 'ID ${config.vehicleId}',
                       ),
                       _buildInformationRow(
                         ctx,
                         icon: Icons.tag_rounded,
-                        title: 'Identificador',
+                        title: l10n.text('identifierLabel'),
                         value: config.identificador,
                       ),
                       _buildInformationRow(
                         ctx,
                         icon: Icons.speed_rounded,
-                        title: 'Odômetro inicial',
+                        title: l10n.text('initialOdometerSimple'),
                         value:
                             '${config.odometroInicial.toStringAsFixed(1)} km',
                       ),
                       _buildInformationRow(
                         ctx,
                         icon: Icons.directions_car_outlined,
-                        title: 'Odômetro final estimado',
+                        title: l10n.text('estimatedFinalOdometer'),
                         value: '${finalOdometer.toStringAsFixed(1)} km',
                       ),
                     ],
                   ),
                   _buildInformationSection(
                     ctx,
-                    title: 'Sensores configurados',
+                    title: l10n.text('configuredSensorsTitle'),
                     children: _buildSensorInformationRows(ctx),
                   ),
                   if (activeMediaCount > 0)
@@ -1383,8 +1407,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                         bottom: AppDimensions.space8,
                       ),
                       child: Text(
-                        'As gravações de áudio/vídeo em andamento serão '
-                        'encerradas antes de salvar.',
+                        l10n.text('activeMediaWillBeStoppedMsg'),
                         style: Theme.of(ctx).textTheme.bodySmall,
                       ),
                     ),
@@ -1396,9 +1419,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text(
-              AppLocalizations.of(context).text('continueCollecting2'),
-            ),
+            child: Text(l10n.text('continueCollecting2')),
           ),
           FilledButton.icon(
             style: FilledButton.styleFrom(
@@ -1407,7 +1428,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
             icon: const Icon(Icons.check_rounded, size: 18),
-            label: Text(AppLocalizations.of(context).text('finishSave2')),
+            label: Text(l10n.text('finishSave2')),
           ),
         ],
       ),
@@ -1472,7 +1493,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
     Navigator.of(context).pop();
   }
 
-  Widget _buildFloatingActionButton({
+  Widget _buildPillDockActionItem({
     required BuildContext context,
     required ColorScheme colors,
     required String keyName,
@@ -1482,162 +1503,302 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
     required String? detail,
     required VoidCallback? onPressed,
     required bool isActive,
+    bool isDanger = false,
   }) {
+    final dockTheme = context.pillDockTheme;
+    final enabled = onPressed != null;
+    final activeBg = (isActive || isDanger) ? colors.error : colors.primary;
+    final activeFg = (isActive || isDanger) ? colors.onError : colors.onPrimary;
+    final iconColor = !enabled
+        ? dockTheme.unselectedItemColor.withValues(alpha: 0.4)
+        : (isActive || isDanger)
+        ? activeFg
+        : colors.primary;
+
     return Expanded(
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          FloatingActionButton.small(
-            key: ValueKey(keyName),
-            heroTag: keyName,
-            tooltip: tooltip,
-            onPressed: onPressed,
-            backgroundColor: isActive ? colors.error : colors.primary,
-            foregroundColor: isActive ? colors.onError : colors.onPrimary,
-            child: Icon(icon),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: Theme.of(context).textTheme.labelSmall,
-          ),
-          if (detail != null)
-            Text(
-              detail,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(
-                context,
-              ).textTheme.labelSmall?.copyWith(color: colors.onSurfaceVariant),
+      child: Tooltip(
+        message: tooltip,
+        child: Material(
+          key: ValueKey(keyName),
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed == null
+                ? null
+                : () {
+                    unawaited(HapticFeedback.lightImpact());
+                    onPressed();
+                  },
+            borderRadius: BorderRadius.circular(24),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 220),
+                    curve: Curves.easeOutCubic,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 5,
+                    ),
+                    decoration: BoxDecoration(
+                      color: !enabled
+                          ? colors.surfaceContainerHighest.withValues(alpha: 0.4)
+                          : (isActive || isDanger)
+                          ? activeBg
+                          : colors.primary.withValues(alpha: 0.14),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Icon(icon, size: 20, color: iconColor),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: 10.5,
+                      fontWeight: FontWeight.w700,
+                      color: !enabled
+                          ? dockTheme.unselectedItemColor.withValues(alpha: 0.5)
+                          : (isActive || isDanger)
+                          ? colors.error
+                          : colors.onSurface,
+                      letterSpacing: -0.1,
+                    ),
+                  ),
+                  if (detail != null)
+                    Text(
+                      detail,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        fontSize: 9,
+                        color: colors.onSurfaceVariant,
+                      ),
+                    ),
+                ],
+              ),
             ),
-        ],
+          ),
+        ),
       ),
     );
   }
 
+  /// Dock flutuante inferior (estilo PillDockScaffold) contendo os botões de
+  /// Câmera (Foto), Vídeo, Áudio e Encerrar/Finalizar Coleta.
   Widget _buildRecordingActionDock(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final dockTheme = context.pillDockTheme;
+    final l10n = AppLocalizations.of(context);
+    final bottomPadding = MediaQuery.of(context).padding.bottom;
     final selectedSensors = widget.configuracao.sensoresSelecionados;
     final cameraSettings = widget.configuracao.sensoresOpcionais.camera;
     final cameraSelected = selectedSensors.contains(SensorColeta.camera);
     final audioSelected = selectedSensors.contains(SensorColeta.audio);
 
-    if (!cameraSelected && !audioSelected) return const SizedBox.shrink();
+    return SafeArea(
+      top: false,
+      left: false,
+      right: false,
+      bottom: false,
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: AppDimensions.pillDockMarginHorizontal,
+          right: AppDimensions.pillDockMarginHorizontal,
+          bottom: bottomPadding > 0
+              ? bottomPadding + 8
+              : AppDimensions.pillDockMarginBottom,
+        ),
+        child: ValueListenableBuilder<int>(
+          valueListenable: _mediaRevision,
+          builder: (context, _, _) {
+            final actions = <Widget>[];
+            final cameraBusy =
+                _isCapturingMedia || _runId == null || _isStarting;
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 8, 20, 8),
-      child: Material(
-        key: const ValueKey('recording-action-dock'),
-        color: colors.surfaceContainerLow,
-        elevation: 4,
-        borderRadius: BorderRadius.circular(20),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: ValueListenableBuilder<int>(
-            valueListenable: _mediaRevision,
-            builder: (context, _, _) {
-              final actions = <Widget>[];
-              final cameraBusy =
-                  _isCapturingMedia || _runId == null || _isStarting;
+            if (cameraSelected &&
+                cameraSettings.mediaType != CameraMediaType.videos) {
+              actions.add(
+                _buildPillDockActionItem(
+                  context: context,
+                  colors: colors,
+                  keyName: 'floating-photo-action',
+                  label: l10n.text('photoAction'),
+                  tooltip: l10n.text('takePhotoTooltip'),
+                  icon: Icons.camera_alt_rounded,
+                  detail: null,
+                  onPressed: cameraBusy || _isRecordingVideo
+                      ? null
+                      : _capturarFoto,
+                  isActive: false,
+                ),
+              );
+            }
 
-              if (cameraSelected &&
-                  cameraSettings.mediaType != CameraMediaType.videos) {
-                actions.add(
-                  _buildFloatingActionButton(
-                    context: context,
-                    colors: colors,
-                    keyName: 'floating-photo-action',
-                    label: 'Foto',
-                    tooltip: 'Tirar foto',
-                    icon: Icons.camera_alt_rounded,
-                    detail: null,
-                    onPressed: cameraBusy || _isRecordingVideo
-                        ? null
-                        : _capturarFoto,
-                    isActive: false,
-                  ),
-                );
-              }
+            if (cameraSelected &&
+                cameraSettings.mediaType != CameraMediaType.photos) {
+              actions.add(
+                _buildPillDockActionItem(
+                  context: context,
+                  colors: colors,
+                  keyName: 'floating-video-action',
+                  label: _isRecordingVideo
+                      ? l10n.text('stopVideoShort')
+                      : l10n.text('videoShort'),
+                  tooltip: _isRecordingVideo
+                      ? l10n.text('stopVideoTooltip')
+                      : l10n.text('recordVideoTooltip'),
+                  icon: _isRecordingVideo
+                      ? Icons.stop_rounded
+                      : Icons.videocam_rounded,
+                  detail: _isRecordingVideo
+                      ? '${_videoElapsed.inSeconds}s / '
+                            '${cameraSettings.videoDurationSeconds}s'
+                      : l10n
+                            .text('upToSeconds')
+                            .replaceAll(
+                              '{seconds}',
+                              '${cameraSettings.videoDurationSeconds}',
+                            ),
+                  onPressed: cameraBusy ? null : _alternarVideo,
+                  isActive: _isRecordingVideo,
+                ),
+              );
+            }
 
-              if (cameraSelected &&
-                  cameraSettings.mediaType != CameraMediaType.photos) {
-                actions.add(
-                  _buildFloatingActionButton(
-                    context: context,
-                    colors: colors,
-                    keyName: 'floating-video-action',
-                    label: _isRecordingVideo ? 'Parar vídeo' : 'Vídeo',
-                    tooltip: _isRecordingVideo
-                        ? 'Parar gravação de vídeo'
-                        : 'Gravar vídeo',
-                    icon: _isRecordingVideo
-                        ? Icons.stop_rounded
-                        : Icons.videocam_rounded,
-                    detail: _isRecordingVideo
-                        ? '${_videoElapsed.inSeconds}s / '
-                              '${cameraSettings.videoDurationSeconds}s'
-                        : 'Até ${cameraSettings.videoDurationSeconds}s',
-                    onPressed: cameraBusy ? null : _alternarVideo,
-                    isActive: _isRecordingVideo,
-                  ),
-                );
-              }
+            if (audioSelected) {
+              final audioSettings =
+                  widget.configuracao.sensoresOpcionais.audio;
+              actions.add(
+                _buildPillDockActionItem(
+                  context: context,
+                  colors: colors,
+                  keyName: 'floating-audio-action',
+                  label: _isRecordingAudio
+                      ? l10n.text('audioStop')
+                      : l10n.text('audio'),
+                  tooltip: _isRecordingAudio
+                      ? l10n.text('stopAudioTooltip')
+                      : l10n.text('recordAudioTooltip'),
+                  icon: _isRecordingAudio
+                      ? Icons.stop_rounded
+                      : Icons.mic_rounded,
+                  detail: _isRecordingAudio
+                      ? '${_audioElapsed.inSeconds}s / '
+                            '${audioSettings.durationSeconds}s'
+                      : l10n
+                            .text('upToSeconds')
+                            .replaceAll(
+                              '{seconds}',
+                              '${audioSettings.durationSeconds}',
+                            ),
+                  onPressed:
+                      _runId == null ||
+                          _isStarting ||
+                          (!_isRecordingAudio && _audioRecorder == null)
+                      ? null
+                      : _isRecordingAudio
+                      ? () => unawaited(_stopAudioRecording())
+                      : () => unawaited(_captureAudio()),
+                  isActive: _isRecordingAudio,
+                ),
+              );
+            }
 
-              if (audioSelected) {
-                final audioSettings =
-                    widget.configuracao.sensoresOpcionais.audio;
-                actions.add(
-                  _buildFloatingActionButton(
-                    context: context,
-                    colors: colors,
-                    keyName: 'floating-audio-action',
-                    label: _isRecordingAudio
-                        ? AppLocalizations.of(context).text('audioStop')
-                        : AppLocalizations.of(context).text('audio'),
-                    tooltip: _isRecordingAudio
-                        ? 'Parar gravação de áudio'
-                        : 'Gravar áudio',
-                    icon: _isRecordingAudio
-                        ? Icons.stop_rounded
-                        : Icons.mic_rounded,
-                    detail: _isRecordingAudio
-                        ? '${_audioElapsed.inSeconds}s / '
-                              '${audioSettings.durationSeconds}s'
-                        : 'Até ${audioSettings.durationSeconds}s',
-                    onPressed:
-                        _runId == null ||
-                            _isStarting ||
-                            (!_isRecordingAudio && _audioRecorder == null)
-                        ? null
-                        : _isRecordingAudio
-                        ? () => unawaited(_stopAudioRecording())
-                        : () => unawaited(_captureAudio()),
-                    isActive: _isRecordingAudio,
-                  ),
-                );
-              }
+            final finishLabel = _runId == null
+                ? l10n.text('retryStartCollection')
+                : _recordingError == null
+                ? l10n.text('finishCollectionBtn')
+                : l10n.text('savePartialData');
 
-              return Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(children: actions),
-                  if (_mediaError != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
+            actions.add(
+              _buildPillDockActionItem(
+                context: context,
+                colors: colors,
+                keyName: 'floating-finish-action',
+                label: finishLabel,
+                tooltip: finishLabel,
+                icon: _runId == null
+                    ? Icons.refresh_rounded
+                    : Icons.stop_circle_rounded,
+                detail: null,
+                onPressed: _isFinalizing || _isStarting
+                    ? null
+                    : _runId == null
+                    ? _startRecording
+                    : _confirmarFinalizacao,
+                isActive: true,
+                isDanger: true,
+              ),
+            );
+
+            return Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (_mediaError != null) ...[
+                  Container(
+                    margin: const EdgeInsets.only(bottom: 6),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: colors.errorContainer,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Text(
                       _mediaError!,
                       key: const ValueKey('recording-media-error'),
-                      style: Theme.of(
-                        context,
-                      ).textTheme.labelSmall?.copyWith(color: colors.error),
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        color: colors.onErrorContainer,
+                      ),
                       textAlign: TextAlign.center,
                     ),
-                  ],
+                  ),
                 ],
-              );
-            },
-          ),
+                ClipRRect(
+                  borderRadius: AppDimensions.borderRadiusPill,
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(
+                      sigmaX: dockTheme.blurAmount,
+                      sigmaY: dockTheme.blurAmount,
+                    ),
+                    child: Container(
+                      key: const ValueKey('recording-action-dock'),
+                      height: AppDimensions.pillDockHeight + 8,
+                      padding: const EdgeInsets.symmetric(horizontal: 8),
+                      decoration: BoxDecoration(
+                        color: dockTheme.backgroundColor,
+                        borderRadius: AppDimensions.borderRadiusPill,
+                        border: Border.all(
+                          color: dockTheme.borderColor,
+                          width: 1.2,
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(
+                              alpha: context.isDarkMode ? 0.3 : 0.08,
+                            ),
+                            blurRadius: AppDimensions.pillDockElevation * 2,
+                            offset: const Offset(0, 6),
+                          ),
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                        children: actions,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
         ),
       ),
     );
@@ -1646,6 +1807,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
   Widget _buildRecordingMetrics(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final typography = Theme.of(context).textTheme;
+    final l10n = AppLocalizations.of(context);
 
     Widget metric({
       required String label,
@@ -1712,15 +1874,15 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
       key: const ValueKey('recording-sample-metrics'),
       children: [
         metric(
-          label: 'Amostras',
+          label: l10n.text('samplesLabel'),
           icon: Icons.show_chart_rounded,
           value: () => '$_sensorSampleCount',
           detail: () =>
-              'acelerômetro${widget.configuracao.sensoresSelecionados.contains(SensorColeta.giroscopio) ? ' + giroscópio' : ''}',
+              '${l10n.text('accelerometerLower')}${widget.configuracao.sensoresSelecionados.contains(SensorColeta.giroscopio) ? l10n.text('plusGyroscopeLower') : ''}',
         ),
         const SizedBox(width: 12),
         metric(
-          label: 'Pontos GPS',
+          label: l10n.text('gpsPoints'),
           icon: Icons.gps_fixed_rounded,
           value: () => '$_gpsPointCount',
           detail: () => '${(_distanceMeters / 1000).toStringAsFixed(2)} km',
@@ -1743,26 +1905,26 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final typography = context.typography;
+    final l10n = AppLocalizations.of(context);
 
     return PopScope<Object?>(
       canPop: (_runId == null && !_startInProgress) || _isFinalized,
       onPopInvokedWithResult: (didPop, result) {
         if (!didPop && mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Finalize ou salve a coleta antes de sair.'),
-            ),
+            SnackBar(content: Text(l10n.text('finishBeforeLeaving'))),
           );
         }
       },
       child: Scaffold(
+        extendBody: true,
         appBar: AppBar(
-          title: Text(AppLocalizations.of(context).text('collectionProgress')),
+          title: Text(l10n.text('collectionProgress')),
           automaticallyImplyLeading: false,
           actions: [
             IconButton(
               key: const ValueKey('recording-info-button'),
-              tooltip: 'Informações da coleta',
+              tooltip: l10n.text('collectionInfoDialogTitle'),
               onPressed: _showRecordingInfo,
               icon: const Icon(Icons.info_outline_rounded),
             ),
@@ -1785,10 +1947,10 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                   const SizedBox(width: 6),
                   Text(
                     _isRecording
-                        ? 'GRAVANDO'
+                        ? l10n.text('recordingStatusActive')
                         : _isStarting
-                        ? 'PREPARANDO'
-                        : 'PAUSADA',
+                        ? l10n.text('recordingStatusPreparing')
+                        : l10n.text('recordingStatusPaused'),
                     style: typography.labelMedium?.copyWith(
                       color: _isRecording
                           ? Colors.red
@@ -1813,37 +1975,41 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                 valueListenable: _telemetryRevision,
                 builder: (context, _, _) => Row(
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text(
-                          'TEMPO DECORRIDO',
-                          style: typography.labelSmall?.copyWith(
-                            color: colors.onSurfaceVariant,
-                            letterSpacing: 0.8,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            l10n.text('elapsedTimeUpper'),
+                            style: typography.labelSmall?.copyWith(
+                              color: colors.onSurfaceVariant,
+                              letterSpacing: 0.8,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ),
-                        ValueListenableBuilder<int>(
-                          valueListenable: _telemetryRevision,
-                          builder: (context, _, _) => Text(
-                            _formatDuration(_elapsed),
-                            key: const ValueKey('elapsed-time-sticky'),
-                            style: typography.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.w800,
-                              fontFeatures: const [
-                                FontFeature.tabularFigures(),
-                              ],
+                          ValueListenableBuilder<int>(
+                            valueListenable: _telemetryRevision,
+                            builder: (context, _, _) => Text(
+                              _formatDuration(_elapsed),
+                              key: const ValueKey('elapsed-time-sticky'),
+                              style: typography.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w800,
+                                fontFeatures: const [
+                                  FontFeature.tabularFigures(),
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                    const Spacer(),
+                    const SizedBox(width: 8),
                     ValueListenableBuilder<int>(
                       valueListenable: _telemetryRevision,
                       builder: (context, _, _) => StickyMetric(
-                        label: 'VELOCIDADE GPS',
+                        label: l10n.text('gpsSpeedUpper'),
                         value:
                             _lastPosition?.speed.isFinite == true &&
                                 _lastPosition!.speed >= 0
@@ -1857,9 +2023,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                     ValueListenableBuilder<int>(
                       valueListenable: _telemetryRevision,
                       builder: (context, _, _) => StickyMetric(
-                        label: AppLocalizations.of(
-                          context,
-                        ).text('distanceUpper'),
+                        label: l10n.text('distanceUpper'),
                         value:
                             '${(_distanceMeters / 1000).toStringAsFixed(2)} km',
                         icon: Icons.route_rounded,
@@ -1871,222 +2035,173 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
             ),
           ),
         ),
+        bottomNavigationBar: _buildRecordingActionDock(context),
         body: SafeArea(
-          child: Column(
-            children: [
-              _buildRecordingActionDock(context),
-              Expanded(
-                child: SingleChildScrollView(
-                  key: const ValueKey('recording-content-scroll'),
-                  padding: const EdgeInsets.fromLTRB(
-                    AppDimensions.space20,
-                    AppDimensions.space12,
-                    AppDimensions.space20,
-                    AppDimensions.space24,
+          bottom: false,
+          child: SingleChildScrollView(
+            key: const ValueKey('recording-content-scroll'),
+            padding: const EdgeInsets.fromLTRB(
+              AppDimensions.space20,
+              AppDimensions.space12,
+              AppDimensions.space20,
+              AppDimensions.pillDockHeight +
+                  AppDimensions.pillDockMarginBottom +
+                  48,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (_recordingError != null) ...[
+                  Card(
+                    color: colors.errorContainer,
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppDimensions.space12),
+                      child: Text(
+                        _recordingError!,
+                        style: TextStyle(color: colors.onErrorContainer),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.space12),
+                ],
+                if (_metadataWarning != null) ...[
+                  Card(
+                    color: colors.tertiaryContainer,
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppDimensions.space12),
+                      child: Text(
+                        _metadataWarning!,
+                        style: TextStyle(color: colors.onTertiaryContainer),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.space12),
+                ],
+                if (_optionalSensorWarning != null) ...[
+                  Card(
+                    color: colors.tertiaryContainer,
+                    child: Padding(
+                      padding: const EdgeInsets.all(AppDimensions.space12),
+                      child: Text(
+                        _optionalSensorWarning!,
+                        style: TextStyle(color: colors.onTertiaryContainer),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: AppDimensions.space12),
+                ],
+                _buildRecordingMetrics(context),
+                const SizedBox(height: AppDimensions.space12),
+                _buildAccelerometerChart(context),
+                const SizedBox(height: AppDimensions.space16),
+                Container(
+                  key: const ValueKey('device-resource-monitor'),
+                  padding: const EdgeInsets.all(AppDimensions.space16),
+                  decoration: BoxDecoration(
+                    color: colors.surface,
+                    borderRadius: AppDimensions.borderRadiusCard,
+                    border: Border.all(color: colors.outlineVariant),
                   ),
                   child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (_recordingError != null) ...[
-                        Card(
-                          color: colors.errorContainer,
-                          child: Padding(
-                            padding: const EdgeInsets.all(
-                              AppDimensions.space12,
-                            ),
-                            child: Text(
-                              _recordingError!,
-                              style: TextStyle(color: colors.onErrorContainer),
-                            ),
+                      Row(
+                        children: [
+                          Icon(
+                            Icons.monitor_heart_rounded,
+                            size: 16,
+                            color: colors.primary,
                           ),
-                        ),
-                        const SizedBox(height: AppDimensions.space12),
-                      ],
-                      if (_metadataWarning != null) ...[
-                        Card(
-                          color: colors.tertiaryContainer,
-                          child: Padding(
-                            padding: const EdgeInsets.all(
-                              AppDimensions.space12,
-                            ),
+                          const SizedBox(width: 6),
+                          Expanded(
                             child: Text(
-                              _metadataWarning!,
-                              style: TextStyle(
-                                color: colors.onTertiaryContainer,
+                              l10n.text('deviceMonitoring'),
+                              style: typography.labelMedium?.copyWith(
+                                fontWeight: FontWeight.w700,
                               ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
-                        ),
-                        const SizedBox(height: AppDimensions.space12),
-                      ],
-                      if (_optionalSensorWarning != null) ...[
-                        Card(
-                          color: colors.tertiaryContainer,
-                          child: Padding(
-                            padding: const EdgeInsets.all(
-                              AppDimensions.space12,
-                            ),
-                            child: Text(
-                              _optionalSensorWarning!,
-                              style: TextStyle(
-                                color: colors.onTertiaryContainer,
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(height: AppDimensions.space12),
-                      ],
-                      _buildRecordingMetrics(context),
-                      const SizedBox(height: AppDimensions.space12),
-                      _buildAccelerometerChart(context),
-                      const SizedBox(height: AppDimensions.space16),
-                      const SizedBox(height: AppDimensions.space16),
-
-                      Container(
-                        key: const ValueKey('device-resource-monitor'),
-                        padding: const EdgeInsets.all(AppDimensions.space16),
-                        decoration: BoxDecoration(
-                          color: colors.surface,
-                          borderRadius: AppDimensions.borderRadiusCard,
-                          border: Border.all(color: colors.outlineVariant),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                Icon(
-                                  Icons.monitor_heart_rounded,
-                                  size: 16,
-                                  color: colors.primary,
-                                ),
-                                const SizedBox(width: 6),
-                                Text(
-                                  AppLocalizations.of(
-                                    context,
-                                  ).text('deviceMonitoring'),
-                                  style: typography.labelMedium?.copyWith(
-                                    fontWeight: FontWeight.w700,
-                                  ),
-                                ),
-                              ],
-                            ),
-                            const SizedBox(height: AppDimensions.space12),
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: DeviceResourceMetric(
-                                    key: const ValueKey('app-memory-usage'),
-                                    label: AppLocalizations.of(
-                                      context,
-                                    ).text('appRam'),
-                                    value: _memoryUsageBytes == null
-                                        ? '-- MB'
-                                        : '${(_memoryUsageBytes! / (1024 * 1024)).toStringAsFixed(1)} MB',
-                                    detail: _memoryMonitorError == null
-                                        ? 'Uso atual do processo • a cada 2 s'
-                                        : 'Falha ao ler memória: $_memoryMonitorError',
-                                    icon: Icons.memory_rounded,
-                                  ),
-                                ),
-                                const SizedBox(width: AppDimensions.space12),
-                                Expanded(
-                                  child: DeviceResourceMetric(
-                                    key: const ValueKey('battery-usage'),
-                                    label: 'BATERIA',
-                                    value: _batteryPercent == null
-                                        ? '--%'
-                                        : '$_batteryPercent%',
-                                    detail: _batteryMonitorError != null
-                                        ? 'Falha ao ler bateria: $_batteryMonitorError'
-                                        : _batteryChangeDescription,
-                                    icon:
-                                        _batteryPercent != null &&
-                                            _batteryPercent! <= 20
-                                        ? Icons.battery_alert_rounded
-                                        : Icons.battery_full_rounded,
-                                    valueColor:
-                                        _batteryPercent != null &&
-                                            _batteryPercent! <= 20
-                                        ? colors.error
-                                        : null,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
+                        ],
                       ),
-
-                      const SizedBox(height: AppDimensions.space16),
-
-                      // Audio telemetry remains in the details area; its action stays fixed above.
-                      if (widget.configuracao.sensoresSelecionados.contains(
-                        SensorColeta.audio,
-                      )) ...[
-                        const SizedBox(height: AppDimensions.space16),
-                        ValueListenableBuilder<int>(
-                          valueListenable: _mediaRevision,
-                          builder: (context, _, _) => AudioRecordingIndicator(
-                            isRecording: _isRecordingAudio,
-                            elapsed: _audioElapsed,
-                            maxDurationSeconds: widget
-                                .configuracao
-                                .sensoresOpcionais
-                                .audio
-                                .durationSeconds,
-                            amplitudeDb: _audioAmplitudeDb,
-                          ),
-                        ),
-                      ],
-                      if (_capturedMedia.isNotEmpty) ...[
-                        const SizedBox(height: AppDimensions.space16),
-                        _capturedMediaGallery(colors),
-                      ],
-
-                      const SizedBox(height: AppDimensions.space24),
-
-                      // --- 6. BOTÃO PARA FINALIZAR COLETA ---
-                      SizedBox(
-                        width: double.infinity,
-                        height: AppDimensions.buttonHeight,
-                        child: FilledButton.icon(
-                          style: FilledButton.styleFrom(
-                            backgroundColor: colors.error,
-                            foregroundColor: colors.onError,
-                            shape: RoundedRectangleBorder(
-                              borderRadius: AppDimensions.borderRadiusMedium,
+                      const SizedBox(height: AppDimensions.space12),
+                      Row(
+                        children: [
+                          Expanded(
+                            child: DeviceResourceMetric(
+                              key: const ValueKey('app-memory-usage'),
+                              label: l10n.text('appRam'),
+                              value: _memoryUsageBytes == null
+                                  ? '-- MB'
+                                  : '${(_memoryUsageBytes! / (1024 * 1024)).toStringAsFixed(1)} MB',
+                              detail: _memoryMonitorError == null
+                                  ? l10n.text('processRamUsageDetail')
+                                  : l10n
+                                        .text('memoryReadError')
+                                        .replaceAll(
+                                          '{error}',
+                                          '$_memoryMonitorError',
+                                        ),
+                              icon: Icons.memory_rounded,
                             ),
                           ),
-                          onPressed: _isFinalizing || _isStarting
-                              ? null
-                              : _runId == null
-                              ? _startRecording
-                              : _confirmarFinalizacao,
-                          icon: Icon(
-                            _runId == null
-                                ? Icons.refresh_rounded
-                                : Icons.stop_circle_rounded,
-                            size: 22,
-                          ),
-                          label: Text(
-                            _runId == null
-                                ? 'Tentar iniciar novamente'
-                                : _recordingError == null
-                                ? 'Finalizar Coleta'
-                                : 'Salvar dados parciais',
-                            style: TextStyle(
-                              fontWeight: FontWeight.w700,
-                              fontSize: 16,
+                          const SizedBox(width: AppDimensions.space12),
+                          Expanded(
+                            child: DeviceResourceMetric(
+                              key: const ValueKey('battery-usage'),
+                              label: l10n.text('batteryUpper'),
+                              value: _batteryPercent == null
+                                  ? '--%'
+                                  : '$_batteryPercent%',
+                              detail: _batteryMonitorError != null
+                                  ? l10n
+                                        .text('batteryReadError')
+                                        .replaceAll(
+                                          '{error}',
+                                          '$_batteryMonitorError',
+                                        )
+                                  : _batteryChangeDescription(context),
+                              icon:
+                                  _batteryPercent != null &&
+                                      _batteryPercent! <= 20
+                                  ? Icons.battery_alert_rounded
+                                  : Icons.battery_full_rounded,
+                              valueColor:
+                                  _batteryPercent != null &&
+                                      _batteryPercent! <= 20
+                                  ? colors.error
+                                  : null,
                             ),
                           ),
-                        ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-              ),
-            ],
+                if (widget.configuracao.sensoresSelecionados.contains(
+                  SensorColeta.audio,
+                )) ...[
+                  const SizedBox(height: AppDimensions.space16),
+                  ValueListenableBuilder<int>(
+                    valueListenable: _mediaRevision,
+                    builder: (context, _, _) => AudioRecordingIndicator(
+                      isRecording: _isRecordingAudio,
+                      elapsed: _audioElapsed,
+                      maxDurationSeconds: widget
+                          .configuracao
+                          .sensoresOpcionais
+                          .audio
+                          .durationSeconds,
+                      amplitudeDb: _audioAmplitudeDb,
+                    ),
+                  ),
+                ],
+                if (_capturedMedia.isNotEmpty) ...[
+                  const SizedBox(height: AppDimensions.space16),
+                  _capturedMediaGallery(colors),
+                ],
+              ],
+            ),
           ),
         ),
       ),
@@ -2108,18 +2223,19 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
     }
   }
 
-  String _nameForSensor(SensorColeta s) {
+  String _nameForSensor(BuildContext context, SensorColeta s) {
+    final l10n = AppLocalizations.of(context);
     switch (s) {
       case SensorColeta.acelerometro:
-        return 'Acelerômetro';
+        return l10n.text('accelerometer');
       case SensorColeta.giroscopio:
-        return 'Giroscópio';
+        return l10n.text('gyroscope');
       case SensorColeta.gps:
-        return 'GPS';
+        return l10n.text('gps');
       case SensorColeta.camera:
-        return 'Câmera';
+        return l10n.text('camera');
       case SensorColeta.audio:
-        return 'Áudio';
+        return l10n.text('audio');
     }
   }
 }

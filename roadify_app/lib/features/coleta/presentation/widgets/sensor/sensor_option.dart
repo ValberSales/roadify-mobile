@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 import 'package:roadify_app/core/theme/theme_extensions.dart';
 import 'package:roadify_app/features/coleta/viewmodels/coleta_viewmodel.dart';
 
@@ -74,7 +75,7 @@ class SensorOption extends StatelessWidget {
               borderRadius: AppDimensions.borderRadiusSmall,
             ),
             child: Text(
-              'Obrigatório',
+              AppLocalizations.of(context).text('requiredBadge'),
               style: context.typography.labelSmall?.copyWith(
                 color: colors.onPrimary,
                 fontWeight: FontWeight.w700,

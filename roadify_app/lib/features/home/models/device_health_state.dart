@@ -1,5 +1,6 @@
 import 'package:battery_plus/battery_plus.dart';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 
 /// Classificação da qualidade de recepção e precisão do sinal de GPS (SP2-02).
 enum GpsSignalQuality {
@@ -9,6 +10,15 @@ enum GpsSignalQuality {
 
   final String label;
   const GpsSignalQuality(this.label);
+
+  String localizedLabel(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return switch (this) {
+      GpsSignalQuality.forte => l10n.text('gpsQualityStrong'),
+      GpsSignalQuality.medio => l10n.text('gpsQualityMedium'),
+      GpsSignalQuality.fraco => l10n.text('gpsQualityWeak'),
+    };
+  }
 
   /// Classifica o sinal com base no raio de incerteza horizontal em metros:
   /// - Forte: <= 10,0 m
@@ -75,6 +85,18 @@ class DeviceHealthState {
     BatteryState.unknown => 'Em uso',
   };
 
+  /// Rótulo internacionalizado do status de carregamento da bateria.
+  String localizedChargingStatus(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return switch (batteryState) {
+      BatteryState.charging => l10n.text('batteryCharging'),
+      BatteryState.full => l10n.text('batteryFull'),
+      BatteryState.connectedNotCharging => l10n.text('batteryConnected'),
+      BatteryState.discharging => l10n.text('batteryDischarging'),
+      BatteryState.unknown => l10n.text('batteryInUse'),
+    };
+  }
+
   /// Indica se o nível de bateria está abaixo do limite seguro (< 20%) para ensaio.
   bool get isBatteryBelowSafeLimit => batteryLevel < safeBatteryThreshold;
 
@@ -88,6 +110,17 @@ class DeviceHealthState {
   String get gpsUncertaintyLabel {
     if (!isGpsServiceEnabled || gpsAccuracyMeters == null) {
       return 'Sem sinal (± -- m)';
+    }
+    final formatted = gpsAccuracyMeters!
+        .toStringAsFixed(1)
+        .replaceAll('.', ',');
+    return '± $formatted m';
+  }
+
+  /// Raio de incerteza internacionalizado.
+  String localizedGpsUncertainty(BuildContext context) {
+    if (!isGpsServiceEnabled || gpsAccuracyMeters == null) {
+      return AppLocalizations.of(context).text('gpsNoSignal');
     }
     final formatted = gpsAccuracyMeters!
         .toStringAsFixed(1)

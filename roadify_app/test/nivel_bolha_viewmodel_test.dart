@@ -53,10 +53,14 @@ void main() {
       viewModel.dispose();
     });
 
-    test('Buffer circular inicial possui exatamente 50 amostras', () {
-      expect(viewModel.signalBuffer.length, equals(50));
-      expect(viewModel.signalHistory.length, equals(50));
-      expect(NivelBolhaViewModel.maxHistoryPoints, equals(50));
+    test('Buffer circular inicial possui janela de 1 minuto (600 amostras a 10 Hz)', () {
+      expect(viewModel.signalBuffer.length, equals(600));
+      expect(viewModel.signalHistory.length, equals(600));
+      expect(NivelBolhaViewModel.maxHistoryPoints, equals(600));
+      expect(
+        NivelBolhaViewModel.chartWindowDuration,
+        equals(const Duration(seconds: 60)),
+      );
     });
 
     test('Estado inicial padrão', () {
@@ -289,6 +293,32 @@ void main() {
         expect(vm.signalHistory.last.accelX, equals(1.5));
         expect(vm.signalHistory.last.accelY, equals(-0.8));
         expect(vm.signalHistory.last.gyroX, equals(0.33));
+        expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'SensoresScreen: aba Sinais ao Vivo não sofre RenderFlex overflow em tela estreita (320px)',
+      (tester) async {
+        tester.view.physicalSize = const Size(320 * 2.0, 800 * 2.0);
+        tester.view.devicePixelRatio = 2.0;
+        addTearDown(tester.view.resetPhysicalSize);
+        addTearDown(tester.view.resetDevicePixelRatio);
+
+        final vm = NivelBolhaViewModel(autoStart: false);
+        addTearDown(vm.dispose);
+
+        await tester.pumpWidget(
+          MaterialApp(home: SensoresScreen(viewModel: vm)),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(find.text('Sinais ao Vivo'));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Janela: 1 min (60s)'), findsAtLeastNWidgets(1));
+        expect(tester.takeException(), isNull);
+        await tester.pumpWidget(const SizedBox());
       },
     );
 

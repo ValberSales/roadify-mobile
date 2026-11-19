@@ -108,8 +108,8 @@ class _IdentificacaoSectionWidgetState
           controller: _routeController,
           textCapitalization: TextCapitalization.sentences,
           decoration: InputDecoration(
-            labelText: 'Trecho *',
-            prefixIcon: Icon(Icons.route_rounded),
+            labelText: AppLocalizations.of(context).text('routeFieldLabel'),
+            prefixIcon: const Icon(Icons.route_rounded),
           ),
           validator: (value) => value == null || value.trim().isEmpty
               ? AppLocalizations.of(context).text('enterCollectionSegment')
@@ -206,13 +206,15 @@ class _IdentificacaoSectionWidgetState
                       decimal: true,
                     ),
                     decoration: InputDecoration(
-                      labelText: 'Quilometragem inicial *',
+                      labelText: AppLocalizations.of(context)
+                          .text('initialMileageLabel'),
                       suffixText: 'km',
-                      prefixIcon: Icon(Icons.speed_rounded),
+                      prefixIcon: const Icon(Icons.speed_rounded),
                     ),
                     validator: (value) {
                       if (value == null || value.trim().isEmpty) {
-                        return 'Informe a quilometragem inicial.';
+                        return AppLocalizations.of(context)
+                            .text('enterInitialMileage');
                       }
                       final odometer = double.tryParse(
                         value.trim().replaceAll(',', '.'),

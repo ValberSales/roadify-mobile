@@ -1,5 +1,7 @@
+import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../services/sensor_trace_buffer.dart';
@@ -181,9 +183,10 @@ class RecordingAccelerometerChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final typography = Theme.of(context).textTheme;
+    final l10n = AppLocalizations.of(context);
 
     return Semantics(
-      label: 'Gráfico de acelerômetro ao vivo em pista',
+      label: l10n.text('liveAccelerometerTitle'),
       child: Container(
         key: const ValueKey('live-chart-accelerometer'),
         padding: const EdgeInsets.all(12),
@@ -195,10 +198,14 @@ class RecordingAccelerometerChart extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              spacing: 8,
+              runSpacing: 6,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Row(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
                       Icons.show_chart_rounded,
@@ -206,30 +213,33 @@ class RecordingAccelerometerChart extends StatelessWidget {
                       color: colors.primary,
                     ),
                     const SizedBox(width: 8),
-                    Text(
-                      'Acelerômetro ao Vivo',
-                      style: typography.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w700,
+                    Flexible(
+                      child: Text(
+                        l10n.text('liveAccelerometerTitle'),
+                        style: typography.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                        overflow: TextOverflow.ellipsis,
                       ),
                     ),
                   ],
                 ),
                 ValueListenableBuilder<int>(
                   valueListenable: telemetryRevision,
-                  builder: (context, _, _) => Row(
+                  builder: (context, _, _) => Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
                     children: [
                       AxisValueBadge(
                         label: 'X',
                         value: currentX(),
                         color: const Color(0xFF10B981),
                       ),
-                      const SizedBox(width: 6),
                       AxisValueBadge(
                         label: 'Y',
                         value: currentY(),
                         color: const Color(0xFF06B6D4),
                       ),
-                      const SizedBox(width: 6),
                       AxisValueBadge(
                         label: 'Z',
                         value: currentZ(),
@@ -254,6 +264,8 @@ class RecordingAccelerometerChart extends StatelessWidget {
                         bufferX: sensorTrace.xSamples,
                         bufferY: sensorTrace.ySamples,
                         bufferZ: sensorTrace.zSamples,
+                        sampleTick: sensorTrace.sampleTick,
+                        windowCapacity: SensorTraceBuffer.capacity,
                         colorX: const Color(0xFF10B981),
                         colorY: const Color(0xFF06B6D4),
                         colorZ: const Color(0xFFF59E0B),
@@ -267,6 +279,48 @@ class RecordingAccelerometerChart extends StatelessWidget {
                 ),
               ),
             ),
+            const SizedBox(height: 6),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '-60s',
+                  style: typography.labelSmall?.copyWith(
+                    fontSize: 10,
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '-30s',
+                  style: typography.labelSmall?.copyWith(
+                    fontSize: 10,
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    l10n.text('timeWindow1MinLabel'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: typography.labelSmall?.copyWith(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600,
+                      color: colors.onSurfaceVariant,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '0s',
+                  style: typography.labelSmall?.copyWith(
+                    fontSize: 10,
+                    color: colors.onSurfaceVariant,
+                  ),
+                ),
+              ],
+            ),
           ],
         ),
       ),
@@ -274,11 +328,13 @@ class RecordingAccelerometerChart extends StatelessWidget {
   }
 }
 
-/// CustomPainter para desenhar as ondas do acelerômetro em tempo real.
+/// CustomPainter para desenhar as ondas do acelerômetro em tempo real (janela contínua de 1 minuto).
 class OscilloscopePainter extends CustomPainter {
   final List<double> bufferX;
   final List<double> bufferY;
   final List<double> bufferZ;
+  final int sampleTick;
+  final int windowCapacity;
   final Color colorX;
   final Color colorY;
   final Color colorZ;
@@ -289,6 +345,8 @@ class OscilloscopePainter extends CustomPainter {
     required this.bufferX,
     required this.bufferY,
     required this.bufferZ,
+    this.sampleTick = 0,
+    this.windowCapacity = SensorTraceBuffer.capacity,
     required this.colorX,
     required this.colorY,
     required this.colorZ,
@@ -317,9 +375,26 @@ class OscilloscopePainter extends CustomPainter {
       gridPaint,
     );
 
+    // 6 divisões verticais de 10 segundos cada = janela de 60 segundos (1 minuto)
+    const verticalDivisions = 6;
+    final gridStepX = size.width / verticalDivisions;
+    final samplesPerDivision = math.max(
+      1,
+      windowCapacity ~/ verticalDivisions,
+    );
+    final shift =
+        (sampleTick % samplesPerDivision) / samplesPerDivision * gridStepX;
+    for (var i = 0; i <= verticalDivisions + 1; i++) {
+      final x = (i * gridStepX) - shift;
+      if (x >= 0 && x <= size.width) {
+        canvas.drawLine(Offset(x, 0), Offset(x, size.height), gridPaint);
+      }
+    }
+
     if (bufferX.length < 2) return;
 
     const range = 15.0;
+    final effectiveWindow = math.max(2, math.max(windowCapacity, bufferX.length));
 
     double mapY(double val) {
       final normalized = (val / range).clamp(-1.0, 1.0);
@@ -334,7 +409,7 @@ class OscilloscopePainter extends CustomPainter {
         ..strokeJoin = StrokeJoin.round;
 
       final path = Path();
-      final stepX = size.width / (buffer.length - 1);
+      final stepX = size.width / (effectiveWindow - 1);
 
       for (var i = 0; i < buffer.length; i++) {
         final x = i * stepX;

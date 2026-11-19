@@ -165,7 +165,7 @@ class _SubmitButton extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    'Salvando...',
+                    AppLocalizations.of(context).text('savingVehicle'),
                     style: context.typography.labelLarge?.copyWith(
                       color: colors.onPrimary,
                     ),
@@ -173,7 +173,7 @@ class _SubmitButton extends StatelessWidget {
                 ],
               )
             : Text(
-                'Salvar Veículo',
+                AppLocalizations.of(context).text('saveVehicleBtn'),
                 style: context.typography.labelLarge?.copyWith(
                   color: colors.onPrimary,
                 ),

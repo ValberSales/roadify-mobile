@@ -86,7 +86,11 @@ class _CollectionOrientationSetupScreenState
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Não foi possível salvar as preferências: $error'),
+            content: Text(
+              AppLocalizations.of(context)
+                  .text('savePreferencesError')
+                  .replaceAll('{error}', '$error'),
+            ),
           ),
         );
       }
@@ -133,7 +137,8 @@ class _CollectionOrientationSetupScreenState
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Text(
-                        'Defina como o dispositivo será posicionado durante a coleta e calibre a referência antes de iniciar.',
+                        AppLocalizations.of(context)
+                            .text('orientationSetupDescription'),
                         style: context.typography.bodyMedium?.copyWith(
                           color: colors.onSurfaceVariant,
                         ),
@@ -141,11 +146,16 @@ class _CollectionOrientationSetupScreenState
                       ),
                       const SizedBox(height: AppDimensions.space16),
                       _selectionCard<CollectionOrientation>(
-                        title: 'Orientação do dispositivo',
+                        title: AppLocalizations.of(context)
+                            .text('deviceOrientationTitle'),
                         selected: _orientation,
-                        options: const {
-                          CollectionOrientation.vertical: 'Vertical',
-                          CollectionOrientation.horizontal: 'Horizontal',
+                        options: {
+                          CollectionOrientation.vertical:
+                              AppLocalizations.of(context)
+                                  .text('verticalOrientation'),
+                          CollectionOrientation.horizontal:
+                              AppLocalizations.of(context)
+                                  .text('horizontalOrientation'),
                         },
                         onChanged: (value) {
                           setState(() => _orientation = value);
@@ -154,11 +164,16 @@ class _CollectionOrientationSetupScreenState
                       ),
                       const SizedBox(height: AppDimensions.space12),
                       _selectionCard<CollectionPosture>(
-                        title: 'Postura registrada',
+                        title: AppLocalizations.of(context)
+                            .text('recordedPostureTitle'),
                         selected: _posture,
-                        options: const {
-                          CollectionPosture.standing: 'Em pé',
-                          CollectionPosture.lyingDown: 'Deitado',
+                        options: {
+                          CollectionPosture.standing:
+                              AppLocalizations.of(context)
+                                  .text('standingPosture'),
+                          CollectionPosture.lyingDown:
+                              AppLocalizations.of(context)
+                                  .text('lyingDownPosture'),
                         },
                         onChanged: (value) {
                           setState(() => _posture = value);
@@ -184,7 +199,7 @@ class _CollectionOrientationSetupScreenState
                         children: [
                           Expanded(
                             child: _angleCard(
-                              'EIXO X (ROLL)',
+                              AppLocalizations.of(context).text('axisXRoll'),
                               state.calibratedAngleX,
                               state.isLevelX,
                             ),
@@ -192,7 +207,7 @@ class _CollectionOrientationSetupScreenState
                           const SizedBox(width: AppDimensions.space12),
                           Expanded(
                             child: _angleCard(
-                              'EIXO Y (PITCH)',
+                              AppLocalizations.of(context).text('axisYPitch'),
                               state.calibratedAngleY,
                               state.isLevelY,
                             ),
@@ -223,8 +238,10 @@ class _CollectionOrientationSetupScreenState
                             Expanded(
                               child: Text(
                                 state.isCalibrated
-                                    ? 'Referência calibrada. O nivelamento pode ser recalibrado antes de iniciar.'
-                                    : 'Posicione o dispositivo no suporte em que será gravado e calibre a referência.',
+                                    ? AppLocalizations.of(context)
+                                          .text('referenceCalibratedMsg')
+                                    : AppLocalizations.of(context)
+                                          .text('positionDeviceInMountMsg'),
                                 style: context.typography.bodySmall,
                               ),
                             ),

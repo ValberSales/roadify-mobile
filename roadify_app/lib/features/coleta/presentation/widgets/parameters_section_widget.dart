@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 import 'package:roadify_app/features/coleta/presentation/widgets/acquisition_parameters_section.dart';
 import 'package:roadify_app/features/coleta/presentation/widgets/section_divider.dart';
 import 'package:roadify_app/features/coleta/presentation/widgets/sensor/optional_sensors_section.dart';
@@ -61,33 +62,38 @@ class _ParametersSectionWidgetState extends State<ParametersSectionWidget> {
     super.dispose();
   }
 
-  static String? _validateAccelerometerRate(String? value) {
+  String? _validateAccelerometerRate(String? value) {
+    final l10n = AppLocalizations.of(context);
     if (value == null || value.trim().isEmpty) {
-      return 'Informe a frequência.';
+      return l10n.text('enterFrequencyError');
     }
     final rate = int.tryParse(value.trim());
-    if (rate == null) return 'Informe uma frequência inteira.';
+    if (rate == null) return l10n.text('customFrequencyError');
     if (rate < 50 || rate > 500) {
-      return 'Use um valor entre 50 e 500 Hz.';
+      return l10n.text('frequencyRange');
     }
     return null;
   }
 
-  static String? _validateGpsRate(String? value) {
+  String? _validateGpsRate(String? value) {
+    final l10n = AppLocalizations.of(context);
     if (value == null || value.trim().isEmpty) {
-      return 'Informe a frequência.';
+      return l10n.text('enterFrequencyError');
     }
     final rate = int.tryParse(value.trim());
-    if (rate == null) return 'Informe uma frequência inteira.';
-    if (rate < 1 || rate > 10) return 'Use um valor entre 1 e 10 Hz.';
+    if (rate == null) return l10n.text('customFrequencyError');
+    if (rate < 1 || rate > 10) return l10n.text('gpsFrequencyRangeError');
     return null;
   }
 
-  static String? _validateInterval(String? value) {
-    if (value == null || value.trim().isEmpty) return 'Obrigatório';
+  String? _validateInterval(String? value) {
+    final l10n = AppLocalizations.of(context);
+    if (value == null || value.trim().isEmpty) {
+      return l10n.text('requiredField');
+    }
     final interval = double.tryParse(value.trim().replaceAll(',', '.'));
     if (interval == null || !interval.isFinite || interval <= 0) {
-      return 'Informe uma distância positiva';
+      return l10n.text('positiveDistanceError');
     }
     return null;
   }

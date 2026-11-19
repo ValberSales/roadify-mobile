@@ -136,7 +136,7 @@ class _SensorFrequencySelectorState extends State<SensorFrequencySelector> {
                 key: ValueKey('chip-${widget.keyPrefix}-outro'),
                 showCheckmark: false,
                 avatar: const Icon(Icons.tune_rounded, size: 14),
-                label: const Text('Outro...'),
+                label: Text(AppLocalizations.of(context).text('otherOption')),
                 selected: _isCustom,
                 selectedColor: colors.primary,
                 labelStyle: TextStyle(

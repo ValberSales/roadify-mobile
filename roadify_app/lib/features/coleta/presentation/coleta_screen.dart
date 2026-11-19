@@ -147,7 +147,9 @@ class _ColetaScreenState extends State<ColetaScreen>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'Não foi possível carregar as últimas configurações: $error',
+              AppLocalizations.of(context)
+                  .text('loadSettingsError')
+                  .replaceAll('{error}', '$error'),
             ),
           ),
         );
@@ -167,7 +169,9 @@ class _ColetaScreenState extends State<ColetaScreen>
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: Text(
-                  'Não foi possível acompanhar o veículo padrão: $error',
+                  AppLocalizations.of(context)
+                      .text('watchDefaultVehicleError')
+                      .replaceAll('{error}', '$error'),
                 ),
               ),
             );
@@ -268,7 +272,11 @@ class _ColetaScreenState extends State<ColetaScreen>
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Não foi possível salvar as preferências: $error'),
+            content: Text(
+              AppLocalizations.of(context)
+                  .text('savePreferencesError')
+                  .replaceAll('{error}', '$error'),
+            ),
           ),
         );
       }
@@ -359,7 +367,9 @@ class _ColetaScreenState extends State<ColetaScreen>
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-            'Coleta preparada com ${_sensoresSelecionados.length} sensores.',
+            AppLocalizations.of(context)
+                .text('sensorsPrepared')
+                .replaceAll('{count}', '${_sensoresSelecionados.length}'),
           ),
         ),
       );
@@ -375,17 +385,17 @@ class _ColetaScreenState extends State<ColetaScreen>
         context: context,
         builder: (dialogContext) => AlertDialog(
           icon: const Icon(Icons.lock_outline_rounded),
-          title: const Text('Permissões necessárias'),
+          title: Text(AppLocalizations.of(context).text('permissionRequired')),
           content: Text(error.message),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext, false),
-              child: const Text('Voltar'),
+              child: Text(AppLocalizations.of(context).text('back')),
             ),
             if (error.canOpenSettings)
               FilledButton(
                 onPressed: () => Navigator.pop(dialogContext, true),
-                child: const Text('Abrir configurações'),
+                child: Text(AppLocalizations.of(context).text('openSettings')),
               ),
           ],
         ),
@@ -399,7 +409,13 @@ class _ColetaScreenState extends State<ColetaScreen>
       if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Não foi possível iniciar a gravação: $error')),
+        SnackBar(
+          content: Text(
+            AppLocalizations.of(context)
+                .text('recordingStartError')
+                .replaceAll('{error}', '$error'),
+          ),
+        ),
       );
     } finally {
       if (mounted) setState(() => _isStartingRecording = false);
@@ -414,11 +430,12 @@ class _ColetaScreenState extends State<ColetaScreen>
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Scaffold(
       appBar: AppBar(
         toolbarHeight: 76,
         title: Text(
-          'Nova coleta',
+          l10n.text('newCollectionTitle'),
           style: context.typography.headlineSmall?.copyWith(
             color: context.colors.primary,
             fontWeight: FontWeight.w800,
@@ -508,8 +525,8 @@ class _ColetaScreenState extends State<ColetaScreen>
                               : const Icon(Icons.play_circle_fill_rounded),
                           label: Text(
                             _isStartingRecording
-                                ? 'Preparando gravação...'
-                                : 'Prosseguir para gravação',
+                                ? l10n.text('preparingRecording')
+                                : l10n.text('continueRecording'),
                           ),
                         ),
                       ),

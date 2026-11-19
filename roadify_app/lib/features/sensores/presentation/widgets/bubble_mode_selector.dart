@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../models/nivel_bolha_state.dart';
@@ -18,6 +19,7 @@ class BubbleModeSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final isDark = context.isDarkMode;
+    final l10n = AppLocalizations.of(context);
 
     return Container(
       padding: const EdgeInsets.all(4),
@@ -32,21 +34,21 @@ class BubbleModeSelector extends StatelessWidget {
       child: Row(
         children: [
           _ModeButton(
-            title: 'Auto',
+            title: l10n.text('modeAutoShort'),
             icon: Icons.autorenew_rounded,
             isSelected: currentMode == BubbleDisplayMode.auto,
             onTap: () => onModeChanged(BubbleDisplayMode.auto),
           ),
           const SizedBox(width: 4),
           _ModeButton(
-            title: 'Circular 2D',
+            title: l10n.text('modeCircular2D'),
             icon: Icons.track_changes_rounded,
             isSelected: currentMode == BubbleDisplayMode.circular2D,
             onTap: () => onModeChanged(BubbleDisplayMode.circular2D),
           ),
           const SizedBox(width: 4),
           _ModeButton(
-            title: 'Tubular T',
+            title: l10n.text('modeTubularTShort'),
             icon: Icons.splitscreen_rounded,
             isSelected: currentMode == BubbleDisplayMode.tubularT,
             onTap: () => onModeChanged(BubbleDisplayMode.tubularT),
@@ -109,13 +111,17 @@ class _ModeButton extends StatelessWidget {
                   size: 16,
                   color: isSelected ? selectedFg : unselectedFg,
                 ),
-                const SizedBox(width: 6),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
-                    color: isSelected ? selectedFg : unselectedFg,
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                      color: isSelected ? selectedFg : unselectedFg,
+                    ),
                   ),
                 ),
               ],

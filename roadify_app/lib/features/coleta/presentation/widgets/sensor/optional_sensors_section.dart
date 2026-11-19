@@ -97,8 +97,9 @@ class _OptionalSensorsSectionState extends State<OptionalSensorsSection> {
   }
 
   String? _validateInterval(String? value, CaptureIntervalUnit unit) {
+    final l10n = AppLocalizations.of(context);
     final interval = int.tryParse(value?.trim() ?? '');
-    if (interval == null) return 'Informe um intervalo inteiro.';
+    if (interval == null) return l10n.text('integerIntervalError');
     final (minimum, maximum) = switch (unit) {
       CaptureIntervalUnit.minutes => (1, 59),
       CaptureIntervalUnit.hours => (1, 24),
@@ -106,36 +107,42 @@ class _OptionalSensorsSectionState extends State<OptionalSensorsSection> {
       CaptureIntervalUnit.kilometers => (1, 999),
     };
     if (interval < minimum || interval > maximum) {
-      return 'Use um valor entre $minimum e $maximum.';
+      return l10n
+          .text('valueBetweenRange')
+          .replaceAll('{min}', '$minimum')
+          .replaceAll('{max}', '$maximum');
     }
     return null;
   }
 
   String? _validateAudioDuration(String? value) {
+    final l10n = AppLocalizations.of(context);
     final duration = int.tryParse(value?.trim() ?? '');
-    if (duration == null) return AppLocalizations.of(context).text('durationIntegerError');
+    if (duration == null) return l10n.text('durationIntegerError');
     if (duration < 1 || duration > _maximumAudioDurationSeconds) {
-      return 'Use uma duração entre 1 e '
-          '$_maximumAudioDurationSeconds segundos.';
+      return l10n
+          .text('durationBetweenRange')
+          .replaceAll('{max}', '$_maximumAudioDurationSeconds');
     }
     return null;
   }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SensorSectionHeading(
-          title: 'Sensores complementares',
-          subtitle: 'Ative e configure os recursos adicionais da coleta.',
+          title: l10n.text('optionalSensors'),
+          subtitle: l10n.text('optionalSensorsSubtitle'),
           icon: Icons.tune_rounded,
         ),
         const SizedBox(height: AppDimensions.space12),
         SensorConfigurationCard(
           sensor: SensorColeta.giroscopio,
-          title: 'Giroscópio',
-          subtitle: 'Taxa de rotação e atitude veicular',
+          title: l10n.text('gyroscope'),
+          subtitle: l10n.text('gyroscopeSubtitle'),
           icon: Icons.screen_rotation_alt_rounded,
           selected: widget.selectedSensors.contains(SensorColeta.giroscopio),
           onChanged: widget.onSensorChanged,
@@ -143,23 +150,23 @@ class _OptionalSensorsSectionState extends State<OptionalSensorsSection> {
             keyPrefix: 'gyro',
             minimum: 50,
             maximum: 500,
-            title: 'Frequência do giroscópio',
+            title: l10n.text('gyroscopeFrequencyTitle'),
             unit: 'Hz',
             presets: _gyroscopePresets,
             currentValue: widget.settings.gyroscopeFrequencyHz,
             customController: _gyroscopeController,
             onChanged: (rate) => _updateSettings(gyroscopeFrequencyHz: rate),
             validator: _validateGyroscopeFrequency,
-            inputHint: 'Ex: 250',
-            inputHelper: 'Faixa permitida',
+            inputHint: l10n.text('example250'),
+            inputHelper: l10n.text('allowedRange'),
             inputIcon: Icons.screen_rotation_alt_rounded,
           ),
         ),
         const SizedBox(height: AppDimensions.space12),
         SensorConfigurationCard(
           sensor: SensorColeta.camera,
-          title: 'Câmera',
-          subtitle: 'Fotos ou vídeos de ocorrências na via',
+          title: l10n.text('camera'),
+          subtitle: l10n.text('cameraSubtitle'),
           icon: Icons.photo_camera_outlined,
           selected: widget.selectedSensors.contains(SensorColeta.camera),
           onChanged: widget.onSensorChanged,
@@ -168,8 +175,8 @@ class _OptionalSensorsSectionState extends State<OptionalSensorsSection> {
         const SizedBox(height: AppDimensions.space12),
         SensorConfigurationCard(
           sensor: SensorColeta.audio,
-          title: 'Áudio',
-          subtitle: 'Gravação de voz durante a coleta',
+          title: l10n.text('audio'),
+          subtitle: l10n.text('audioSubtitle'),
           icon: Icons.mic_none_rounded,
           selected: widget.selectedSensors.contains(SensorColeta.audio),
           onChanged: widget.onSensorChanged,
@@ -181,20 +188,21 @@ class _OptionalSensorsSectionState extends State<OptionalSensorsSection> {
 
   Widget _cameraSettings() {
     final camera = widget.settings.camera;
+    final l10n = AppLocalizations.of(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(AppLocalizations.of(context).text('content'), style: context.typography.labelLarge),
+        Text(l10n.text('content'), style: context.typography.labelLarge),
         const SizedBox(height: AppDimensions.space8),
         Wrap(
           spacing: AppDimensions.space8,
           children: CameraMediaType.values.map((type) {
             final (label, icon) = switch (type) {
-              CameraMediaType.photos => ('Fotos', Icons.photo_outlined),
-              CameraMediaType.videos => (AppLocalizations.of(context).text('videos'), Icons.videocam_outlined),
+              CameraMediaType.photos => (l10n.text('photos'), Icons.photo_outlined),
+              CameraMediaType.videos => (l10n.text('videos'), Icons.videocam_outlined),
               CameraMediaType.photosAndVideos => (
-                AppLocalizations.of(context).text('photosAndVideos'),
+                l10n.text('photosAndVideos'),
                 Icons.perm_media_outlined,
               ),
             };
@@ -271,20 +279,20 @@ class _OptionalSensorsSectionState extends State<OptionalSensorsSection> {
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
-              labelText: AppLocalizations.of(context).text('videoMaxDuration'),
-              suffixText: 'segundos',
-              prefixIcon: Icon(Icons.timer_outlined),
-              helperText:
-                  AppLocalizations.of(context).text('videoDurationRange'),
+              labelText: l10n.text('videoMaxDuration'),
+              suffixText: l10n.text('secondsUnit'),
+              prefixIcon: const Icon(Icons.timer_outlined),
+              helperText: l10n.text('videoDurationRange'),
             ),
             validator: (value) {
               final duration = int.tryParse(value?.trim() ?? '');
               if (duration == null || duration < 1) {
-                return 'Informe uma duração entre 1 e 120 segundos.';
+                return l10n.text('videoDurationValidationError');
               }
               if (duration > _maximumVideoDurationSeconds) {
-                return 'Máximo seguro: $_maximumVideoDurationSeconds segundos '
-                    '(2 minutos).';
+                return l10n
+                    .text('videoMaxSafeDurationError')
+                    .replaceAll('{max}', '$_maximumVideoDurationSeconds');
               }
               return null;
             },
@@ -413,8 +421,8 @@ class _OptionalSensorsSectionState extends State<OptionalSensorsSection> {
             autovalidateMode: AutovalidateMode.onUserInteraction,
             decoration: InputDecoration(
               labelText: AppLocalizations.of(context).text('recordingDuration'),
-              suffixText: 'segundos',
-              prefixIcon: Icon(Icons.timer_outlined),
+              suffixText: AppLocalizations.of(context).text('secondsUnit'),
+              prefixIcon: const Icon(Icons.timer_outlined),
               helperText:
                   AppLocalizations.of(context).text('audioDurationRange'),
             ),
@@ -503,15 +511,19 @@ class _CaptureIntervalEditor extends StatelessWidget {
     required this.keyPrefix,
   });
 
-  String get _unitLabel => switch (unit) {
-    CaptureIntervalUnit.minutes => 'minutos',
-    CaptureIntervalUnit.hours => 'horas',
-    CaptureIntervalUnit.meters => 'metros',
-    CaptureIntervalUnit.kilometers => 'quilômetros',
-  };
+  String _unitLabel(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return switch (unit) {
+      CaptureIntervalUnit.minutes => l10n.text('minutesLower'),
+      CaptureIntervalUnit.hours => l10n.text('hoursLower'),
+      CaptureIntervalUnit.meters => l10n.text('metersLower'),
+      CaptureIntervalUnit.kilometers => l10n.text('kilometersLower'),
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -523,8 +535,8 @@ class _CaptureIntervalEditor extends StatelessWidget {
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             autovalidateMode: AutovalidateMode.onUserInteraction,
             decoration: InputDecoration(
-              labelText: 'A cada',
-              suffixText: _unitLabel,
+              labelText: l10n.text('everyIntervalLabel'),
+              suffixText: _unitLabel(context),
             ),
             validator: validator,
             onChanged: onValueChanged,
@@ -535,23 +547,23 @@ class _CaptureIntervalEditor extends StatelessWidget {
           child: DropdownButtonFormField<CaptureIntervalUnit>(
             key: ValueKey('$keyPrefix-capture-interval-unit'),
             initialValue: unit,
-            decoration: const InputDecoration(labelText: 'Unidade'),
+            decoration: InputDecoration(labelText: l10n.text('unitLabel')),
             items: [
               DropdownMenuItem(
                 value: CaptureIntervalUnit.minutes,
-                child: Text(AppLocalizations.of(context).text('minutes')),
+                child: Text(l10n.text('minutes')),
               ),
               DropdownMenuItem(
                 value: CaptureIntervalUnit.hours,
-                child: Text(AppLocalizations.of(context).text('hours')),
+                child: Text(l10n.text('hours')),
               ),
               DropdownMenuItem(
                 value: CaptureIntervalUnit.meters,
-                child: Text(AppLocalizations.of(context).text('meters')),
+                child: Text(l10n.text('meters')),
               ),
               DropdownMenuItem(
                 value: CaptureIntervalUnit.kilometers,
-                child: Text(AppLocalizations.of(context).text('kilometers')),
+                child: Text(l10n.text('kilometers')),
               ),
             ],
             onChanged: (value) {

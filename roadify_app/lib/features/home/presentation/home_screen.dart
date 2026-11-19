@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:battery_plus/battery_plus.dart';
+import 'package:drift/drift.dart' hide Column;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:roadify_app/l10n/app_localizations_catalog.dart';
@@ -12,6 +13,9 @@ import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/theme_controller.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/utils/snackbar_helper.dart';
+import '../../dados/presentation/dados_screen.dart';
+import '../../dados/services/run_export_service.dart';
+import '../../dados/viewmodel/dados_viewmodel.dart';
 import '../../veiculos/presentation/vehicle_ui_helper.dart';
 import '../../veiculos/viewmodels/vehicle_viewmodel.dart';
 import '../models/device_health_state.dart';
@@ -23,12 +27,18 @@ class _HomeRunItem {
   final String title;
   final String dateLabel;
   final String metrics;
+  final RunListItem runDetails;
+  final RunGpsCoordinatesSummary? demoCoordinates;
+  final String? demoVehicleLabel;
 
   const _HomeRunItem({
     this.id,
     required this.title,
     required this.dateLabel,
     required this.metrics,
+    required this.runDetails,
+    this.demoCoordinates,
+    this.demoVehicleLabel,
   });
 }
 
@@ -90,23 +100,101 @@ class _HomeScreenState extends State<HomeScreen> {
     _initStreams();
 
     _demoRuns = [
-      const _HomeRunItem(
+      _HomeRunItem(
         id: -1,
         title: 'BR-101 • Trecho Norte',
         dateLabel: 'Hoje, 09:24',
         metrics: '12,8 km • 48,2 MB • CSV ;',
+        runDetails: RunListItem(
+          id: -1,
+          title: 'BR-101 • Trecho Norte',
+          createdAt: DateTime(2026, 9, 14, 9, 24),
+          endedAt: DateTime(2026, 9, 14, 9, 42),
+          km: 12.8,
+          initialOdometer: 15420.0,
+          sizeMb: 48.2,
+          isFinished: true,
+          accelerometerSampleCount: 216000,
+          gpsPointCount: 640,
+          mediaCount: 4,
+          photoCount: 3,
+          videoCount: 1,
+          durationSeconds: 1080,
+          deviceManufacturer: 'Samsung',
+          deviceModel: 'SM-S936B',
+          initialBatteryPercent: 92,
+        ),
+        demoCoordinates: const RunGpsCoordinatesSummary(
+          startLatitude: -26.22861,
+          startLongitude: -52.67083,
+          endLatitude: -26.18420,
+          endLongitude: -52.60115,
+        ),
+        demoVehicleLabel: 'Toyota Hilux • ABC-1234',
       ),
-      const _HomeRunItem(
+      _HomeRunItem(
         id: -2,
         title: 'Av. Paulista • Leste',
         dateLabel: '12 set, 16:08',
         metrics: '4,6 km • 21,7 MB • CSV ;',
+        runDetails: RunListItem(
+          id: -2,
+          title: 'Av. Paulista • Leste',
+          createdAt: DateTime(2026, 9, 12, 16, 8),
+          endedAt: DateTime(2026, 9, 12, 16, 20),
+          km: 4.6,
+          initialOdometer: 15380.0,
+          sizeMb: 21.7,
+          isFinished: true,
+          accelerometerSampleCount: 144000,
+          gpsPointCount: 230,
+          mediaCount: 2,
+          photoCount: 2,
+          videoCount: 0,
+          durationSeconds: 720,
+          deviceManufacturer: 'Samsung',
+          deviceModel: 'SM-S936B',
+          initialBatteryPercent: 84,
+        ),
+        demoCoordinates: const RunGpsCoordinatesSummary(
+          startLatitude: -23.56141,
+          startLongitude: -46.65588,
+          endLatitude: -23.57030,
+          endLongitude: -46.64512,
+        ),
+        demoVehicleLabel: 'Toyota Hilux • ABC-1234',
       ),
-      const _HomeRunItem(
+      _HomeRunItem(
         id: -3,
         title: 'SP-270 • km 34-52',
         dateLabel: '10 set, 07:42',
         metrics: '18,1 km • 73,4 MB • CSV ;',
+        runDetails: RunListItem(
+          id: -3,
+          title: 'SP-270 • km 34-52',
+          createdAt: DateTime(2026, 9, 10, 7, 42),
+          endedAt: DateTime(2026, 9, 10, 8, 8),
+          km: 18.1,
+          initialOdometer: 15210.0,
+          sizeMb: 73.4,
+          isFinished: true,
+          accelerometerSampleCount: 312000,
+          gpsPointCount: 905,
+          mediaCount: 6,
+          photoCount: 5,
+          videoCount: 1,
+          durationSeconds: 1560,
+          deviceManufacturer: 'Samsung',
+          deviceModel: 'SM-S936B',
+          initialBatteryPercent: 96,
+        ),
+        demoCoordinates: const RunGpsCoordinatesSummary(
+          startLatitude: -23.51240,
+          startLongitude: -47.45210,
+          endLatitude: -23.48890,
+          endLongitude: -47.31050,
+        ),
+        demoVehicleLabel: 'Toyota Hilux • ABC-1234',
       ),
     ];
   }
@@ -419,9 +507,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                     const SizedBox(height: AppDimensions.space12),
-                    const Text(
-                      'Iniciar Nova Vistoria',
-                      style: TextStyle(
+                    Text(
+                      AppLocalizations.of(context).text('startNewInspection'),
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
@@ -495,7 +583,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
               const SizedBox(height: AppDimensions.space24),
 
-              // --- Seção: Últimas Coletas ---
+              // --- Seção: Últimas Coletas (somente as 3 últimas) ---
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
@@ -510,7 +598,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: AppDimensions.space8),
                   Text(
-                    'Recentes',
+                    AppLocalizations.of(context).text('recentLabel'),
                     style: typography.bodySmall?.copyWith(
                       color: colors.primary,
                     ),
@@ -519,22 +607,55 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(height: AppDimensions.space12),
 
-              // Renderiza coletas reativas do banco Drift ou coletas de demonstração
+              // Renderiza as 3 últimas coletas reativas do banco Drift ou coletas de demonstração
               if (_dao != null)
                 StreamBuilder<List<Run>>(
                   stream: _runsStream ?? _dao!.watchAllRuns(),
                   builder: (context, snapshot) {
                     final dbRuns = snapshot.data;
                     if (dbRuns != null && dbRuns.isNotEmpty) {
-                      final items = dbRuns.take(5).map((r) {
+                      final l10n = AppLocalizations.of(context);
+                      final items = dbRuns.take(3).map((r) {
                         final dateStr =
                             '${r.recordedAt.day.toString().padLeft(2, '0')}/${r.recordedAt.month.toString().padLeft(2, '0')} ${r.recordedAt.hour.toString().padLeft(2, '0')}:${r.recordedAt.minute.toString().padLeft(2, '0')}';
+                        final title =
+                            (r.title?.trim().isNotEmpty ?? false)
+                            ? r.title!.trim()
+                            : l10n
+                                  .text('testRunNumber')
+                                  .replaceAll('{id}', '${r.id}');
+                        final dataBytes =
+                            (r.accelerometerSampleCount * 64) +
+                            (r.gpsPointCount * 80) +
+                            (r.mediaCount * 512 * 1024);
+                        final runDetails = RunListItem(
+                          id: r.id,
+                          title: title,
+                          createdAt: r.recordedAt,
+                          endedAt: r.endedAt,
+                          km: r.distanceKm,
+                          initialOdometer: r.odometer,
+                          sizeMb: dataBytes / (1024 * 1024),
+                          isFinished: r.endedAt != null,
+                          accelerometerSampleCount: r.accelerometerSampleCount,
+                          gpsPointCount: r.gpsPointCount,
+                          mediaCount: r.mediaCount,
+                          photoCount: r.mediaCount,
+                          videoCount: 0,
+                          durationSeconds: r.durationSeconds,
+                          vehicleId: r.vehicleId,
+                          deviceManufacturer: r.deviceManufacturer,
+                          deviceModel: r.deviceModel,
+                          initialBatteryPercent: r.initialBatteryPercent,
+                          notes: r.notes,
+                        );
                         return _HomeRunItem(
                           id: r.id,
-                          title: r.title ?? 'Ensaio #${r.id}',
+                          title: title,
                           dateLabel: dateStr,
                           metrics:
-                              '${r.distanceKm.toStringAsFixed(1)} km • Odômetro: ${r.odometer.toStringAsFixed(0)} km',
+                              '${r.distanceKm.toStringAsFixed(1)} km • ${l10n.text('odometerShort')}: ${r.odometer.toStringAsFixed(0)} km',
+                          runDetails: runDetails,
                         );
                       }).toList();
 
@@ -544,13 +665,16 @@ class _HomeScreenState extends State<HomeScreen> {
                             padding: const EdgeInsets.only(
                               bottom: AppDimensions.space12,
                             ),
-                            child: _ColetaCard(item: item),
+                            child: _ColetaCard(
+                              item: item,
+                              onTap: () => _openRunDetailsModal(item),
+                            ),
                           );
                         }).toList(),
                       );
                     }
 
-                    // Se banco estiver vazio, exibe as coletas demo
+                    // Se banco estiver vazio, exibe as 3 coletas demo
                     return _buildDemoRunsList();
                   },
                 )
@@ -563,13 +687,121 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Future<RunGpsCoordinatesSummary> _fetchRunGpsCoordinates(
+    _HomeRunItem item,
+  ) async {
+    if (item.demoCoordinates != null) return item.demoCoordinates!;
+    final runId = item.id;
+    final dao = _dao;
+    if (runId == null || runId <= 0 || dao == null) {
+      return const RunGpsCoordinatesSummary();
+    }
+    try {
+      final db = dao.attachedDatabase;
+      final firstPoint =
+          await (db.select(db.gpsPointsTable)
+                ..where((t) => t.runId.equals(runId))
+                ..orderBy([
+                  (t) => OrderingTerm(
+                    expression: t.recordedAt,
+                    mode: OrderingMode.asc,
+                  ),
+                  (t) => OrderingTerm(expression: t.id, mode: OrderingMode.asc),
+                ])
+                ..limit(1))
+              .getSingleOrNull();
+
+      final lastPoint =
+          await (db.select(db.gpsPointsTable)
+                ..where((t) => t.runId.equals(runId))
+                ..orderBy([
+                  (t) => OrderingTerm(
+                    expression: t.recordedAt,
+                    mode: OrderingMode.desc,
+                  ),
+                  (t) =>
+                      OrderingTerm(expression: t.id, mode: OrderingMode.desc),
+                ])
+                ..limit(1))
+              .getSingleOrNull();
+
+      return RunGpsCoordinatesSummary(
+        startLatitude: firstPoint?.latitude,
+        startLongitude: firstPoint?.longitude,
+        endLatitude: lastPoint?.latitude,
+        endLongitude: lastPoint?.longitude,
+      );
+    } catch (_) {
+      return const RunGpsCoordinatesSummary();
+    }
+  }
+
+  Future<String?> _fetchRunVehicleLabel(_HomeRunItem item) async {
+    if (item.demoVehicleLabel != null) return item.demoVehicleLabel;
+    final vehicleId = item.runDetails.vehicleId;
+    final dao = _dao;
+    if (vehicleId == null || dao == null) return null;
+    try {
+      final v = await dao.attachedDatabase.vehicleDao.getVehicleById(vehicleId);
+      final plate = v.licensePlate.trim();
+      return plate.isEmpty ? v.name : '${v.name} • $plate';
+    } catch (_) {
+      return null;
+    }
+  }
+
+  Future<void> _exportRunFromHome(RunListItem run) async {
+    if (run.id <= 0) return;
+    final dao = _dao;
+    final exportService = getIt.isRegistered<RunExportService>()
+        ? getIt<RunExportService>()
+        : (dao != null ? RunExportService(dao.attachedDatabase) : null);
+    if (exportService == null) return;
+
+    try {
+      final savedPath = await exportService.exportRun(run.id);
+      if (!mounted || savedPath == null) return;
+      SnackbarHelper.showSuccess(
+        context,
+        message: AppLocalizations.of(context)
+            .text('zipSavedSuccess')
+            .replaceAll('{title}', run.title),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      SnackbarHelper.showError(
+        context,
+        message: AppLocalizations.of(context)
+            .text('exportRunError')
+            .replaceAll('{error}', '$e'),
+      );
+    }
+  }
+
+  void _openRunDetailsModal(_HomeRunItem item) {
+    unawaited(HapticFeedback.selectionClick());
+    final gpsFuture = _fetchRunGpsCoordinates(item);
+    final vehicleFuture = _fetchRunVehicleLabel(item);
+
+    RunDetailsBottomSheet.show(
+      context,
+      run: item.runDetails,
+      gpsCoordinatesFuture: gpsFuture,
+      vehicleLabelFuture: vehicleFuture,
+      onExport: () => _exportRunFromHome(item.runDetails),
+    );
+  }
+
   Widget _buildStorageCard(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
     final dao = _dao;
     if (dao == null) {
       return _buildStorageCardContent(
         context,
-        usedLabel: '143,3 MB usados',
-        runsCountLabel: '4 coletas armazenadas',
+        usedLabel: l10n.text('storageUsedMb').replaceAll('{mb}', '143,3'),
+        runsCountLabel: l10n
+            .text('storedMultipleRuns')
+            .replaceAll('{count}', '4'),
         progressValue: 0.18,
       );
     }
@@ -581,8 +813,10 @@ class _HomeScreenState extends State<HomeScreen> {
         if (dbRuns == null || dbRuns.isEmpty) {
           return _buildStorageCardContent(
             context,
-            usedLabel: '143,3 MB usados',
-            runsCountLabel: '4 coletas armazenadas',
+            usedLabel: l10n.text('storageUsedMb').replaceAll('{mb}', '143,3'),
+            runsCountLabel: l10n
+                .text('storedMultipleRuns')
+                .replaceAll('{count}', '4'),
             progressValue: 0.18,
           );
         }
@@ -598,13 +832,17 @@ class _HomeScreenState extends State<HomeScreen> {
         final formattedMb = totalMb.toStringAsFixed(1).replaceAll('.', ',');
         final count = dbRuns.length;
         final runsLabel = count == 1
-            ? '1 coleta armazenada'
-            : '$count coletas armazenadas';
+            ? l10n.text('storedSingleRun')
+            : l10n
+                  .text('storedMultipleRuns')
+                  .replaceAll('{count}', '$count');
         final progress = (totalMb / 1024.0).clamp(0.02, 1.0);
 
         return _buildStorageCardContent(
           context,
-          usedLabel: '$formattedMb MB usados',
+          usedLabel: l10n
+              .text('storageUsedMb')
+              .replaceAll('{mb}', formattedMb),
           runsCountLabel: runsLabel,
           progressValue: progress,
         );
@@ -691,10 +929,13 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildDemoRunsList() {
     return Column(
-      children: _demoRuns.map((item) {
+      children: _demoRuns.take(3).map((item) {
         return Padding(
           padding: const EdgeInsets.only(bottom: AppDimensions.space12),
-          child: _ColetaCard(item: item),
+          child: _ColetaCard(
+            item: item,
+            onTap: () => _openRunDetailsModal(item),
+          ),
         );
       }).toList(),
     );
@@ -841,7 +1082,7 @@ class _BatteryHealthCard extends StatelessWidget {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'Bateria',
+                  AppLocalizations.of(context).text('batteryTitle'),
                   style: typography.labelMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -866,7 +1107,7 @@ class _BatteryHealthCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
-              state.chargingStatusLabel,
+              state.localizedChargingStatus(context),
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
@@ -919,7 +1160,7 @@ class _GpsHealthCard extends StatelessWidget {
               const SizedBox(width: 6),
               Expanded(
                 child: Text(
-                  'Sinal GPS',
+                  AppLocalizations.of(context).text('gpsSignalTitle'),
                   style: typography.labelMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -930,7 +1171,7 @@ class _GpsHealthCard extends StatelessWidget {
           ),
           const SizedBox(height: AppDimensions.space8),
           Text(
-            state.gpsUncertaintyLabel,
+            state.localizedGpsUncertainty(context),
             style: typography.titleMedium?.copyWith(
               fontWeight: FontWeight.w800,
               color: colors.onSurface,
@@ -945,7 +1186,9 @@ class _GpsHealthCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(6),
             ),
             child: Text(
-              'Sinal: ${quality.label}',
+              AppLocalizations.of(context)
+                  .text('gpsSignalQualityLabel')
+                  .replaceAll('{quality}', quality.localizedLabel(context)),
               style: TextStyle(
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
@@ -960,52 +1203,70 @@ class _GpsHealthCard extends StatelessWidget {
   }
 }
 
-/// Card de Coleta Individual na HomeScreen.
+/// Card de Coleta Individual na HomeScreen (clicável para abrir o modal de detalhes).
 class _ColetaCard extends StatelessWidget {
   final _HomeRunItem item;
+  final VoidCallback onTap;
 
-  const _ColetaCard({required this.item});
+  const _ColetaCard({required this.item, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
     final typography = context.typography;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(AppDimensions.space16),
-      decoration: BoxDecoration(
-        color: colors.surface,
+    return Material(
+      color: colors.surface,
+      shape: RoundedRectangleBorder(
         borderRadius: AppDimensions.borderRadiusCard,
-        border: Border.all(color: colors.outlineVariant, width: 1.2),
+        side: BorderSide(color: colors.outlineVariant, width: 1.2),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            item.title,
-            style: typography.titleMedium?.copyWith(
-              fontWeight: FontWeight.w700,
-            ),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        key: ValueKey('home-run-card-${item.id}'),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(AppDimensions.space16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.title,
+                      style: typography.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  Icon(
+                    Icons.chevron_right_rounded,
+                    color: colors.onSurfaceVariant,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 4),
+              // Data e Hora
+              Text(
+                item.dateLabel,
+                style: typography.bodySmall?.copyWith(
+                  color: colors.onSurfaceVariant,
+                ),
+              ),
+              const SizedBox(height: 8),
+              // Métricas do Ensaio
+              Text(
+                item.metrics,
+                style: typography.bodySmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                  color: colors.onSurface,
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 4),
-          // Data e Hora
-          Text(
-            item.dateLabel,
-            style: typography.bodySmall?.copyWith(
-              color: colors.onSurfaceVariant,
-            ),
-          ),
-          const SizedBox(height: 8),
-          // Métricas do Ensaio
-          Text(
-            item.metrics,
-            style: typography.bodySmall?.copyWith(
-              fontWeight: FontWeight.w600,
-              color: colors.onSurface,
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }

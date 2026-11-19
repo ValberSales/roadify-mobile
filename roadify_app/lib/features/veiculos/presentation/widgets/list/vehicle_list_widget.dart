@@ -129,7 +129,8 @@ class VehicleListWidget extends StatelessWidget {
                             ),
                           if (vehicle.isDefault)
                             _VehicleDetail(
-                              label: 'VEÍCULO PADRÃO',
+                              label: AppLocalizations.of(context)
+                                  .text('defaultVehicleBadge'),
                               background: colors.primaryContainer,
                               foreground: colors.onPrimaryContainer,
                               emphasized: true,

@@ -281,4 +281,73 @@ void main() {
       await tester.pump(const Duration(milliseconds: 1));
     },
   );
+
+  testWidgets(
+    'HomeScreen: exibe somente as 3 últimas coletas e abre o modal de detalhes ao clicar em uma coleta',
+    (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final db = AppDatabase.forTesting(NativeDatabase.memory());
+      addTearDown(db.close);
+
+      // Insere 5 coletas em datas crescentes
+      for (var i = 1; i <= 5; i++) {
+        await db.runDao.insertRun(
+          RunsTableCompanion.insert(
+            title: Value('Rodovia Teste #$i'),
+            recordedAt: Value(DateTime(2026, 11, 10 + i, 10, 0)),
+            endedAt: Value(DateTime(2026, 11, 10 + i, 10, 30)),
+            odometer: Value(10000.0 + i * 100),
+            distanceKm: Value(10.0 + i),
+            durationSeconds: const Value(1800),
+            accelerometerSampleCount: const Value(50000),
+            gpsPointCount: const Value(500),
+          ),
+        );
+      }
+
+      final controller = ThemeController();
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: HomeScreen(
+            themeController: controller,
+            onStartCollection: () {},
+            runDao: db.runDao,
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      // Somente as 3 últimas coletas (#5, #4, #3) devem ser exibidas
+      expect(find.text('Rodovia Teste #5'), findsOneWidget);
+      expect(find.text('Rodovia Teste #4'), findsOneWidget);
+      expect(find.text('Rodovia Teste #3'), findsOneWidget);
+      expect(find.text('Rodovia Teste #2'), findsNothing);
+      expect(find.text('Rodovia Teste #1'), findsNothing);
+
+      // Ao clicar em uma coleta, abre o modal correspondente com os detalhes daquela coleta
+      final targetCard = find.text('Rodovia Teste #5');
+      await tester.ensureVisible(targetCard);
+      await tester.tap(targetCard);
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('run-details-bottom-sheet')),
+        findsOneWidget,
+      );
+      expect(find.text('Odômetro e Distância'), findsOneWidget);
+      expect(find.text('10500,0 km'), findsOneWidget);
+      expect(find.text('15,0 km'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('close-run-details-button')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('run-details-bottom-sheet')),
+        findsNothing,
+      );
+
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump(const Duration(milliseconds: 1));
+    },
+  );
 }

@@ -11,14 +11,17 @@ import '../services/run_export_service.dart';
 import '../viewmodel/dados_viewmodel.dart';
 
 enum _SortOption {
-  data('Data de criação', Icons.calendar_today_outlined),
-  quilometragem('Quilometragem', Icons.route_outlined),
-  alfabetica('Ordem alfabética', Icons.sort_by_alpha_rounded),
-  tamanho('Tamanho do arquivo', Icons.sd_storage_outlined);
+  data('sortCreationDate', Icons.calendar_today_outlined),
+  quilometragem('sortMileage', Icons.route_outlined),
+  alfabetica('sortAlphabetical', Icons.sort_by_alpha_rounded),
+  tamanho('sortFileSize', Icons.sd_storage_outlined);
 
-  const _SortOption(this.label, this.icon);
-  final String label;
+  const _SortOption(this.labelKey, this.icon);
+  final String labelKey;
   final IconData icon;
+
+  String localizedLabel(BuildContext context) =>
+      AppLocalizations.of(context).text(labelKey);
 }
 
 String _normalize(String input) {
@@ -67,13 +70,17 @@ class _DadosScreenState extends State<DadosScreen> {
       if (!mounted || savedPath == null) return; // null = usuário cancelou
       SnackbarHelper.showSuccess(
         context,
-        message: 'ZIP de "${run.title}" salvo no dispositivo.',
+        message: AppLocalizations.of(context)
+            .text('zipSavedSuccess')
+            .replaceAll('{title}', run.title),
       );
     } catch (e) {
       if (!mounted) return;
       SnackbarHelper.showError(
         context,
-        message: 'Falha ao exportar a coleta: $e',
+        message: AppLocalizations.of(context)
+            .text('exportRunError')
+            .replaceAll('{error}', '$e'),
       );
     }
   }
@@ -82,26 +89,12 @@ class _DadosScreenState extends State<DadosScreen> {
     final gpsFuture = _viewModel.getRunGpsCoordinates(run.id);
     final vehicleFuture = _viewModel.getRunVehicleLabel(run.vehicleId);
 
-    showModalBottomSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      useSafeArea: true,
-      showDragHandle: true,
-      backgroundColor: context.colors.surface,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      builder: (modalContext) {
-        return _RunDetailsBottomSheet(
-          run: run,
-          gpsCoordinatesFuture: gpsFuture,
-          vehicleLabelFuture: vehicleFuture,
-          onExport: () {
-            Navigator.of(modalContext).pop();
-            _exportRun(run);
-          },
-        );
-      },
+    RunDetailsBottomSheet.show(
+      context,
+      run: run,
+      gpsCoordinatesFuture: gpsFuture,
+      vehicleLabelFuture: vehicleFuture,
+      onExport: () => _exportRun(run),
     );
   }
 
@@ -198,7 +191,10 @@ class _DadosScreenState extends State<DadosScreen> {
         ),
         children: [
           Text(
-            '${allRuns.length} coletas • ${formatDecimal(_viewModel.totalMb)} MB no dispositivo',
+            AppLocalizations.of(context)
+                .text('runsSummaryHeader')
+                .replaceAll('{count}', '${allRuns.length}')
+                .replaceAll('{mb}', formatDecimal(_viewModel.totalMb)),
             style: typography.bodyMedium,
           ),
           const SizedBox(height: AppDimensions.space12),
@@ -239,7 +235,7 @@ class _DadosScreenState extends State<DadosScreen> {
                         ? Icon(Icons.check_rounded, color: colors.primary)
                         : null,
                     onPressed: () => setState(() => _sort = option),
-                    child: Text(option.label),
+                    child: Text(option.localizedLabel(context)),
                   ),
               ],
               builder: (context, controller, _) {
@@ -268,8 +264,8 @@ class _DadosScreenState extends State<DadosScreen> {
               child: Center(
                 child: Text(
                   allRuns.isEmpty
-                      ? 'Nenhuma coleta gravada ainda. Inicie uma na aba Coleta.'
-                      : 'Nenhuma coleta encontrada.',
+                      ? AppLocalizations.of(context).text('noRunsRecordedYet')
+                      : AppLocalizations.of(context).text('noRunsFound'),
                   style: typography.bodyMedium,
                   textAlign: TextAlign.center,
                 ),
@@ -306,10 +302,13 @@ class _DadosScreenState extends State<DadosScreen> {
                   color: qualityColors.boa,
                 ),
                 const SizedBox(width: AppDimensions.space12),
-                const Expanded(
+                Expanded(
                   child: Text(
-                    'Coletas salvas localmente no dispositivo e prontas para exportação em ZIP.',
-                    style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
+                    AppLocalizations.of(context).text('savedRunsDescription'),
+                    style: const TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                    ),
                   ),
                 ),
               ],
@@ -400,7 +399,12 @@ class _RunItemCard extends StatelessWidget {
                           : const Icon(Icons.download_rounded, size: 16),
                       label: Text(
                         isExporting
-                            ? 'Exportando ${((exportProgress ?? 0) * 100).round()}%'
+                            ? AppLocalizations.of(context)
+                                  .text('exportingProgress')
+                                  .replaceAll(
+                                    '{percent}',
+                                    '${((exportProgress ?? 0) * 100).round()}',
+                                  )
                             : AppLocalizations.of(context).text('exportZip'),
                       ),
                       style: OutlinedButton.styleFrom(
@@ -422,18 +426,49 @@ class _RunItemCard extends StatelessWidget {
 ///
 /// Exibe detalhadamente odômetro inicial/final, distância percorrida,
 /// coordenadas GPS (inicial e final), data/hora e amostras coletadas.
-class _RunDetailsBottomSheet extends StatelessWidget {
+class RunDetailsBottomSheet extends StatelessWidget {
   final RunListItem run;
   final Future<RunGpsCoordinatesSummary> gpsCoordinatesFuture;
   final Future<String?> vehicleLabelFuture;
   final VoidCallback onExport;
 
-  const _RunDetailsBottomSheet({
+  const RunDetailsBottomSheet({
+    super.key,
     required this.run,
     required this.gpsCoordinatesFuture,
     required this.vehicleLabelFuture,
     required this.onExport,
   });
+
+  static Future<void> show(
+    BuildContext context, {
+    required RunListItem run,
+    required Future<RunGpsCoordinatesSummary> gpsCoordinatesFuture,
+    required Future<String?> vehicleLabelFuture,
+    required VoidCallback onExport,
+  }) {
+    return showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      backgroundColor: context.colors.surface,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (modalContext) {
+        return RunDetailsBottomSheet(
+          run: run,
+          gpsCoordinatesFuture: gpsCoordinatesFuture,
+          vehicleLabelFuture: vehicleLabelFuture,
+          onExport: () {
+            Navigator.of(modalContext).pop();
+            onExport();
+          },
+        );
+      },
+    );
+  }
 
   String _formatEndedAt(BuildContext context, DateTime? endedAt) =>
       endedAt == null
@@ -519,10 +554,13 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                             color: colors.onSurfaceVariant,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            '${run.dateLabel} • Duração: ${_formatDuration(run.durationSeconds)}',
-                            style: typography.bodySmall?.copyWith(
-                              color: colors.onSurfaceVariant,
+                          Flexible(
+                            child: Text(
+                              '${run.dateLabel} • ${AppLocalizations.of(context).text('durationLabel')}: ${_formatDuration(run.durationSeconds)}',
+                              style: typography.bodySmall?.copyWith(
+                                color: colors.onSurfaceVariant,
+                              ),
+                              overflow: TextOverflow.ellipsis,
                             ),
                           ),
                         ],
@@ -532,7 +570,7 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                 ),
                 IconButton(
                   key: const ValueKey('close-run-details-icon-button'),
-                  tooltip: 'Fechar detalhes',
+                  tooltip: AppLocalizations.of(context).text('closeDetailsTooltip'),
                   onPressed: () => Navigator.of(context).pop(),
                   icon: const Icon(Icons.close_rounded),
                 ),

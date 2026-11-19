@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/theme_extensions.dart';
 import '../../models/nivel_bolha_state.dart';
@@ -58,25 +59,35 @@ class TBubbleLevel extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                Row(
-                  children: [
-                    Icon(
-                      Icons.splitscreen_rounded,
-                      size: 18,
-                      color: isTotalLevel ? AppColors.success : AppColors.primary,
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'NÍVEL TUBULAR (T)',
-                      style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: 0.8,
-                        color: isTotalLevel ? AppColors.success : colors.onSurface,
+                Expanded(
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.splitscreen_rounded,
+                        size: 18,
+                        color: isTotalLevel
+                            ? AppColors.success
+                            : AppColors.primary,
                       ),
-                    ),
-                  ],
+                      const SizedBox(width: 6),
+                      Flexible(
+                        child: Text(
+                          AppLocalizations.of(context).text('tubularLevelHeader'),
+                          style: TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: 0.8,
+                            color: isTotalLevel
+                                ? AppColors.success
+                                : colors.onSurface,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
+                const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
@@ -84,7 +95,9 @@ class TBubbleLevel extends StatelessWidget {
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
-                    isTotalLevel ? 'NIVELADO' : 'AJUSTAR',
+                    isTotalLevel
+                        ? AppLocalizations.of(context).text('leveledUpper')
+                        : AppLocalizations.of(context).text('adjustUpper'),
                     style: TextStyle(
                       fontSize: 10,
                       fontWeight: FontWeight.w800,

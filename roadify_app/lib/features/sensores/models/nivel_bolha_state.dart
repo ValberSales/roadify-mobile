@@ -1,4 +1,6 @@
 import 'dart:math' as math;
+import 'package:flutter/widgets.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 
 /// Amostra instantânea de telemetria para os gráficos em tempo real ("Sinais ao Vivo").
 class SensorSignalSample {
@@ -36,6 +38,15 @@ enum BubbleDisplayMode {
 
   final String label;
   const BubbleDisplayMode(this.label);
+
+  String localizedLabel(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return switch (this) {
+      BubbleDisplayMode.auto => l10n.text('modeAuto'),
+      BubbleDisplayMode.circular2D => l10n.text('modeCircular2D'),
+      BubbleDisplayMode.tubularT => l10n.text('modeTubularT'),
+    };
+  }
 }
 
 /// Orientação física estimada ou detectada do smartphone.
@@ -48,6 +59,14 @@ enum DeviceOrientationMode {
 
   final String label;
   const DeviceOrientationMode(this.label);
+
+  String localizedLabel(BuildContext context) {
+    final l10n = AppLocalizations.of(context);
+    return switch (this) {
+      DeviceOrientationMode.horizontal => l10n.text('postureHorizontalTable'),
+      DeviceOrientationMode.vertical => l10n.text('postureVerticalMount'),
+    };
+  }
 }
 
 /// Estado imutável dos dados do Nível Bolha e Sensores em Tempo Real.

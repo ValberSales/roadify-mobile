@@ -107,7 +107,11 @@ class _ConfigScreenState extends State<ConfigScreen> {
               for (final hz in options)
                 ListTile(
                   leading: const Icon(Icons.speed_rounded),
-                  title: Text(hz == 200 ? '$hz Hz (Recomendado)' : '$hz Hz'),
+                  title: Text(
+                    hz == 200
+                        ? '$hz Hz (${AppLocalizations.of(context).text('recommended')})'
+                        : '$hz Hz',
+                  ),
                   trailing: _defaultAccelerometerHz == hz
                       ? Icon(Icons.check_rounded, color: context.colors.primary)
                       : null,
@@ -310,7 +314,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                         ),
                         subtitle: Text(
                           _defaultAccelerometerHz == 200
-                              ? '200 Hz (Recomendado)'
+                              ? '200 Hz (${AppLocalizations.of(context).text('recommended')})'
                               : '$_defaultAccelerometerHz Hz',
                         ),
                         trailing: const Icon(Icons.chevron_right_rounded),
@@ -339,8 +343,9 @@ class _ConfigScreenState extends State<ConfigScreen> {
   }
 
   Widget _buildDefaultVehicleSubtitle() {
+    final l10n = AppLocalizations.of(context);
     if (!getIt.isRegistered<VehicleViewModel>()) {
-      return Text(AppLocalizations.of(context).text('noVehicles'));
+      return Text(l10n.text('noVehicles'));
     }
     return StreamBuilder<Vehicle?>(
       stream:
@@ -348,15 +353,15 @@ class _ConfigScreenState extends State<ConfigScreen> {
           getIt<VehicleViewModel>().defaultVehicleStream,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return const Text('Não foi possível carregar o veículo padrão.');
+          return Text(l10n.text('defaultVehicleLoadError'));
         }
         if (snapshot.connectionState == ConnectionState.waiting &&
             !snapshot.hasData) {
-          return const Text('Carregando veículo...');
+          return Text(l10n.text('loadingVehicle'));
         }
         final vehicle = snapshot.data;
         if (vehicle == null) {
-          return Text(AppLocalizations.of(context).text('noVehicles'));
+          return Text(l10n.text('noVehicles'));
         }
         return Text('${vehicle.name} (${vehicle.licensePlate})');
       },

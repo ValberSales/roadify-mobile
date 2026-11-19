@@ -132,9 +132,11 @@ class _RecordedMediaPreviewDialogState
                         '${media.longitude!.toStringAsFixed(6)}',
             ),
             Text(
-              'Quilometragem estimada: ${media.odometerKm.toStringAsFixed(2)} km',
+              AppLocalizations.of(context)
+                  .text('estimatedMileageLabel')
+                  .replaceAll('{km}', media.odometerKm.toStringAsFixed(2)),
             ),
-            Text('Horário: $time'),
+            Text('${AppLocalizations.of(context).text('time')}$time'),
             const SizedBox(height: 6),
             Text(
               media.filePath.split(Platform.pathSeparator).last,
@@ -146,7 +148,7 @@ class _RecordedMediaPreviewDialogState
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(),
-          child: const Text('Fechar'),
+          child: Text(AppLocalizations.of(context).text('close')),
         ),
       ],
     );
@@ -154,14 +156,18 @@ class _RecordedMediaPreviewDialogState
 
   Widget _playbackControls() {
     if (_playbackError != null) {
-      return Text('Não foi possível abrir o arquivo: $_playbackError');
+      return Text(
+        '${AppLocalizations.of(context).text('closeFile')}$_playbackError',
+      );
     }
 
     return FutureBuilder<void>(
       future: _initialization,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Text('Não foi possível abrir o arquivo: ${snapshot.error}');
+          return Text(
+            '${AppLocalizations.of(context).text('closeFile')}${snapshot.error}',
+          );
         }
         if (snapshot.connectionState != ConnectionState.done) {
           return const SizedBox(

@@ -340,6 +340,10 @@ void main() {
     await waitForRecording(tester);
     expect(find.byKey(const ValueKey('floating-photo-action')), findsOneWidget);
     expect(find.byKey(const ValueKey('floating-video-action')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('floating-finish-action')),
+      findsOneWidget,
+    );
     final chartBottom = tester
         .getRect(find.byKey(const ValueKey('live-chart-accelerometer')))
         .bottom;

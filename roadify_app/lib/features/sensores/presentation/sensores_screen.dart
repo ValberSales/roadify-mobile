@@ -148,44 +148,63 @@ class _SensoresScreenState extends State<SensoresScreen>
                       child: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Row(
-                            children: [
-                              Icon(
-                                state.detectedOrientation ==
-                                        DeviceOrientationMode.horizontal
-                                    ? Icons.table_restaurant_rounded
-                                    : Icons.stay_current_portrait_rounded,
-                                size: 16,
-                                color: colors.primary,
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                'Postura: ${state.detectedOrientation.label}',
-                                style: TextStyle(
-                                  fontSize: 11.5,
-                                  fontWeight: FontWeight.w600,
-                                  color: colors.onSurface,
+                          Flexible(
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(
+                                  state.detectedOrientation ==
+                                          DeviceOrientationMode.horizontal
+                                      ? Icons.table_restaurant_rounded
+                                      : Icons.stay_current_portrait_rounded,
+                                  size: 16,
+                                  color: colors.primary,
                                 ),
-                              ),
-                            ],
+                                const SizedBox(width: 6),
+                                Flexible(
+                                  child: Text(
+                                    AppLocalizations.of(context)
+                                        .text('posturePrefix')
+                                        .replaceAll(
+                                          '{posture}',
+                                          state.detectedOrientation
+                                              .localizedLabel(context),
+                                        ),
+                                    style: TextStyle(
+                                      fontSize: 11.5,
+                                      fontWeight: FontWeight.w600,
+                                      color: colors.onSurface,
+                                    ),
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 8,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: colors.primary.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Text(
-                              AppLocalizations.of(context)
-                                  .text('view')
-                                  .replaceAll('{mode}', state.activeMode.label),
-                              style: TextStyle(
-                                fontSize: 10.5,
-                                fontWeight: FontWeight.w700,
-                                color: colors.primary,
+                          const SizedBox(width: 8),
+                          Flexible(
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 8,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: colors.primary.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(6),
+                              ),
+                              child: Text(
+                                AppLocalizations.of(context)
+                                    .text('view')
+                                    .replaceAll(
+                                      '{mode}',
+                                      state.activeMode.localizedLabel(context),
+                                    ),
+                                style: TextStyle(
+                                  fontSize: 10.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: colors.primary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
                           ),
@@ -226,7 +245,7 @@ class _SensoresScreenState extends State<SensoresScreen>
                       children: [
                         Expanded(
                           child: _AxisAngleCard(
-                            label: 'EIXO X (ROLL)',
+                            label: AppLocalizations.of(context).text('axisXRoll'),
                             subtitle: AppLocalizations.of(context).text('sideTilt'),
                             angle: state.calibratedAngleX,
                             isLevel: state.isLevelX,
@@ -235,7 +254,7 @@ class _SensoresScreenState extends State<SensoresScreen>
                         const SizedBox(width: AppDimensions.space12),
                         Expanded(
                           child: _AxisAngleCard(
-                            label: 'EIXO Y (PITCH)',
+                            label: AppLocalizations.of(context).text('axisYPitch'),
                             subtitle: AppLocalizations.of(context).text('frontTilt'),
                             angle: state.calibratedAngleY,
                             isLevel: state.isLevelY,
@@ -282,8 +301,10 @@ class _SensoresScreenState extends State<SensoresScreen>
                               children: [
                                 Text(
                                   state.isLevel
-                                      ? 'Smartphone Perfeitamente Nivelado!'
-                                      : AppLocalizations.of(context).text('misaligned'),
+                                      ? AppLocalizations.of(context)
+                                            .text('perfectlyLeveled')
+                                      : AppLocalizations.of(context)
+                                            .text('misaligned'),
                                   style: TextStyle(
                                     fontWeight: FontWeight.w700,
                                     fontSize: 13,
@@ -294,8 +315,10 @@ class _SensoresScreenState extends State<SensoresScreen>
                                 ),
                               Text(
                                 state.isLevel
-                                    ? 'Tolerância angular <= 0,5° atingida com sucesso.'
-                                    : 'Ajuste o suporte ou calibre a tara angular na posição atual.',
+                                    ? AppLocalizations.of(context)
+                                          .text('toleranceReachedMsg')
+                                    : AppLocalizations.of(context)
+                                          .text('adjustMountOrCalibrateMsg'),
                                 style: TextStyle(
                                   fontSize: 11,
                                   color: colors.onSurfaceVariant,
@@ -325,19 +348,22 @@ class _SensoresScreenState extends State<SensoresScreen>
                         unawaited(HapticFeedback.mediumImpact());
                         _viewModel.calibrate();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
+                          SnackBar(
                             content: Text(
-                              'Nível calibrado e zerado em 0,0°! Tara salva na sessão.',
+                              AppLocalizations.of(context)
+                                  .text('levelCalibratedToast'),
                             ),
                             behavior: SnackBarBehavior.floating,
-                            duration: Duration(seconds: 2),
+                            duration: const Duration(seconds: 2),
                           ),
                         );
                       },
                       child: Text(
                         state.isCalibrated
-                            ? 'Recalibrar Nível (Zerar Nível)'
-                            : 'Calibrar Nível (Zerar Nível)',
+                            ? AppLocalizations.of(context)
+                                  .text('recalibrateLevelZero')
+                            : AppLocalizations.of(context)
+                                  .text('calibrateLevelZero'),
                         style: const TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
@@ -352,16 +378,28 @@ class _SensoresScreenState extends State<SensoresScreen>
                         unawaited(HapticFeedback.lightImpact());
                         _viewModel.resetCalibration();
                         ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(
-                            content: Text('Tara angular removida.'),
+                          SnackBar(
+                            content: Text(
+                              AppLocalizations.of(context)
+                                  .text('tareRemovedToast'),
+                            ),
                             behavior: SnackBarBehavior.floating,
-                            duration: Duration(seconds: 2),
+                            duration: const Duration(seconds: 2),
                           ),
                         );
                       },
                       icon: const Icon(Icons.restart_alt_rounded, size: 18),
                       label: Text(
-                        'Remover Tara (Offsets: ${_formatSigned(state.calibOffsetX, decimals: 1)}° / ${_formatSigned(state.calibOffsetY, decimals: 1)}°)',
+                        AppLocalizations.of(context)
+                            .text('removeTareBtn')
+                            .replaceAll(
+                              '{offsetX}',
+                              _formatSigned(state.calibOffsetX, decimals: 1),
+                            )
+                            .replaceAll(
+                              '{offsetY}',
+                              _formatSigned(state.calibOffsetY, decimals: 1),
+                            ),
                       ),
                     ),
                   ],
@@ -369,7 +407,7 @@ class _SensoresScreenState extends State<SensoresScreen>
               ),
             ),
 
-            // Aba 2: Sinais ao Vivo (Sprint 4 — Osciloscópios com Buffer Circular de 50 Amostras e 60 FPS)
+            // Aba 2: Sinais ao Vivo (Janela Contínua de 1 Minuto / 60s)
             SingleChildScrollView(
               padding: const EdgeInsets.fromLTRB(
                 AppDimensions.space20,
@@ -381,7 +419,7 @@ class _SensoresScreenState extends State<SensoresScreen>
               ),
               child: Column(
                 children: [
-                  // Banner de Telemetria de Alta Performance (60 FPS & Buffer Circular 50 Amostras)
+                  // Banner de Telemetria (Janela Contínua de 1 Minuto)
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
@@ -408,7 +446,8 @@ class _SensoresScreenState extends State<SensoresScreen>
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Osciloscópio Contínuo • 60 FPS • Buffer Circular: 50 amostras',
+                            AppLocalizations.of(context)
+                                .text('continuousOscilloscopeBanner'),
                             style: TextStyle(
                               fontSize: 11.5,
                               fontWeight: FontWeight.w700,
@@ -422,9 +461,9 @@ class _SensoresScreenState extends State<SensoresScreen>
                             color: const Color(0xFF10B981).withValues(alpha: 0.15),
                             borderRadius: BorderRadius.circular(6),
                           ),
-                          child: const Text(
-                            'LIVE',
-                            style: TextStyle(
+                          child: Text(
+                            AppLocalizations.of(context).text('live'),
+                            style: const TextStyle(
                               fontSize: 9.5,
                               fontWeight: FontWeight.w800,
                               color: Color(0xFF10B981),
@@ -439,24 +478,26 @@ class _SensoresScreenState extends State<SensoresScreen>
                   // 1. SINAL DO ACELERÔMETRO (Eixos X, Y, Z com cores diferenciadas)
                   _SensorLiveCard(
                     key: const ValueKey('live-card-accelerometer'),
-                    title: 'Acelerômetro Triaxial (m/s²)',
-                    subtitle: 'Vibrações e aceleração instantânea da via',
+                    title: AppLocalizations.of(context)
+                        .text('triaxialAccelerometerTitle'),
+                    subtitle: AppLocalizations.of(context)
+                        .text('triaxialAccelerometerSubtitle'),
                     color: const Color(0xFF3B82F6),
                     footerBadges: [
                       _AxisPillBadge(
-                        label: 'Eixo X',
+                        label: AppLocalizations.of(context).text('axisX'),
                         value: _formatSigned(state.accelX),
                         unit: 'm/s²',
                         color: const Color(0xFFEF4444),
                       ),
                       _AxisPillBadge(
-                        label: 'Eixo Y',
+                        label: AppLocalizations.of(context).text('axisY'),
                         value: _formatSigned(state.accelY),
                         unit: 'm/s²',
                         color: const Color(0xFF10B981),
                       ),
                       _AxisPillBadge(
-                        label: 'Eixo Z',
+                        label: AppLocalizations.of(context).text('axisZ'),
                         value: _formatSigned(state.accelZ),
                         unit: 'm/s²',
                         color: const Color(0xFF3B82F6),
@@ -470,21 +511,24 @@ class _SensoresScreenState extends State<SensoresScreen>
                       unitLabel: 'm/s²',
                       series: [
                         _WaveformSeries(
-                          label: 'Eixo X (Lateral)',
+                          label: AppLocalizations.of(context)
+                              .text('axisXLateral'),
                           color: const Color(0xFFEF4444), // Vermelho
                           values: _viewModel.signalHistory
                               .map((s) => s.accelX)
                               .toList(growable: false),
                         ),
                         _WaveformSeries(
-                          label: 'Eixo Y (Longitudinal)',
+                          label: AppLocalizations.of(context)
+                              .text('axisYLongitudinal'),
                           color: const Color(0xFF10B981), // Verde
                           values: _viewModel.signalHistory
                               .map((s) => s.accelY)
                               .toList(growable: false),
                         ),
                         _WaveformSeries(
-                          label: 'Eixo Z (Vertical)',
+                          label: AppLocalizations.of(context)
+                              .text('axisZVertical'),
                           color: const Color(0xFF3B82F6), // Azul
                           values: _viewModel.signalHistory
                               .map((s) => s.accelZ)
@@ -498,24 +542,26 @@ class _SensoresScreenState extends State<SensoresScreen>
                   // 2. SINAL DO GIROSCÓPIO (Eixos X, Y, Z com cores diferenciadas)
                   _SensorLiveCard(
                     key: const ValueKey('live-card-gyroscope'),
-                    title: 'Giroscópio Triaxial (rad/s)',
-                    subtitle: 'Taxa de rotação angular e guinada do veículo',
+                    title: AppLocalizations.of(context)
+                        .text('triaxialGyroscopeTitle'),
+                    subtitle: AppLocalizations.of(context)
+                        .text('triaxialGyroscopeSubtitle'),
                     color: const Color(0xFF8B5CF6),
                     footerBadges: [
                       _AxisPillBadge(
-                        label: 'Giro X',
+                        label: AppLocalizations.of(context).text('gyroX'),
                         value: _formatSigned(state.gyroX),
                         unit: 'rad/s',
                         color: const Color(0xFFF59E0B),
                       ),
                       _AxisPillBadge(
-                        label: 'Giro Y',
+                        label: AppLocalizations.of(context).text('gyroY'),
                         value: _formatSigned(state.gyroY),
                         unit: 'rad/s',
                         color: const Color(0xFF8B5CF6),
                       ),
                       _AxisPillBadge(
-                        label: 'Giro Z',
+                        label: AppLocalizations.of(context).text('gyroZ'),
                         value: _formatSigned(state.gyroZ),
                         unit: 'rad/s',
                         color: const Color(0xFF06B6D4),
@@ -569,8 +615,10 @@ class _SensoresScreenState extends State<SensoresScreen>
                   // 4. INCLINAÇÃO COMPENSADA (ROLL E PITCH)
                   _SensorLiveCard(
                     key: const ValueKey('live-card-inclination'),
-                    title: 'Inclinação Compensada (Graus)',
-                    subtitle: 'Ângulos nivelados em relação à tara veicular',
+                    title: AppLocalizations.of(context)
+                        .text('compensatedInclinationTitle'),
+                    subtitle: AppLocalizations.of(context)
+                        .text('compensatedInclinationSubtitle'),
                     color: AppColors.secondary,
                     footerBadges: [
                       _AxisPillBadge(
@@ -615,10 +663,13 @@ class _SensoresScreenState extends State<SensoresScreen>
                   // 5. REFERÊNCIA DE TARA ANGULAR
                   _SensorLiveCard(
                     key: const ValueKey('live-card-tare'),
-                    title: 'Referência de Tara Angular',
+                    title: AppLocalizations.of(context)
+                        .text('angularTareReferenceTitle'),
                     subtitle: state.isCalibrated
-                        ? 'Tara de instalação ativa (compensa desnível do suporte)'
-                        : 'Padrão horizontal de fábrica',
+                        ? AppLocalizations.of(context)
+                              .text('activeMountTareSubtitle')
+                        : AppLocalizations.of(context)
+                              .text('factoryHorizontalDefaultSubtitle'),
                     color: context.roadQualityColors.boa,
                     footerBadges: [
                       _AxisPillBadge(
@@ -683,20 +734,30 @@ class _AxisPillBadge extends StatelessWidget {
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
           const SizedBox(width: 6),
-          Text(
-            '$label: ',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-          Text(
-            '$value $unit',
-            style: TextStyle(
-              fontSize: 11,
-              fontWeight: FontWeight.w800,
-              color: Theme.of(context).colorScheme.onSurface,
+          Flexible(
+            child: Text.rich(
+              TextSpan(
+                children: [
+                  TextSpan(
+                    text: '$label: ',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: color,
+                    ),
+                  ),
+                  TextSpan(
+                    text: '$value $unit',
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w800,
+                      color: Theme.of(context).colorScheme.onSurface,
+                    ),
+                  ),
+                ],
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -822,6 +883,7 @@ class _GpsTelemetryCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final typography = context.typography;
+    final l10n = AppLocalizations.of(context);
     const gpsColor = Color(0xFF0EA5E9);
 
     return Container(
@@ -838,18 +900,29 @@ class _GpsTelemetryCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  const Icon(Icons.satellite_alt_rounded, size: 20, color: gpsColor),
-                  const SizedBox(width: 8),
-                  Text(
-                    'GPS & Cinemática em Tempo Real',
-                    style: typography.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w700,
+              Expanded(
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.satellite_alt_rounded,
+                      size: 20,
+                      color: gpsColor,
                     ),
-                  ),
-                ],
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        l10n.text('gpsKinematicsRealtimeTitle'),
+                        style: typography.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ),
               ),
+              const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
@@ -858,7 +931,9 @@ class _GpsTelemetryCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  hasSignal ? 'SINAL OK' : 'LOCALIZAÇÃO',
+                  hasSignal
+                      ? l10n.text('gpsSignalOkUpper')
+                      : l10n.text('gpsLocationUpper'),
                   style: TextStyle(
                     fontSize: 9.5,
                     fontWeight: FontWeight.w800,
@@ -883,7 +958,7 @@ class _GpsTelemetryCard extends StatelessWidget {
                   child: Column(
                     children: [
                       Text(
-                        'Velocidade',
+                        l10n.text('speedLabel'),
                         style: TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w600,
@@ -920,7 +995,7 @@ class _GpsTelemetryCard extends StatelessWidget {
                   child: Column(
                     children: [
                       Text(
-                        'Altitude',
+                        l10n.text('altitudeLabel'),
                         style: TextStyle(
                           fontSize: 10.5,
                           fontWeight: FontWeight.w600,
@@ -937,7 +1012,12 @@ class _GpsTelemetryCard extends StatelessWidget {
                         ),
                       ),
                       Text(
-                        'Precisão: ±${accuracyMeters.toStringAsFixed(1)}m',
+                        l10n
+                            .text('accuracyPrefix')
+                            .replaceAll(
+                              '{accuracy}',
+                              accuracyMeters.toStringAsFixed(1),
+                            ),
                         style: TextStyle(
                           fontSize: 9.5,
                           color: colors.onSurfaceVariant,
@@ -961,15 +1041,20 @@ class _GpsTelemetryCard extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'Coordenadas:',
+                  l10n.text('coordinatesLabel'),
                   style: TextStyle(fontSize: 11, color: colors.onSurfaceVariant),
                 ),
-                Text(
-                  '${latitude.toStringAsFixed(5)}°, ${longitude.toStringAsFixed(5)}°',
-                  style: const TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    fontFamily: 'monospace',
+                const SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    '${latitude.toStringAsFixed(5)}°, ${longitude.toStringAsFixed(5)}°',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      fontFamily: 'monospace',
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.end,
                   ),
                 ),
               ],
@@ -981,7 +1066,7 @@ class _GpsTelemetryCard extends StatelessWidget {
   }
 }
 
-/// Gráfico temporal ao vivo (osciloscópio multicanal) renderizado via [CustomPaint].
+/// Gráfico temporal ao vivo (osciloscópio multicanal com janela contínua de 1 minuto) renderizado via [CustomPaint].
 class _LiveWaveformChart extends StatelessWidget {
   final List<_WaveformSeries> series;
   final int sampleTick;
@@ -1001,84 +1086,134 @@ class _LiveWaveformChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = context.colors;
+    final l10n = AppLocalizations.of(context);
 
     return Semantics(
       label:
           'Osciloscópio ao vivo (${series.map((s) => s.label).join(', ')})',
       child: Container(
         padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
-      decoration: BoxDecoration(
-        color: colors.surfaceContainerHighest.withValues(alpha: 0.35),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: colors.outlineVariant.withValues(alpha: 0.5)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Legenda dos eixos com cores diferenciadas
-          Wrap(
-            spacing: 12,
-            runSpacing: 4,
-            alignment: WrapAlignment.spaceBetween,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  for (var i = 0; i < series.length; i++) ...[
-                    if (i > 0) const SizedBox(width: 10),
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: series[i].color,
-                        shape: BoxShape.circle,
-                      ),
-                    ),
-                    const SizedBox(width: 4),
-                    Text(
-                      series[i].label,
-                      style: TextStyle(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w700,
-                        color: colors.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              Text(
-                '${minValue.toStringAsFixed(0)}$unitLabel a +${maxValue.toStringAsFixed(0)}$unitLabel',
-                style: TextStyle(
-                  fontSize: 10,
-                  color: colors.onSurfaceVariant.withValues(alpha: 0.75),
-                ),
-              ),
-            ],
+        decoration: BoxDecoration(
+          color: colors.surfaceContainerHighest.withValues(alpha: 0.35),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: colors.outlineVariant.withValues(alpha: 0.5),
           ),
-          const SizedBox(height: 6),
-          // Área de osciloscópio com RepaintBoundary para 60 FPS garantidos
-          SizedBox(
-            height: 110,
-            width: double.infinity,
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(6),
-              child: RepaintBoundary(
-                child: CustomPaint(
-                  painter: _LiveWaveformPainter(
-                    series: series,
-                    sampleTick: sampleTick,
-                    minValue: minValue,
-                    maxValue: maxValue,
-                    gridColor: colors.outlineVariant.withValues(alpha: 0.45),
-                    zeroLineColor: colors.onSurfaceVariant.withValues(alpha: 0.4),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Legenda dos eixos com Wrap individual por série para evitar RenderFlex overflow em telas estreitas
+            Wrap(
+              spacing: 10,
+              runSpacing: 4,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                for (var i = 0; i < series.length; i++)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 8,
+                        height: 8,
+                        decoration: BoxDecoration(
+                          color: series[i].color,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          series[i].label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: 10.5,
+                            fontWeight: FontWeight.w700,
+                            color: colors.onSurfaceVariant,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                Text(
+                  '${minValue.toStringAsFixed(0)}$unitLabel a +${maxValue.toStringAsFixed(0)}$unitLabel',
+                  style: TextStyle(
+                    fontSize: 10,
+                    color: colors.onSurfaceVariant.withValues(alpha: 0.75),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 6),
+            // Área de osciloscópio com RepaintBoundary e janela contínua de 1 minuto (60s)
+            SizedBox(
+              height: 110,
+              width: double.infinity,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: RepaintBoundary(
+                  child: CustomPaint(
+                    painter: _LiveWaveformPainter(
+                      series: series,
+                      sampleTick: sampleTick,
+                      windowCapacity: NivelBolhaViewModel.maxHistoryPoints,
+                      minValue: minValue,
+                      maxValue: maxValue,
+                      gridColor: colors.outlineVariant.withValues(alpha: 0.45),
+                      zeroLineColor: colors.onSurfaceVariant.withValues(
+                        alpha: 0.4,
+                      ),
+                    ),
                   ),
                 ),
               ),
             ),
-          ),
-        ],
-      ),
+            const SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '-60s',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    color: colors.onSurfaceVariant.withValues(alpha: 0.8),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '-30s',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    color: colors.onSurfaceVariant.withValues(alpha: 0.8),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Flexible(
+                  child: Text(
+                    l10n.text('timeWindow1MinLabel'),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 9.5,
+                      fontWeight: FontWeight.w600,
+                      color: colors.onSurfaceVariant.withValues(alpha: 0.9),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                Text(
+                  '0s',
+                  style: TextStyle(
+                    fontSize: 9.5,
+                    color: colors.onSurfaceVariant.withValues(alpha: 0.8),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1099,6 +1234,7 @@ class _WaveformSeries {
 class _LiveWaveformPainter extends CustomPainter {
   final List<_WaveformSeries> series;
   final int sampleTick;
+  final int windowCapacity;
   final double minValue;
   final double maxValue;
   final Color gridColor;
@@ -1107,6 +1243,7 @@ class _LiveWaveformPainter extends CustomPainter {
   const _LiveWaveformPainter({
     required this.series,
     required this.sampleTick,
+    this.windowCapacity = NivelBolhaViewModel.maxHistoryPoints,
     required this.minValue,
     required this.maxValue,
     required this.gridColor,
@@ -1133,10 +1270,15 @@ class _LiveWaveformPainter extends CustomPainter {
       );
     }
 
-    // Linhas verticais de grade com deslocamento contínuo (efeito osciloscópio em varredura)
+    // 6 divisões verticais de 10 segundos cada = janela de 60 segundos (1 minuto)
     const verticalDivisions = 6;
     final stepX = size.width / verticalDivisions;
-    final shift = (sampleTick % 10) / 10.0 * stepX;
+    final samplesPerDivision = math.max(
+      1,
+      windowCapacity ~/ verticalDivisions,
+    );
+    final shift =
+        (sampleTick % samplesPerDivision) / samplesPerDivision * stepX;
     for (var i = 0; i <= verticalDivisions + 1; i++) {
       final x = (i * stepX) - shift;
       if (x >= 0 && x <= size.width) {
@@ -1167,18 +1309,19 @@ class _LiveWaveformPainter extends CustomPainter {
       final linePaint = Paint()
         ..color = s.color
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.2
+        ..strokeWidth = 1.8
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round;
 
       final path = Path();
       final count = s.values.length;
+      final effectiveWindow = math.max(2, math.max(windowCapacity, count));
       Offset lastPoint = Offset.zero;
 
       for (var i = 0; i < count; i++) {
         final x = count == 1
             ? size.width
-            : (i / (count - 1)) * (size.width - 6);
+            : (i / (effectiveWindow - 1)) * (size.width - 6);
         final y = mapY(s.values[i]);
         final pt = Offset(x, y);
         if (i == 0) {
@@ -1207,6 +1350,7 @@ class _LiveWaveformPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _LiveWaveformPainter oldDelegate) {
     return oldDelegate.sampleTick != sampleTick ||
+        oldDelegate.windowCapacity != windowCapacity ||
         oldDelegate.series != series ||
         oldDelegate.minValue != minValue ||
         oldDelegate.maxValue != maxValue;
@@ -1240,14 +1384,18 @@ class _TareReferenceBarChart extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(
-              label,
-              style: TextStyle(
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
-                color: colors.onSurfaceVariant,
+            Flexible(
+              child: Text(
+                label,
+                style: TextStyle(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  color: colors.onSurfaceVariant,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
+            const SizedBox(width: 8),
             Text(
               '${offsetDeg >= 0 ? '+' : ''}${offsetDeg.toStringAsFixed(1)}°',
               style: TextStyle(
@@ -1311,6 +1459,7 @@ class _TareReferenceBarChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
     final goodColor = context.roadQualityColors.boa;
+    final l10n = AppLocalizations.of(context);
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -1323,14 +1472,14 @@ class _TareReferenceBarChart extends StatelessWidget {
         children: [
           _buildOffsetRow(
             context,
-            label: 'Compensação Eixo X (Roll)',
+            label: l10n.text('compensationAxisX'),
             offsetDeg: offsetX,
             color: goodColor,
           ),
           const SizedBox(height: 10),
           _buildOffsetRow(
             context,
-            label: 'Compensação Eixo Y (Pitch)',
+            label: l10n.text('compensationAxisY'),
             offsetDeg: offsetY,
             color: AppColors.secondary,
           ),
@@ -1374,11 +1523,17 @@ class _AxisAngleCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Text(
-                label,
-                style: typography.labelMedium?.copyWith(
-                  fontWeight: FontWeight.w700,
-                  color: isLevel ? AppColors.success : colors.onSurfaceVariant,
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: typography.labelMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                    color: isLevel
+                        ? AppColors.success
+                        : colors.onSurfaceVariant,
+                  ),
                 ),
               ),
               if (isLevel) ...[
