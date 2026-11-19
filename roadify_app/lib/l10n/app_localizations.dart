@@ -5,9 +5,12 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart' as intl;
 
+import 'app_localizations_catalog.dart';
 import 'app_localizations_en.dart';
 import 'app_localizations_es.dart';
 import 'app_localizations_pt.dart';
+
+export 'app_localizations_catalog.dart';
 
 // ignore_for_file: type=lint
 
@@ -175,7 +178,7 @@ abstract class AppLocalizations {
   String get recordingsTitle;
 
   /// Returns a localized visible UI string by catalog key.
-  String text(String key);
+  String text(String key) => AppLocalizationsCatalog.lookup(localeName, key);
 }
 
 class _AppLocalizationsDelegate

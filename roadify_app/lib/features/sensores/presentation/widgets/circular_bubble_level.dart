@@ -43,8 +43,13 @@ class CircularBubbleLevel extends StatelessWidget {
       targetOffsetY *= ratio;
     }
 
-    return Center(
-      child: Container(
+    return Semantics(
+      label: 'Nível Bolha Circular 2D',
+      value: isLevel
+          ? 'Nivelado (${state.totalInclination.toStringAsFixed(1)}°)'
+          : 'Inclinação ${state.totalInclination.toStringAsFixed(1)}° (Roll ${state.calibratedAngleX.toStringAsFixed(1)}°, Pitch ${state.calibratedAngleY.toStringAsFixed(1)}°)',
+      child: Center(
+        child: Container(
         width: containerSize,
         height: containerSize,
         decoration: BoxDecoration(
@@ -220,6 +225,7 @@ class CircularBubbleLevel extends StatelessWidget {
             ],
           ),
         ),
+      ),
       ),
     );
   }

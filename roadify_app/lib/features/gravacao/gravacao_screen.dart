@@ -4,6 +4,7 @@ import 'package:battery_plus/battery_plus.dart';
 import 'package:camera/camera.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../l10n/app_localizations.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:path/path.dart' as path;
@@ -21,6 +22,7 @@ import 'services/sensor_sampling_isolate.dart';
 import 'services/sensor_trace_buffer.dart';
 import 'widgets/audio_recording_indicator.dart';
 import 'widgets/recorded_media_preview.dart';
+import 'widgets/recording_telemetry_widgets.dart';
 
 /// Tela de Gravação e Telemetria em Pista (Cockpit HUD — RF04).
 ///
@@ -1253,6 +1255,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
   }
 
   Future<void> _confirmarFinalizacao() async {
+    unawaited(HapticFeedback.mediumImpact());
     final config = widget.configuracao;
     final collectionName = config.nomeColeta?.trim().isNotEmpty == true
         ? config.nomeColeta!.trim()
@@ -1727,94 +1730,12 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
   }
 
   Widget _buildAccelerometerChart(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final typography = Theme.of(context).textTheme;
-
-    return Container(
-      key: const ValueKey('live-chart-accelerometer'),
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colors.surface,
-        borderRadius: AppDimensions.borderRadiusCard,
-        border: Border.all(color: colors.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  Icon(
-                    Icons.show_chart_rounded,
-                    size: 18,
-                    color: colors.primary,
-                  ),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Acelerômetro ao Vivo',
-                    style: typography.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w700,
-                    ),
-                  ),
-                ],
-              ),
-              ValueListenableBuilder<int>(
-                valueListenable: _telemetryRevision,
-                builder: (context, _, _) => Row(
-                  children: [
-                    _AxisValueBadge(
-                      label: 'X',
-                      value: _currentX,
-                      color: const Color(0xFF10B981),
-                    ),
-                    const SizedBox(width: 6),
-                    _AxisValueBadge(
-                      label: 'Y',
-                      value: _currentY,
-                      color: const Color(0xFF06B6D4),
-                    ),
-                    const SizedBox(width: 6),
-                    _AxisValueBadge(
-                      label: 'Z',
-                      value: _currentZ,
-                      color: const Color(0xFFF59E0B),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          ValueListenableBuilder<int>(
-            valueListenable: _telemetryRevision,
-            builder: (context, _, _) => SizedBox(
-              height: 150,
-              width: double.infinity,
-              child: RepaintBoundary(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: CustomPaint(
-                    painter: _OscilloscopePainter(
-                      bufferX: _sensorTrace.xSamples,
-                      bufferY: _sensorTrace.ySamples,
-                      bufferZ: _sensorTrace.zSamples,
-                      colorX: const Color(0xFF10B981),
-                      colorY: const Color(0xFF06B6D4),
-                      colorZ: const Color(0xFFF59E0B),
-                      gridColor: colors.outlineVariant.withValues(alpha: 0.5),
-                      backgroundColor: context.isDarkMode
-                          ? const Color(0xFF0D1F18)
-                          : const Color(0xFFF1F5F3),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return RecordingAccelerometerChart(
+      telemetryRevision: _telemetryRevision,
+      sensorTrace: _sensorTrace,
+      currentX: () => _currentX,
+      currentY: () => _currentY,
+      currentZ: () => _currentZ,
     );
   }
 
@@ -1921,7 +1842,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                     const Spacer(),
                     ValueListenableBuilder<int>(
                       valueListenable: _telemetryRevision,
-                      builder: (context, _, _) => _StickyMetric(
+                      builder: (context, _, _) => StickyMetric(
                         label: 'VELOCIDADE GPS',
                         value:
                             _lastPosition?.speed.isFinite == true &&
@@ -1935,7 +1856,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                     const SizedBox(width: 14),
                     ValueListenableBuilder<int>(
                       valueListenable: _telemetryRevision,
-                      builder: (context, _, _) => _StickyMetric(
+                      builder: (context, _, _) => StickyMetric(
                         label: AppLocalizations.of(
                           context,
                         )!.text('distanceUpper'),
@@ -2054,7 +1975,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                             Row(
                               children: [
                                 Expanded(
-                                  child: _DeviceResourceMetric(
+                                  child: DeviceResourceMetric(
                                     key: const ValueKey('app-memory-usage'),
                                     label: AppLocalizations.of(
                                       context,
@@ -2070,7 +1991,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                                 ),
                                 const SizedBox(width: AppDimensions.space12),
                                 Expanded(
-                                  child: _DeviceResourceMetric(
+                                  child: DeviceResourceMetric(
                                     key: const ValueKey('battery-usage'),
                                     label: 'BATERIA',
                                     value: _batteryPercent == null
@@ -2201,242 +2122,4 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
         return 'Áudio';
     }
   }
-}
-
-class _DeviceResourceMetric extends StatelessWidget {
-  final String label;
-  final String value;
-  final String detail;
-  final IconData icon;
-  final Color? valueColor;
-
-  const _DeviceResourceMetric({
-    super.key,
-    required this.label,
-    required this.value,
-    required this.detail,
-    required this.icon,
-    this.valueColor,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
-    return Container(
-      padding: const EdgeInsets.all(AppDimensions.space12),
-      decoration: BoxDecoration(
-        border: Border.all(color: colors.outlineVariant),
-        borderRadius: AppDimensions.borderRadiusMedium,
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(icon, size: 14, color: colors.primary),
-              const SizedBox(width: 4),
-              Expanded(
-                child: Text(
-                  label,
-                  style: typography.labelSmall?.copyWith(
-                    color: colors.onSurfaceVariant,
-                    fontWeight: FontWeight.w700,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Text(
-            value,
-            style: typography.titleLarge?.copyWith(
-              color: valueColor,
-              fontWeight: FontWeight.w800,
-              fontFeatures: const [FontFeature.tabularFigures()],
-            ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            detail,
-            style: typography.bodySmall?.copyWith(
-              color: colors.onSurfaceVariant,
-              fontSize: 10,
-            ),
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _StickyMetric extends StatelessWidget {
-  final String label;
-  final String value;
-  final IconData icon;
-  final bool prominent;
-
-  const _StickyMetric({
-    required this.label,
-    required this.value,
-    required this.icon,
-    this.prominent = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final colors = context.colors;
-    final typography = context.typography;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 13, color: colors.primary),
-            const SizedBox(width: 4),
-            Text(
-              label,
-              style: typography.labelSmall?.copyWith(
-                fontSize: prominent ? 10 : 9,
-                color: colors.onSurfaceVariant,
-              ),
-            ),
-          ],
-        ),
-        Text(
-          value,
-          key: prominent ? const ValueKey('speedometer-value') : null,
-          style: (prominent ? typography.titleLarge : typography.titleSmall)
-              ?.copyWith(
-                color: prominent ? colors.primary : null,
-                fontWeight: FontWeight.w800,
-                fontFeatures: const [FontFeature.tabularFigures()],
-              ),
-        ),
-      ],
-    );
-  }
-}
-
-class _AxisValueBadge extends StatelessWidget {
-  final String label;
-  final double value;
-  final Color color;
-
-  const _AxisValueBadge({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Text(
-        '$label: ${value >= 0 ? '+' : ''}${value.toStringAsFixed(1)}',
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: color,
-        ),
-      ),
-    );
-  }
-}
-
-/// CustomPainter para desenhar as ondas do acelerômetro em tempo real
-class _OscilloscopePainter extends CustomPainter {
-  final List<double> bufferX;
-  final List<double> bufferY;
-  final List<double> bufferZ;
-  final Color colorX;
-  final Color colorY;
-  final Color colorZ;
-  final Color gridColor;
-  final Color backgroundColor;
-
-  _OscilloscopePainter({
-    required this.bufferX,
-    required this.bufferY,
-    required this.bufferZ,
-    required this.colorX,
-    required this.colorY,
-    required this.colorZ,
-    required this.gridColor,
-    required this.backgroundColor,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    // Fundo
-    canvas.drawRect(Offset.zero & size, Paint()..color = backgroundColor);
-
-    // Linha central de zero (referência)
-    final centerY = size.height / 2;
-    final gridPaint = Paint()
-      ..color = gridColor
-      ..strokeWidth = 1.0;
-
-    canvas.drawLine(Offset(0, centerY), Offset(size.width, centerY), gridPaint);
-    canvas.drawLine(
-      Offset(0, centerY - size.height * 0.35),
-      Offset(size.width, centerY - size.height * 0.35),
-      gridPaint,
-    );
-    canvas.drawLine(
-      Offset(0, centerY + size.height * 0.35),
-      Offset(size.width, centerY + size.height * 0.35),
-      gridPaint,
-    );
-
-    if (bufferX.length < 2) return;
-
-    // Escala: mapeia de -15 m/s² a +15 m/s² para a altura
-    const range = 15.0;
-
-    double mapY(double val) {
-      final normalized = (val / range).clamp(-1.0, 1.0);
-      return centerY - (normalized * (size.height * 0.45));
-    }
-
-    void drawTrace(List<double> buffer, Color color) {
-      final paint = Paint()
-        ..color = color
-        ..strokeWidth = 1.8
-        ..style = PaintingStyle.stroke
-        ..strokeJoin = StrokeJoin.round;
-
-      final path = Path();
-      final stepX = size.width / (buffer.length - 1);
-
-      for (var i = 0; i < buffer.length; i++) {
-        final x = i * stepX;
-        final y = mapY(buffer[i]);
-        if (i == 0) {
-          path.moveTo(x, y);
-        } else {
-          path.lineTo(x, y);
-        }
-      }
-
-      canvas.drawPath(path, paint);
-    }
-
-    drawTrace(bufferZ, colorZ);
-    drawTrace(bufferY, colorY);
-    drawTrace(bufferX, colorX);
-  }
-
-  @override
-  bool shouldRepaint(covariant _OscilloscopePainter oldDelegate) => true;
 }

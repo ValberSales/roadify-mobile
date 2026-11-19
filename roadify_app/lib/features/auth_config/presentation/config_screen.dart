@@ -1,5 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/l10n/locale_controller.dart';
@@ -119,10 +121,22 @@ class _ConfigScreenState extends State<ConfigScreen> {
     );
 
     if (chosen != null && mounted) {
+      unawaited(HapticFeedback.selectionClick());
       setState(() => _defaultAccelerometerHz = chosen);
       try {
         final prefs = await SharedPreferences.getInstance();
         await prefs.setInt(_prefDefaultAccelHzKey, chosen);
+        final rawConfig = prefs.getString('last_collection_configuration');
+        if (rawConfig != null) {
+          final decoded = jsonDecode(rawConfig);
+          if (decoded is Map<String, dynamic>) {
+            decoded['accelerometerFrequencyHz'] = chosen;
+            await prefs.setString(
+              'last_collection_configuration',
+              jsonEncode(decoded),
+            );
+          }
+        }
       } catch (_) {}
     }
   }

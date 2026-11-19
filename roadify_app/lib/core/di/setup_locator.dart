@@ -2,7 +2,10 @@ import 'package:get_it/get_it.dart';
 import 'package:roadify_app/core/database/app_database.dart';
 import 'package:roadify_app/core/database/daos/run_dao.dart';
 import 'package:roadify_app/core/database/daos/vehicle_dao.dart';
+import 'package:roadify_app/core/l10n/locale_controller.dart';
 import 'package:roadify_app/core/session/session_lifecycle_orchestrator.dart';
+import 'package:roadify_app/core/theme/theme_controller.dart';
+import 'package:roadify_app/features/coleta/services/collection_preferences.dart';
 import 'package:roadify_app/features/dados/services/run_export_service.dart';
 import 'package:roadify_app/features/veiculos/viewmodels/vehicle_viewmodel.dart';
 
@@ -43,6 +46,20 @@ void setupLocators({AppDatabase? database}) {
       () => SessionLifecycleOrchestrator(
         runsStream: getIt<RunDao>().watchAllRuns(),
       ),
+    );
+  }
+
+  if (!getIt.isRegistered<ThemeController>()) {
+    getIt.registerLazySingleton<ThemeController>(() => ThemeController());
+  }
+
+  if (!getIt.isRegistered<LocaleController>()) {
+    getIt.registerLazySingleton<LocaleController>(() => LocaleController());
+  }
+
+  if (!getIt.isRegistered<CollectionPreferences>()) {
+    getIt.registerLazySingleton<CollectionPreferences>(
+      () => CollectionPreferences(),
     );
   }
 }

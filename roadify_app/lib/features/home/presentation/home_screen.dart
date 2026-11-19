@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../../l10n/app_localizations.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/daos/run_dao.dart';
@@ -165,10 +166,12 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _openVehicleSelectionModal() async {
+    unawaited(HapticFeedback.selectionClick());
     await VehicleUiHelper.showSelectionModal(
       context,
       viewModel: _vehicleViewModel,
       onVehicleSelected: (vehicle) async {
+        unawaited(HapticFeedback.mediumImpact());
         setState(() => _selectedVehicleOverride = vehicle);
         try {
           await _vehicleViewModel?.setDefaultVehicle(vehicle);
@@ -488,76 +491,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: AppDimensions.space16),
 
               // --- Card de Diagnóstico do Armazenamento Interno ---
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(AppDimensions.space16),
-                decoration: BoxDecoration(
-                  color: colors.surface,
-                  borderRadius: AppDimensions.borderRadiusCard,
-                  border: Border.all(color: colors.outlineVariant, width: 1.2),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.storage_rounded,
-                          size: 20,
-                          color: colors.primary,
-                        ),
-                        const SizedBox(width: AppDimensions.space8),
-                        Expanded(
-                          child: Text(
-                            AppLocalizations.of(context)!.text('deviceStorage'),
-                            style: typography.titleMedium,
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: AppDimensions.space8),
-                    Text(
-                      '143,3 MB usados',
-                      style: typography.labelMedium?.copyWith(
-                        color: colors.primary,
-                        fontWeight: FontWeight.w700,
-                      ),
-                    ),
-                    const SizedBox(height: AppDimensions.space12),
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(6),
-                      child: LinearProgressIndicator(
-                        value: 0.18,
-                        minHeight: 8,
-                        backgroundColor: colors.surfaceContainerHighest,
-                        color: colors.primary,
-                      ),
-                    ),
-                    const SizedBox(height: AppDimensions.space8),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Flexible(
-                          child: Text(
-                            '4 coletas armazenadas',
-                            style: typography.bodySmall,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        const SizedBox(width: AppDimensions.space8),
-                        Flexible(
-                          child: Text(
-                            AppLocalizations.of(context)!.text('availableStorage'),
-                            style: typography.bodySmall,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.end,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
+              _buildStorageCard(context),
 
               const SizedBox(height: AppDimensions.space24),
 
@@ -625,6 +559,132 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildStorageCard(BuildContext context) {
+    final dao = _dao;
+    if (dao == null) {
+      return _buildStorageCardContent(
+        context,
+        usedLabel: '143,3 MB usados',
+        runsCountLabel: '4 coletas armazenadas',
+        progressValue: 0.18,
+      );
+    }
+
+    return StreamBuilder<List<Run>>(
+      stream: _runsStream ?? dao.watchAllRuns(),
+      builder: (context, snapshot) {
+        final dbRuns = snapshot.data;
+        if (dbRuns == null || dbRuns.isEmpty) {
+          return _buildStorageCardContent(
+            context,
+            usedLabel: '143,3 MB usados',
+            runsCountLabel: '4 coletas armazenadas',
+            progressValue: 0.18,
+          );
+        }
+
+        double totalBytes = 0;
+        for (final r in dbRuns) {
+          totalBytes +=
+              (r.accelerometerSampleCount * 64) +
+              (r.gpsPointCount * 80) +
+              (r.mediaCount * 512 * 1024);
+        }
+        final totalMb = totalBytes / (1024 * 1024);
+        final formattedMb = totalMb.toStringAsFixed(1).replaceAll('.', ',');
+        final count = dbRuns.length;
+        final runsLabel = count == 1
+            ? '1 coleta armazenada'
+            : '$count coletas armazenadas';
+        final progress = (totalMb / 1024.0).clamp(0.02, 1.0);
+
+        return _buildStorageCardContent(
+          context,
+          usedLabel: '$formattedMb MB usados',
+          runsCountLabel: runsLabel,
+          progressValue: progress,
+        );
+      },
+    );
+  }
+
+  Widget _buildStorageCardContent(
+    BuildContext context, {
+    required String usedLabel,
+    required String runsCountLabel,
+    required double progressValue,
+  }) {
+    final colors = context.colors;
+    final typography = context.typography;
+
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(AppDimensions.space16),
+      decoration: BoxDecoration(
+        color: colors.surface,
+        borderRadius: AppDimensions.borderRadiusCard,
+        border: Border.all(color: colors.outlineVariant, width: 1.2),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.storage_rounded, size: 20, color: colors.primary),
+              const SizedBox(width: AppDimensions.space8),
+              Expanded(
+                child: Text(
+                  AppLocalizations.of(context)!.text('deviceStorage'),
+                  style: typography.titleMedium,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: AppDimensions.space8),
+          Text(
+            usedLabel,
+            style: typography.labelMedium?.copyWith(
+              color: colors.primary,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: AppDimensions.space12),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progressValue,
+              minHeight: 8,
+              backgroundColor: colors.surfaceContainerHighest,
+              color: colors.primary,
+            ),
+          ),
+          const SizedBox(height: AppDimensions.space8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                child: Text(
+                  runsCountLabel,
+                  style: typography.bodySmall,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const SizedBox(width: AppDimensions.space8),
+              Flexible(
+                child: Text(
+                  AppLocalizations.of(context)!.text('availableStorage'),
+                  style: typography.bodySmall,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.end,
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
     );
   }

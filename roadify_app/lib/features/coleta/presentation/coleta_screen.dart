@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../../l10n/app_localizations.dart';
 import 'package:roadify_app/core/database/app_database.dart';
 import 'package:roadify_app/core/di/setup_locator.dart';
@@ -83,6 +84,13 @@ class _ColetaScreenState extends State<ColetaScreen>
   Future<void> _restaurarConfiguracao() async {
     try {
       final configuration = await _preferences.load();
+      int? defaultAccelHz;
+      if (configuration == null) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          defaultAccelHz = prefs.getInt('roadify_default_accel_hz');
+        } catch (_) {}
+      }
       Vehicle? vehicle;
       Vehicle? defaultVehicle;
       if (getIt.isRegistered<VehicleViewModel>()) {
@@ -116,6 +124,8 @@ class _ColetaScreenState extends State<ColetaScreen>
         _intervaloMetrosController.text = configuration.intervaloMetros
             .toString();
         _optionalSensorSettings = configuration.sensoresOpcionais;
+      } else if (defaultAccelHz != null && defaultAccelHz > 0) {
+        _taxaAquisicaoHz = defaultAccelHz;
       }
       _restoredVehicle = vehicle;
       _lastDefaultVehicleId = defaultVehicle?.id;

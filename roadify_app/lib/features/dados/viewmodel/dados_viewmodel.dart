@@ -265,12 +265,18 @@ class DadosViewModel extends ChangeNotifier {
   /// Conta fotos e vídeos por coleta a partir dos registros de mídia.
   Future<Map<int, RunMediaCounts>> _mediaCountsByRun(List<Run> runs) async {
     final result = <int, RunMediaCounts>{};
-    if (runs.isEmpty || runs.every((r) => r.mediaCount == 0)) {
-      return result;
-    }
+    if (runs.isEmpty) return result;
+    final runIdsWithMedia = <int>[
+      for (final r in runs)
+        if (r.mediaCount > 0) r.id,
+    ];
     try {
       final db = _dao.attachedDatabase;
-      final records = await db.select(db.mediaRecordsTable).get();
+      final records = runIdsWithMedia.isEmpty
+          ? await db.select(db.mediaRecordsTable).get()
+          : await (db.select(
+              db.mediaRecordsTable,
+            )..where((t) => t.runId.isIn(runIdsWithMedia))).get();
       final photos = <int, int>{};
       final videos = <int, int>{};
       for (final m in records) {

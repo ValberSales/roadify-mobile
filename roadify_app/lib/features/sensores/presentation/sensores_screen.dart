@@ -2,6 +2,7 @@ import 'package:roadify_app/l10n/app_localizations.dart';
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:roadify_app/core/widgets/app_loading_indicator.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
@@ -321,6 +322,7 @@ class _SensoresScreenState extends State<SensoresScreen>
                         ),
                       ),
                       onPressed: () {
+                        unawaited(HapticFeedback.mediumImpact());
                         _viewModel.calibrate();
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -347,6 +349,7 @@ class _SensoresScreenState extends State<SensoresScreen>
                     const SizedBox(height: AppDimensions.space8),
                     TextButton.icon(
                       onPressed: () {
+                        unawaited(HapticFeedback.lightImpact());
                         _viewModel.resetCalibration();
                         ScaffoldMessenger.of(context).showSnackBar(
                           const SnackBar(
@@ -999,8 +1002,11 @@ class _LiveWaveformChart extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = context.colors;
 
-    return Container(
-      padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
+    return Semantics(
+      label:
+          'Osciloscópio ao vivo (${series.map((s) => s.label).join(', ')})',
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(10, 8, 10, 8),
       decoration: BoxDecoration(
         color: colors.surfaceContainerHighest.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(10),
@@ -1072,6 +1078,7 @@ class _LiveWaveformChart extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

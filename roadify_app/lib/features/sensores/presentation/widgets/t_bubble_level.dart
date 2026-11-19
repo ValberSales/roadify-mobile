@@ -25,8 +25,13 @@ class TBubbleLevel extends StatelessWidget {
     final isLevelY = state.isLevelY;
     final isTotalLevel = state.isLevel;
 
-    return Center(
-      child: Container(
+    return Semantics(
+      label: 'Nível Bolha Tubular em T',
+      value: isTotalLevel
+          ? 'Nivelado'
+          : 'Roll ${state.calibratedAngleX.toStringAsFixed(1)}°, Pitch ${state.calibratedAngleY.toStringAsFixed(1)}°',
+      child: Center(
+        child: Container(
         width: 310,
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
         decoration: BoxDecoration(
@@ -108,6 +113,7 @@ class TBubbleLevel extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

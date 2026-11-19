@@ -435,8 +435,10 @@ class _RunDetailsBottomSheet extends StatelessWidget {
     required this.onExport,
   });
 
-  String _formatEndedAt(DateTime? endedAt) =>
-      endedAt == null ? 'Não finalizada' : formatRunDate(endedAt);
+  String _formatEndedAt(BuildContext context, DateTime? endedAt) =>
+      endedAt == null
+      ? AppLocalizations.of(context)!.text('notFinished')
+      : formatRunDate(endedAt);
 
   Widget _sectionCard(BuildContext context, {required Widget child}) {
     final colors = context.colors;
@@ -562,7 +564,7 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                     Icon(Icons.speed_rounded, size: 18, color: colors.primary),
                     const SizedBox(width: 8),
                     Text(
-                      'Odômetro e Distância',
+                      AppLocalizations.of(context)!.text('odometerAndDistance'),
                       style: typography.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -625,7 +627,9 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          'Coordenadas GPS',
+                          AppLocalizations.of(
+                            context,
+                          )!.text('gpsCoordinatesTitle'),
                           style: typography.titleSmall?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
@@ -670,7 +674,9 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                     ),
                     const SizedBox(width: 8),
                     Text(
-                      'Amostras Coletadas',
+                      AppLocalizations.of(
+                        context,
+                      )!.text('collectedSamplesTitle'),
                       style: typography.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -717,7 +723,7 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                 _sectionTitle(
                   context,
                   Icons.perm_media_outlined,
-                  'Mídias Registradas',
+                  AppLocalizations.of(context)!.text('registeredMediaTitle'),
                 ),
                 const SizedBox(height: AppDimensions.space12),
                 Row(
@@ -725,7 +731,7 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                     Expanded(
                       child: _DetailMetricTile(
                         key: const ValueKey('run-details-photo-count'),
-                        label: 'Fotos',
+                        label: AppLocalizations.of(context)!.text('photos'),
                         value: '${run.photoCount}',
                       ),
                     ),
@@ -733,14 +739,14 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                     Expanded(
                       child: _DetailMetricTile(
                         key: const ValueKey('run-details-video-count'),
-                        label: 'Vídeos',
+                        label: AppLocalizations.of(context)!.text('videos'),
                         value: '${run.videoCount}',
                       ),
                     ),
                     const SizedBox(width: AppDimensions.space12),
                     Expanded(
                       child: _DetailMetricTile(
-                        label: 'Total',
+                        label: AppLocalizations.of(context)!.text('total'),
                         value: '${run.mediaCount}',
                       ),
                     ),
@@ -761,37 +767,43 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                 _sectionTitle(
                   context,
                   Icons.info_outline_rounded,
-                  'Informações da Coleta',
+                  AppLocalizations.of(context)!.text('collectionInfoTitle'),
                 ),
                 const SizedBox(height: AppDimensions.space12),
                 _CoordinateRow(
-                  label: 'Status:',
-                  value: run.isFinished ? 'Finalizada' : 'Incompleta',
+                  label: AppLocalizations.of(context)!.text('statusLabel'),
+                  value: run.isFinished
+                      ? AppLocalizations.of(context)!.text('statusFinished')
+                      : AppLocalizations.of(context)!.text('statusIncomplete'),
                 ),
                 const SizedBox(height: 6),
                 _CoordinateRow(
-                  label: 'Término:',
-                  value: _formatEndedAt(run.endedAt),
+                  label: AppLocalizations.of(context)!.text('endedAtLabel'),
+                  value: _formatEndedAt(context, run.endedAt),
                 ),
                 const SizedBox(height: 6),
                 FutureBuilder<String?>(
                   future: vehicleLabelFuture,
                   builder: (context, snapshot) => _CoordinateRow(
-                    label: 'Veículo:',
-                    value: snapshot.data ?? 'Não informado',
+                    label: AppLocalizations.of(context)!.text('vehicleLabel'),
+                    value:
+                        snapshot.data ??
+                        AppLocalizations.of(context)!.text('notInformed'),
                   ),
                 ),
                 const SizedBox(height: 6),
                 _CoordinateRow(
-                  label: 'Dispositivo:',
+                  label: AppLocalizations.of(context)!.text('deviceLabel'),
                   value: run.deviceLabel,
                 ),
                 const SizedBox(height: 6),
                 _CoordinateRow(
-                  label: 'Bateria inicial:',
+                  label: AppLocalizations.of(
+                    context,
+                  )!.text('initialBatteryLabel'),
                   value: run.initialBatteryPercent != null
                       ? '${run.initialBatteryPercent}%'
-                      : 'Não registrado',
+                      : AppLocalizations.of(context)!.text('notRecorded'),
                 ),
               ],
             ),
