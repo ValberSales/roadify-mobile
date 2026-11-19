@@ -1,5 +1,7 @@
 import 'app_localizations.dart';
 
+export 'app_localizations.dart';
+
 /// Catálogo estendido de traduções (PT / EN / ES) desacoplado dos arquivos
 /// gerados pelo `flutter gen-l10n`, evitando perda de chaves customizadas ao
 /// regenerar localizações.
@@ -640,6 +642,7 @@ class AppLocalizationsCatalog {
   };
 }
 
-extension AppLocalizationsCatalogExtension on AppLocalizations {
-  String text(String key) => AppLocalizationsCatalog.lookup(localeName, key);
+extension AppLocalizationsCatalogExtension on AppLocalizations? {
+  String text(String key) =>
+      AppLocalizationsCatalog.lookup(this?.localeName ?? 'pt', key);
 }

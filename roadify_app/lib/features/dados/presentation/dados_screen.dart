@@ -1,4 +1,4 @@
-import 'package:roadify_app/l10n/app_localizations.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 import 'package:flutter/material.dart';
 import 'package:roadify_app/core/database/daos/run_dao.dart';
 import 'package:roadify_app/core/di/setup_locator.dart';
@@ -137,7 +137,7 @@ class _DadosScreenState extends State<DadosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(AppLocalizations.of(context)!.text('recordingsTitle'))),
+      appBar: AppBar(title: Text(AppLocalizations.of(context).text('recordingsTitle'))),
       body: SafeArea(
         bottom: false,
         child: ListenableBuilder(
@@ -166,14 +166,14 @@ class _DadosScreenState extends State<DadosScreen> {
               Icon(Icons.error_outline_rounded, size: 48, color: colors.error),
               const SizedBox(height: AppDimensions.space12),
               Text(
-                AppLocalizations.of(context)!.text('loadingRecordings'),
+                AppLocalizations.of(context).text('loadingRecordings'),
                 style: typography.bodyMedium,
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: AppDimensions.space12),
               OutlinedButton(
                 onPressed: _viewModel.retry,
-                child: Text(AppLocalizations.of(context)!.text('retry')),
+                child: Text(AppLocalizations.of(context).text('retry')),
               ),
             ],
           ),
@@ -205,7 +205,7 @@ class _DadosScreenState extends State<DadosScreen> {
 
           // Barra de busca
           SearchBar(
-            hintText: AppLocalizations.of(context)!.text('searchRuns'),
+            hintText: AppLocalizations.of(context).text('searchRuns'),
             leading: const Icon(Icons.search_rounded),
             elevation: const WidgetStatePropertyAll(0),
             backgroundColor: WidgetStatePropertyAll(
@@ -248,7 +248,7 @@ class _DadosScreenState extends State<DadosScreen> {
                       ? controller.close()
                       : controller.open(),
                   icon: const Icon(Icons.swap_vert_rounded, size: 18),
-                  label: Text(AppLocalizations.of(context)!.text('sort')),
+                  label: Text(AppLocalizations.of(context).text('sort')),
                   style: OutlinedButton.styleFrom(
                     visualDensity: VisualDensity.compact,
                   ),
@@ -401,7 +401,7 @@ class _RunItemCard extends StatelessWidget {
                       label: Text(
                         isExporting
                             ? 'Exportando ${((exportProgress ?? 0) * 100).round()}%'
-                            : AppLocalizations.of(context)!.text('exportZip'),
+                            : AppLocalizations.of(context).text('exportZip'),
                       ),
                       style: OutlinedButton.styleFrom(
                         visualDensity: VisualDensity.compact,
@@ -437,7 +437,7 @@ class _RunDetailsBottomSheet extends StatelessWidget {
 
   String _formatEndedAt(BuildContext context, DateTime? endedAt) =>
       endedAt == null
-      ? AppLocalizations.of(context)!.text('notFinished')
+      ? AppLocalizations.of(context).text('notFinished')
       : formatRunDate(endedAt);
 
   Widget _sectionCard(BuildContext context, {required Widget child}) {
@@ -564,7 +564,7 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                     Icon(Icons.speed_rounded, size: 18, color: colors.primary),
                     const SizedBox(width: 8),
                     Text(
-                      AppLocalizations.of(context)!.text('odometerAndDistance'),
+                      AppLocalizations.of(context).text('odometerAndDistance'),
                       style: typography.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -576,21 +576,21 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _DetailMetricTile(
-                        label: AppLocalizations.of(context)!.text('odometerStart'),
+                        label: AppLocalizations.of(context).text('odometerStart'),
                         value: '${formatDecimal(run.initialOdometer)} km',
                       ),
                     ),
                     const SizedBox(width: AppDimensions.space12),
                     Expanded(
                       child: _DetailMetricTile(
-                        label: AppLocalizations.of(context)!.text('odometerEnd'),
+                        label: AppLocalizations.of(context).text('odometerEnd'),
                         value: '${formatDecimal(run.finalOdometer)} km',
                       ),
                     ),
                     const SizedBox(width: AppDimensions.space12),
                     Expanded(
                       child: _DetailMetricTile(
-                        label: AppLocalizations.of(context)!.text('distance'),
+                        label: AppLocalizations.of(context).text('distance'),
                         value: '${formatDecimal(run.km)} km',
                         highlight: true,
                       ),
@@ -629,7 +629,7 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                         Text(
                           AppLocalizations.of(
                             context,
-                          )!.text('gpsCoordinatesTitle'),
+                          ).text('gpsCoordinatesTitle'),
                           style: typography.titleSmall?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
@@ -638,12 +638,12 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                     ),
                     const SizedBox(height: AppDimensions.space12),
                     _CoordinateRow(
-                      label: AppLocalizations.of(context)!.text('initialPoint'),
+                      label: AppLocalizations.of(context).text('initialPoint'),
                       value: coords.startFormatted,
                     ),
                     const SizedBox(height: 6),
                     _CoordinateRow(
-                      label: AppLocalizations.of(context)!.text('finalPoint'),
+                      label: AppLocalizations.of(context).text('finalPoint'),
                       value: coords.endFormatted,
                     ),
                   ],
@@ -676,7 +676,7 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                     Text(
                       AppLocalizations.of(
                         context,
-                      )!.text('collectedSamplesTitle'),
+                      ).text('collectedSamplesTitle'),
                       style: typography.titleSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -688,21 +688,21 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                   children: [
                     Expanded(
                       child: _DetailMetricTile(
-                        label: AppLocalizations.of(context)!.text('inertialSamples'),
+                        label: AppLocalizations.of(context).text('inertialSamples'),
                         value: '${run.accelerometerSampleCount}',
                       ),
                     ),
                     const SizedBox(width: AppDimensions.space12),
                     Expanded(
                       child: _DetailMetricTile(
-                        label: AppLocalizations.of(context)!.text('gpsPoints'),
+                        label: AppLocalizations.of(context).text('gpsPoints'),
                         value: '${run.gpsPointCount}',
                       ),
                     ),
                     const SizedBox(width: AppDimensions.space12),
                     Expanded(
                       child: _DetailMetricTile(
-                        label: AppLocalizations.of(context)!.text('mediaVolume'),
+                        label: AppLocalizations.of(context).text('mediaVolume'),
                         value: '${formatDecimal(run.sizeMb)} MB',
                       ),
                     ),
@@ -723,7 +723,7 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                 _sectionTitle(
                   context,
                   Icons.perm_media_outlined,
-                  AppLocalizations.of(context)!.text('registeredMediaTitle'),
+                  AppLocalizations.of(context).text('registeredMediaTitle'),
                 ),
                 const SizedBox(height: AppDimensions.space12),
                 Row(
@@ -731,7 +731,7 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                     Expanded(
                       child: _DetailMetricTile(
                         key: const ValueKey('run-details-photo-count'),
-                        label: AppLocalizations.of(context)!.text('photos'),
+                        label: AppLocalizations.of(context).text('photos'),
                         value: '${run.photoCount}',
                       ),
                     ),
@@ -739,14 +739,14 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                     Expanded(
                       child: _DetailMetricTile(
                         key: const ValueKey('run-details-video-count'),
-                        label: AppLocalizations.of(context)!.text('videos'),
+                        label: AppLocalizations.of(context).text('videos'),
                         value: '${run.videoCount}',
                       ),
                     ),
                     const SizedBox(width: AppDimensions.space12),
                     Expanded(
                       child: _DetailMetricTile(
-                        label: AppLocalizations.of(context)!.text('total'),
+                        label: AppLocalizations.of(context).text('total'),
                         value: '${run.mediaCount}',
                       ),
                     ),
@@ -767,43 +767,43 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                 _sectionTitle(
                   context,
                   Icons.info_outline_rounded,
-                  AppLocalizations.of(context)!.text('collectionInfoTitle'),
+                  AppLocalizations.of(context).text('collectionInfoTitle'),
                 ),
                 const SizedBox(height: AppDimensions.space12),
                 _CoordinateRow(
-                  label: AppLocalizations.of(context)!.text('statusLabel'),
+                  label: AppLocalizations.of(context).text('statusLabel'),
                   value: run.isFinished
-                      ? AppLocalizations.of(context)!.text('statusFinished')
-                      : AppLocalizations.of(context)!.text('statusIncomplete'),
+                      ? AppLocalizations.of(context).text('statusFinished')
+                      : AppLocalizations.of(context).text('statusIncomplete'),
                 ),
                 const SizedBox(height: 6),
                 _CoordinateRow(
-                  label: AppLocalizations.of(context)!.text('endedAtLabel'),
+                  label: AppLocalizations.of(context).text('endedAtLabel'),
                   value: _formatEndedAt(context, run.endedAt),
                 ),
                 const SizedBox(height: 6),
                 FutureBuilder<String?>(
                   future: vehicleLabelFuture,
                   builder: (context, snapshot) => _CoordinateRow(
-                    label: AppLocalizations.of(context)!.text('vehicleLabel'),
+                    label: AppLocalizations.of(context).text('vehicleLabel'),
                     value:
                         snapshot.data ??
-                        AppLocalizations.of(context)!.text('notInformed'),
+                        AppLocalizations.of(context).text('notInformed'),
                   ),
                 ),
                 const SizedBox(height: 6),
                 _CoordinateRow(
-                  label: AppLocalizations.of(context)!.text('deviceLabel'),
+                  label: AppLocalizations.of(context).text('deviceLabel'),
                   value: run.deviceLabel,
                 ),
                 const SizedBox(height: 6),
                 _CoordinateRow(
                   label: AppLocalizations.of(
                     context,
-                  )!.text('initialBatteryLabel'),
+                  ).text('initialBatteryLabel'),
                   value: run.initialBatteryPercent != null
                       ? '${run.initialBatteryPercent}%'
-                      : AppLocalizations.of(context)!.text('notRecorded'),
+                      : AppLocalizations.of(context).text('notRecorded'),
                 ),
               ],
             ),
@@ -822,7 +822,7 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                   child: OutlinedButton(
                     key: const ValueKey('close-run-details-button'),
                     onPressed: () => Navigator.of(context).pop(),
-                    child: Text(AppLocalizations.of(context)!.text('close')),
+                    child: Text(AppLocalizations.of(context).text('close')),
                   ),
                 ),
                 const SizedBox(width: AppDimensions.space12),
@@ -835,7 +835,7 @@ class _RunDetailsBottomSheet extends StatelessWidget {
                     onPressed: onExport,
                     icon: const Icon(Icons.download_rounded, size: 18),
                     label: Text(
-                      AppLocalizations.of(context)!.text('exportZip'),
+                      AppLocalizations.of(context).text('exportZip'),
                     ),
                   ),
                 ),

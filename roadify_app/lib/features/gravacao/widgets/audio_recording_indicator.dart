@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../l10n/app_localizations.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 
 class AudioRecordingIndicator extends StatelessWidget {
   final bool isRecording;
@@ -46,7 +46,7 @@ class AudioRecordingIndicator extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
-                  isRecording ? AppLocalizations.of(context)!.text('audioRecording') : AppLocalizations.of(context)!.text('audioReady'),
+                  isRecording ? AppLocalizations.of(context).text('audioRecording') : AppLocalizations.of(context).text('audioReady'),
                   style: TextStyle(
                     color: isRecording ? colors.error : colors.onSurfaceVariant,
                     fontWeight: FontWeight.w800,

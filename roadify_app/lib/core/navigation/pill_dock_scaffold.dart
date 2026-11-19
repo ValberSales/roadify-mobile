@@ -1,4 +1,4 @@
-import 'package:roadify_app/l10n/app_localizations.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -38,27 +38,27 @@ class PillDockScaffold extends StatelessWidget {
     PillDockItem(
       icon: Icons.home_outlined,
       activeIcon: Icons.home_rounded,
-      label: AppLocalizations.of(context)!.text('navHome'),
+      label: AppLocalizations.of(context).text('navHome'),
     ),
     PillDockItem(
       icon: Icons.play_circle_outline_rounded,
       activeIcon: Icons.play_circle_fill_rounded,
-      label: AppLocalizations.of(context)!.text('navCollection'),
+      label: AppLocalizations.of(context).text('navCollection'),
     ),
     PillDockItem(
       icon: Icons.sensors_outlined,
       activeIcon: Icons.sensors_rounded,
-      label: AppLocalizations.of(context)!.text('navSensors'),
+      label: AppLocalizations.of(context).text('navSensors'),
     ),
     PillDockItem(
       icon: Icons.folder_outlined,
       activeIcon: Icons.folder_rounded,
-      label: AppLocalizations.of(context)!.text('navData'),
+      label: AppLocalizations.of(context).text('navData'),
     ),
     PillDockItem(
       icon: Icons.settings_outlined,
       activeIcon: Icons.settings_rounded,
-      label: AppLocalizations.of(context)!.text('navSettings'),
+      label: AppLocalizations.of(context).text('navSettings'),
     ),
   ];
 

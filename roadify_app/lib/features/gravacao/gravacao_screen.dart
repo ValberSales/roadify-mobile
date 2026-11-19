@@ -5,7 +5,7 @@ import 'package:camera/camera.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../l10n/app_localizations.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
@@ -1397,7 +1397,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: Text(
-              AppLocalizations.of(context)!.text('continueCollecting2'),
+              AppLocalizations.of(context).text('continueCollecting2'),
             ),
           ),
           FilledButton.icon(
@@ -1407,7 +1407,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
             icon: const Icon(Icons.check_rounded, size: 18),
-            label: Text(AppLocalizations.of(context)!.text('finishSave2')),
+            label: Text(AppLocalizations.of(context).text('finishSave2')),
           ),
         ],
       ),
@@ -1594,8 +1594,8 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                     colors: colors,
                     keyName: 'floating-audio-action',
                     label: _isRecordingAudio
-                        ? AppLocalizations.of(context)!.text('audioStop')
-                        : AppLocalizations.of(context)!.text('audio'),
+                        ? AppLocalizations.of(context).text('audioStop')
+                        : AppLocalizations.of(context).text('audio'),
                     tooltip: _isRecordingAudio
                         ? 'Parar gravação de áudio'
                         : 'Gravar áudio',
@@ -1757,7 +1757,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(AppLocalizations.of(context)!.text('collectionProgress')),
+          title: Text(AppLocalizations.of(context).text('collectionProgress')),
           automaticallyImplyLeading: false,
           actions: [
             IconButton(
@@ -1859,7 +1859,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                       builder: (context, _, _) => StickyMetric(
                         label: AppLocalizations.of(
                           context,
-                        )!.text('distanceUpper'),
+                        ).text('distanceUpper'),
                         value:
                             '${(_distanceMeters / 1000).toStringAsFixed(2)} km',
                         icon: Icons.route_rounded,
@@ -1964,7 +1964,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                                 Text(
                                   AppLocalizations.of(
                                     context,
-                                  )!.text('deviceMonitoring'),
+                                  ).text('deviceMonitoring'),
                                   style: typography.labelMedium?.copyWith(
                                     fontWeight: FontWeight.w700,
                                   ),
@@ -1979,7 +1979,7 @@ class _GravacaoScreenState extends State<GravacaoScreen> {
                                     key: const ValueKey('app-memory-usage'),
                                     label: AppLocalizations.of(
                                       context,
-                                    )!.text('appRam'),
+                                    ).text('appRam'),
                                     value: _memoryUsageBytes == null
                                         ? '-- MB'
                                         : '${(_memoryUsageBytes! / (1024 * 1024)).toStringAsFixed(1)} MB',

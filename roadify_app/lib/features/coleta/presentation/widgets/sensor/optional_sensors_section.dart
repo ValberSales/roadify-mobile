@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:roadify_app/l10n/app_localizations.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 import 'package:flutter/services.dart';
 import 'package:roadify_app/core/theme/theme_extensions.dart';
 import 'package:roadify_app/features/coleta/presentation/widgets/sensor/sensor_configuration_card.dart';
@@ -89,9 +89,9 @@ class _OptionalSensorsSectionState extends State<OptionalSensorsSection> {
 
   String? _validateGyroscopeFrequency(String? value) {
     final rate = int.tryParse(value?.trim() ?? '');
-    if (rate == null) return AppLocalizations.of(context)!.text('customFrequencyError');
+    if (rate == null) return AppLocalizations.of(context).text('customFrequencyError');
     if (rate < 50 || rate > 500) {
-      return AppLocalizations.of(context)!.text('frequencyRange');
+      return AppLocalizations.of(context).text('frequencyRange');
     }
     return null;
   }
@@ -113,7 +113,7 @@ class _OptionalSensorsSectionState extends State<OptionalSensorsSection> {
 
   String? _validateAudioDuration(String? value) {
     final duration = int.tryParse(value?.trim() ?? '');
-    if (duration == null) return AppLocalizations.of(context)!.text('durationIntegerError');
+    if (duration == null) return AppLocalizations.of(context).text('durationIntegerError');
     if (duration < 1 || duration > _maximumAudioDurationSeconds) {
       return 'Use uma duração entre 1 e '
           '$_maximumAudioDurationSeconds segundos.';
@@ -185,16 +185,16 @@ class _OptionalSensorsSectionState extends State<OptionalSensorsSection> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(AppLocalizations.of(context)!.text('content'), style: context.typography.labelLarge),
+        Text(AppLocalizations.of(context).text('content'), style: context.typography.labelLarge),
         const SizedBox(height: AppDimensions.space8),
         Wrap(
           spacing: AppDimensions.space8,
           children: CameraMediaType.values.map((type) {
             final (label, icon) = switch (type) {
               CameraMediaType.photos => ('Fotos', Icons.photo_outlined),
-              CameraMediaType.videos => (AppLocalizations.of(context)!.text('videos'), Icons.videocam_outlined),
+              CameraMediaType.videos => (AppLocalizations.of(context).text('videos'), Icons.videocam_outlined),
               CameraMediaType.photosAndVideos => (
-                AppLocalizations.of(context)!.text('photosAndVideos'),
+                AppLocalizations.of(context).text('photosAndVideos'),
                 Icons.perm_media_outlined,
               ),
             };
@@ -225,7 +225,7 @@ class _OptionalSensorsSectionState extends State<OptionalSensorsSection> {
           }).toList(),
         ),
         const SizedBox(height: AppDimensions.space12),
-        Text(AppLocalizations.of(context)!.text('cameraUsed'), style: context.typography.labelLarge),
+        Text(AppLocalizations.of(context).text('cameraUsed'), style: context.typography.labelLarge),
         const SizedBox(height: AppDimensions.space8),
         Wrap(
           spacing: AppDimensions.space8,
@@ -240,7 +240,7 @@ class _OptionalSensorsSectionState extends State<OptionalSensorsSection> {
                     : Icons.camera_rear_outlined,
                 size: 18,
               ),
-              label: Text(isFront ? AppLocalizations.of(context)!.text('front') : AppLocalizations.of(context)!.text('rear')),
+              label: Text(isFront ? AppLocalizations.of(context).text('front') : AppLocalizations.of(context).text('rear')),
               selected: selected,
               selectedColor: context.colors.primary,
               labelStyle: TextStyle(
@@ -271,11 +271,11 @@ class _OptionalSensorsSectionState extends State<OptionalSensorsSection> {
             keyboardType: TextInputType.number,
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.text('videoMaxDuration'),
+              labelText: AppLocalizations.of(context).text('videoMaxDuration'),
               suffixText: 'segundos',
               prefixIcon: Icon(Icons.timer_outlined),
               helperText:
-                  AppLocalizations.of(context)!.text('videoDurationRange'),
+                  AppLocalizations.of(context).text('videoDurationRange'),
             ),
             validator: (value) {
               final duration = int.tryParse(value?.trim() ?? '');
@@ -310,8 +310,8 @@ class _OptionalSensorsSectionState extends State<OptionalSensorsSection> {
         const SizedBox(height: AppDimensions.space8),
         _AutoCaptureSwitch(
           controlKey: const ValueKey('camera-auto-capture'),
-          title: AppLocalizations.of(context)!.text('automaticCapture'),
-          subtitle: AppLocalizations.of(context)!.text('optionalByTimeDistance'),
+          title: AppLocalizations.of(context).text('automaticCapture'),
+          subtitle: AppLocalizations.of(context).text('optionalByTimeDistance'),
           value: camera.automatic,
           onChanged: (automatic) => _updateSettings(
             camera: CameraCaptureSettings(
@@ -366,8 +366,8 @@ class _OptionalSensorsSectionState extends State<OptionalSensorsSection> {
       children: [
         _AutoCaptureSwitch(
           controlKey: const ValueKey('audio-auto-capture'),
-          title: AppLocalizations.of(context)!.text('automaticRecording'),
-          subtitle: AppLocalizations.of(context)!.text('optionalByTimeDistance'),
+          title: AppLocalizations.of(context).text('automaticRecording'),
+          subtitle: AppLocalizations.of(context).text('optionalByTimeDistance'),
           value: audio.automatic,
           onChanged: (automatic) => _updateSettings(
             audio: AudioCaptureSettings(
@@ -412,11 +412,11 @@ class _OptionalSensorsSectionState extends State<OptionalSensorsSection> {
             inputFormatters: [FilteringTextInputFormatter.digitsOnly],
             autovalidateMode: AutovalidateMode.onUserInteraction,
             decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.text('recordingDuration'),
+              labelText: AppLocalizations.of(context).text('recordingDuration'),
               suffixText: 'segundos',
               prefixIcon: Icon(Icons.timer_outlined),
               helperText:
-                  AppLocalizations.of(context)!.text('audioDurationRange'),
+                  AppLocalizations.of(context).text('audioDurationRange'),
             ),
             validator: _validateAudioDuration,
             onChanged: (value) {
@@ -539,19 +539,19 @@ class _CaptureIntervalEditor extends StatelessWidget {
             items: [
               DropdownMenuItem(
                 value: CaptureIntervalUnit.minutes,
-                child: Text(AppLocalizations.of(context)!.text('minutes')),
+                child: Text(AppLocalizations.of(context).text('minutes')),
               ),
               DropdownMenuItem(
                 value: CaptureIntervalUnit.hours,
-                child: Text(AppLocalizations.of(context)!.text('hours')),
+                child: Text(AppLocalizations.of(context).text('hours')),
               ),
               DropdownMenuItem(
                 value: CaptureIntervalUnit.meters,
-                child: Text(AppLocalizations.of(context)!.text('meters')),
+                child: Text(AppLocalizations.of(context).text('meters')),
               ),
               DropdownMenuItem(
                 value: CaptureIntervalUnit.kilometers,
-                child: Text(AppLocalizations.of(context)!.text('kilometers')),
+                child: Text(AppLocalizations.of(context).text('kilometers')),
               ),
             ],
             onChanged: (value) {

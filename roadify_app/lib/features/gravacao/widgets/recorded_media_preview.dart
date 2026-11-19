@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import '../../../../l10n/app_localizations.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:video_player/video_player.dart';
 
@@ -127,7 +127,7 @@ class _RecordedMediaPreviewDialogState
             const SizedBox(height: 12),
             Text(
               media.latitude == null || media.longitude == null
-                  ? AppLocalizations.of(context)!.text('gpsUnavailable')
+                  ? AppLocalizations.of(context).text('gpsUnavailable')
                   : 'GPS: ${media.latitude!.toStringAsFixed(6)}, '
                         '${media.longitude!.toStringAsFixed(6)}',
             ),

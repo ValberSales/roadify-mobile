@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../l10n/app_localizations.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 import 'package:flutter/services.dart';
 import 'package:roadify_app/core/theme/theme_extensions.dart';
 import 'package:roadify_app/features/coleta/presentation/widgets/sensor/sensor_section_heading.dart';
@@ -24,10 +24,10 @@ class AcquisitionParametersSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SensorSectionHeading(
-          title: AppLocalizations.of(context)!.text('parameters'),
+          title: AppLocalizations.of(context).text('parameters'),
           subtitle:
-              '${AppLocalizations.of(context)!.text('gpsDistanceDescription')}'
-              '${AppLocalizations.of(context)!.text('otherSensorsDescription')}',
+              '${AppLocalizations.of(context).text('gpsDistanceDescription')}'
+              '${AppLocalizations.of(context).text('otherSensorsDescription')}',
           icon: Icons.straighten_rounded,
         ),
         const SizedBox(height: AppDimensions.space12),
@@ -47,11 +47,11 @@ class AcquisitionParametersSection extends StatelessWidget {
               FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
             ],
             decoration: InputDecoration(
-              labelText: AppLocalizations.of(context)!.text('minGpsDistance'),
+              labelText: AppLocalizations.of(context).text('minGpsDistance'),
               suffixText: 'm',
               prefixIcon: Icon(Icons.straighten_rounded),
               helperText:
-                  AppLocalizations.of(context)!.text('gpsDistanceHelp'),
+                  AppLocalizations.of(context).text('gpsDistanceHelp'),
             ),
             validator: validator,
           ),

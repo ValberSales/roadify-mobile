@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:roadify_app/l10n/app_localizations.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 import 'package:roadify_app/core/database/app_database.dart';
 import 'package:roadify_app/core/theme/theme_extensions.dart';
 import 'package:roadify_app/core/widgets/empty_state_widget.dart';
@@ -23,7 +23,7 @@ class VehicleListWidget extends StatelessWidget {
     if (vehicles.isEmpty) {
       return EmptyStateWidget(
         icon: Icons.directions_car_outlined,
-        message: AppLocalizations.of(context)!.text('noVehicles'),
+        message: AppLocalizations.of(context).text('noVehicles'),
       );
     }
 
@@ -195,7 +195,7 @@ class VehicleListWidget extends StatelessWidget {
         if (onEditTap != null)
           IconButton(
             icon: Icon(Icons.edit_rounded, color: colors.primary, size: 22),
-            tooltip: AppLocalizations.of(context)!.text('editVehicle'),
+            tooltip: AppLocalizations.of(context).text('editVehicle'),
             onPressed: () => onEditTap!(vehicle),
           ),
         if (onDeleteTap != null)
@@ -205,7 +205,7 @@ class VehicleListWidget extends StatelessWidget {
               color: colors.error,
               size: 22,
             ),
-            tooltip: AppLocalizations.of(context)!.text('deleteVehicle'),
+            tooltip: AppLocalizations.of(context).text('deleteVehicle'),
             onPressed: () => onDeleteTap!(vehicle),
           ),
       ],

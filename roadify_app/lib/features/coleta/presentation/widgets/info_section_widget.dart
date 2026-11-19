@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../../../l10n/app_localizations.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 import 'package:roadify_app/core/database/app_database.dart';
 import 'package:roadify_app/core/theme/theme_extensions.dart';
 import 'package:roadify_app/features/coleta/presentation/widgets/vehicle/selected_vehicle_card.dart';
@@ -101,7 +101,7 @@ class _IdentificacaoSectionWidgetState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(AppLocalizations.of(context)!.text('identity'), style: context.typography.titleMedium),
+        Text(AppLocalizations.of(context).text('identity'), style: context.typography.titleMedium),
         const SizedBox(height: AppDimensions.space12),
         TextFormField(
           key: const ValueKey('collection-route-field'),
@@ -112,7 +112,7 @@ class _IdentificacaoSectionWidgetState
             prefixIcon: Icon(Icons.route_rounded),
           ),
           validator: (value) => value == null || value.trim().isEmpty
-              ? AppLocalizations.of(context)!.text('enterCollectionSegment')
+              ? AppLocalizations.of(context).text('enterCollectionSegment')
               : null,
         ),
         const SizedBox(height: AppDimensions.space16),
@@ -122,11 +122,11 @@ class _IdentificacaoSectionWidgetState
           autovalidateMode: AutovalidateMode.onUserInteraction,
           textCapitalization: TextCapitalization.sentences,
           decoration: InputDecoration(
-            labelText: AppLocalizations.of(context)!.text('testIdentifier'),
+            labelText: AppLocalizations.of(context).text('testIdentifier'),
             prefixIcon: Icon(Icons.tag_rounded),
           ),
           validator: (value) => value == null || value.trim().isEmpty
-              ? AppLocalizations.of(context)!.text('enterTestIdentifier')
+              ? AppLocalizations.of(context).text('enterTestIdentifier')
               : null,
         ),
         const SizedBox(height: AppDimensions.space16),
@@ -134,7 +134,7 @@ class _IdentificacaoSectionWidgetState
           initialValue: widget.initialVehicle,
           key: const ValueKey('collection-vehicle-field'),
           validator: (vehicle) =>
-              vehicle == null ? AppLocalizations.of(context)!.text('selectVehicleForCollection') : null,
+              vehicle == null ? AppLocalizations.of(context).text('selectVehicleForCollection') : null,
           builder: (fieldState) {
             final vehicle = _selectedVehicle;
 
@@ -159,7 +159,7 @@ class _IdentificacaoSectionWidgetState
                         },
                       ),
                       icon: const Icon(Icons.directions_car_rounded),
-                      label: Text(AppLocalizations.of(context)!.text('selectVehicleRequired')),
+                      label: Text(AppLocalizations.of(context).text('selectVehicleRequired')),
                       style: OutlinedButton.styleFrom(
                         alignment: Alignment.centerLeft,
                         padding: const EdgeInsets.symmetric(
@@ -221,7 +221,7 @@ class _IdentificacaoSectionWidgetState
                           !odometer.isFinite ||
                           odometer < 0 ||
                           odometer > 2000000) {
-                        return AppLocalizations.of(context)!.text('validMileageRange');
+                        return AppLocalizations.of(context).text('validMileageRange');
                       }
                       return null;
                     },

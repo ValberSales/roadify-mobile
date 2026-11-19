@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:battery_plus/battery_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../../l10n/app_localizations.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 import '../../../core/database/app_database.dart';
 import '../../../core/database/daos/run_dao.dart';
 import '../../../core/di/setup_locator.dart';
@@ -178,7 +178,7 @@ class _HomeScreenState extends State<HomeScreen> {
           if (!mounted) return;
           SnackbarHelper.showSuccess(
             context,
-            message: AppLocalizations.of(context)!
+            message: AppLocalizations.of(context)
                 .text('defaultVehicleSet')
                 .replaceAll('{name}', vehicle.name)
                 .replaceAll('{plate}', vehicle.licensePlate),
@@ -227,7 +227,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildLastUsedVehicleSummary() {
-    final l10n = AppLocalizations.of(context)!;
+    final l10n = AppLocalizations.of(context);
     final vehicleVm = _vehicleViewModel;
     if (vehicleVm == null) {
       final override = _selectedVehicleOverride;
@@ -346,7 +346,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         ),
                         const SizedBox(height: AppDimensions.space4),
                         Text(
-                          AppLocalizations.of(context)!.text('dataCollector'),
+                          AppLocalizations.of(context).text('dataCollector'),
                           style: typography.bodySmall,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -355,7 +355,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(width: AppDimensions.space8),
                   IconButton.filledTonal(
-                    tooltip: AppLocalizations.of(context)!.text('themeToggle'),
+                    tooltip: AppLocalizations.of(context).text('themeToggle'),
                     onPressed: () => widget.themeController.toggleTheme(),
                     icon: Icon(
                       context.isDarkMode
@@ -429,7 +429,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                     const SizedBox(height: AppDimensions.space4),
                     Text(
-                      AppLocalizations.of(context)!.text('calibrateBeforeDriving'),
+                      AppLocalizations.of(context).text('calibrateBeforeDriving'),
                       style: TextStyle(
                         color: Colors.white.withValues(alpha: 0.85),
                         fontSize: 13,
@@ -463,7 +463,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                         ),
                         label: Text(
-                          AppLocalizations.of(context)!.text('startTrackCollection'),
+                          AppLocalizations.of(context).text('startTrackCollection'),
                           style: TextStyle(
                             fontWeight: FontWeight.w800,
                             fontSize: 15,
@@ -501,7 +501,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 children: [
                   Expanded(
                     child: Text(
-                      AppLocalizations.of(context)!.text('latestCollections'),
+                      AppLocalizations.of(context).text('latestCollections'),
                       style: typography.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -638,7 +638,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(width: AppDimensions.space8),
               Expanded(
                 child: Text(
-                  AppLocalizations.of(context)!.text('deviceStorage'),
+                  AppLocalizations.of(context).text('deviceStorage'),
                   style: typography.titleMedium,
                 ),
               ),
@@ -676,7 +676,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(width: AppDimensions.space8),
               Flexible(
                 child: Text(
-                  AppLocalizations.of(context)!.text('availableStorage'),
+                  AppLocalizations.of(context).text('availableStorage'),
                   style: typography.bodySmall,
                   overflow: TextOverflow.ellipsis,
                   textAlign: TextAlign.end,
@@ -761,7 +761,7 @@ class _LowBatteryAlertBanner extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  AppLocalizations.of(context)!
+                  AppLocalizations.of(context)
                       .text('lowBattery')
                       .replaceAll('{batteryLevel}', '$batteryLevel'),
                   style: typography.labelLarge?.copyWith(
@@ -771,7 +771,7 @@ class _LowBatteryAlertBanner extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  AppLocalizations.of(context)!
+                  AppLocalizations.of(context)
                       .text('batteryRecommendation')
                       .replaceAll(
                         '{threshold}',

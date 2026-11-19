@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:roadify_app/l10n/app_localizations.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 import 'package:roadify_app/core/database/app_database.dart';
 import 'package:roadify_app/core/di/setup_locator.dart';
 import 'package:roadify_app/core/theme/theme_extensions.dart';
@@ -41,7 +41,7 @@ class VehicleUiHelper {
                 children: [
                   Expanded(
                     child: Text(
-                      AppLocalizations.of(sheetContext)!.text('selectVehicle'),
+                      AppLocalizations.of(sheetContext).text('selectVehicle'),
                       style: sheetContext.typography.titleLarge?.copyWith(
                         fontWeight: FontWeight.w700,
                       ),
@@ -52,7 +52,7 @@ class VehicleUiHelper {
                     FilledButton.icon(
                       icon: const Icon(Icons.add_rounded, size: 18),
                       label: Text(
-                        AppLocalizations.of(sheetContext)!.text('newItem'),
+                        AppLocalizations.of(sheetContext).text('newItem'),
                       ),
                       onPressed: () {
                         Navigator.pop(sheetContext);
@@ -89,7 +89,7 @@ class VehicleUiHelper {
                         if (snapshot.hasError) {
                           return Center(
                             child: Text(
-                              '${AppLocalizations.of(context)!.text('loadVehiclesError')}${snapshot.error}',
+                              '${AppLocalizations.of(context).text('loadVehiclesError')}${snapshot.error}',
                             ),
                           );
                         }
@@ -164,7 +164,7 @@ class VehicleUiHelper {
                 context,
                 message: AppLocalizations.of(
                   context,
-                )!.text('saveVehicleSuccess'),
+                ).text('saveVehicleSuccess'),
               );
             }
 
@@ -177,7 +177,7 @@ class VehicleUiHelper {
 
             SnackbarHelper.showError(
               context,
-              message: AppLocalizations.of(context)!.text('saveVehicleError'),
+              message: AppLocalizations.of(context).text('saveVehicleError'),
             );
           }
         },

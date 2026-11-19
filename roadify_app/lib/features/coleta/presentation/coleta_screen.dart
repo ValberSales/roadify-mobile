@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import '../../../l10n/app_localizations.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 import 'package:roadify_app/core/database/app_database.dart';
 import 'package:roadify_app/core/di/setup_locator.dart';
 import 'package:roadify_app/core/widgets/app_loading_indicator.dart';
@@ -287,7 +287,7 @@ class _ColetaScreenState extends State<ColetaScreen>
     if (!acelerometroSelecionado || !gpsSelecionado) {
       setState(() {
         _erroSelecaoSensores =
-            AppLocalizations.of(context)!.text('requiredSensorsStart');
+            AppLocalizations.of(context).text('requiredSensorsStart');
       });
       return;
     }
@@ -298,20 +298,20 @@ class _ColetaScreenState extends State<ColetaScreen>
       _intervaloMetrosController.text.trim().replaceAll(',', '.'),
     );
     if (taxaGps == null || intervaloMetros == null) {
-      _showValidationError(AppLocalizations.of(context)!.text('reviewFrequencies'));
+      _showValidationError(AppLocalizations.of(context).text('reviewFrequencies'));
       return;
     }
     final odometroInicial = double.tryParse(
       _identification.odometer.replaceAll(',', '.'),
     );
     if (odometroInicial == null || !odometroInicial.isFinite) {
-      _showValidationError(AppLocalizations.of(context)!.text('validStartingMileage'));
+      _showValidationError(AppLocalizations.of(context).text('validStartingMileage'));
       return;
     }
     if (_taxaAquisicaoHz <= 0) {
       setState(() {
         _erroSelecaoSensores =
-            AppLocalizations.of(context)!.text('validAccelerometerFrequency');
+            AppLocalizations.of(context).text('validAccelerometerFrequency');
       });
       return;
     }

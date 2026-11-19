@@ -10,7 +10,7 @@ import '../../../core/theme/theme_controller.dart';
 import '../../../core/theme/theme_extensions.dart';
 import '../../../core/di/setup_locator.dart';
 import '../../../features/veiculos/viewmodels/vehicle_viewmodel.dart';
-import '../../../l10n/app_localizations.dart';
+import 'package:roadify_app/l10n/app_localizations_catalog.dart';
 import '../../veiculos/presentation/vehicles_management_screen.dart';
 
 /// Tela de Configurações do Aplicativo Standalone (Feature Config — SP2-08).
@@ -98,7 +98,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                   vertical: AppDimensions.space8,
                 ),
                 child: Text(
-                  AppLocalizations.of(context)!.text('defaultAccelRate'),
+                  AppLocalizations.of(context).text('defaultAccelRate'),
                   style: context.typography.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -156,7 +156,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
                   vertical: AppDimensions.space8,
                 ),
                 child: Text(
-                  AppLocalizations.of(context)!.text('selectLanguage'),
+                  AppLocalizations.of(context).text('selectLanguage'),
                   style: context.typography.titleMedium?.copyWith(
                     fontWeight: FontWeight.w700,
                   ),
@@ -340,7 +340,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
 
   Widget _buildDefaultVehicleSubtitle() {
     if (!getIt.isRegistered<VehicleViewModel>()) {
-      return Text(AppLocalizations.of(context)!.text('noVehicles'));
+      return Text(AppLocalizations.of(context).text('noVehicles'));
     }
     return StreamBuilder<Vehicle?>(
       stream:
@@ -356,7 +356,7 @@ class _ConfigScreenState extends State<ConfigScreen> {
         }
         final vehicle = snapshot.data;
         if (vehicle == null) {
-          return Text(AppLocalizations.of(context)!.text('noVehicles'));
+          return Text(AppLocalizations.of(context).text('noVehicles'));
         }
         return Text('${vehicle.name} (${vehicle.licensePlate})');
       },
