@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import '../../../l10n/app_localizations.dart';
 import 'package:roadify_app/core/database/app_database.dart';
 import 'package:roadify_app/core/di/setup_locator.dart';
+import 'package:roadify_app/core/widgets/app_loading_indicator.dart';
 import 'package:roadify_app/features/coleta/presentation/collection_orientation_setup_screen.dart';
 import 'package:roadify_app/features/coleta/presentation/widgets/info_section_widget.dart';
 import 'package:roadify_app/features/coleta/presentation/widgets/parameters_section_widget.dart';
@@ -419,7 +420,7 @@ class _ColetaScreenState extends State<ColetaScreen>
       body: SafeArea(
         bottom: false,
         child: _isLoadingPreferences
-            ? const Center(child: CircularProgressIndicator())
+            ? const AppLoadingIndicator()
             : Form(
                 key: _formKey,
                 autovalidateMode: AutovalidateMode.onUserInteraction,

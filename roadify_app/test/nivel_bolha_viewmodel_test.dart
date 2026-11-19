@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:roadify_app/core/widgets/app_loading_indicator.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:roadify_app/core/theme/app_theme.dart';
 import 'package:roadify_app/features/sensores/models/circular_buffer.dart';
 import 'package:roadify_app/features/sensores/models/nivel_bolha_state.dart';
 import 'package:roadify_app/features/sensores/presentation/sensores_screen.dart';
@@ -166,6 +168,56 @@ void main() {
   });
 
   group('SensorOrientationService Tests', () {
+    testWidgets('exibe loading enquanto carrega calibração dos sensores', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final preferences = await SharedPreferences.getInstance();
+      final calibration = Completer<SharedPreferences>();
+      final vm = NivelBolhaViewModel(
+        autoStart: false,
+        preferencesProvider: () => calibration.future,
+      );
+      addTearDown(vm.dispose);
+
+      await tester.pumpWidget(MaterialApp(home: SensoresScreen(viewModel: vm)));
+
+      expect(find.byType(AppLoadingIndicator), findsOneWidget);
+      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+      calibration.complete(preferences);
+      await tester.pumpAndSettle();
+
+      expect(find.byType(AppLoadingIndicator), findsNothing);
+      expect(find.byType(TabBarView), findsOneWidget);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    test('coalesces high-rate updates sent to the sensor screen', () async {
+      final sensorEvents = StreamController<AccelerometerEvent>.broadcast(
+        sync: true,
+      );
+      final service = SensorOrientationService(
+        customAccelerometerStream: sensorEvents.stream,
+      );
+      final vm = NivelBolhaViewModel(orientationService: service);
+      var notifications = 0;
+      vm.addListener(() => notifications++);
+
+      for (var index = 0; index < 20; index++) {
+        sensorEvents.add(
+          AccelerometerEvent(index.toDouble(), 0, 9.81, DateTime.now()),
+        );
+      }
+
+      expect(notifications, 0);
+      await Future<void>.delayed(const Duration(milliseconds: 120));
+      expect(notifications, 1);
+
+      vm.dispose();
+      await sensorEvents.close();
+    });
+
     test(
       'Processamento de leitura com filtro passa-baixa e conversão trigonométrica',
       () async {
@@ -200,6 +252,7 @@ void main() {
         await tester.pumpWidget(
           MaterialApp(home: SensoresScreen(viewModel: vm)),
         );
+        await tester.pumpAndSettle();
 
         await tester.tap(find.text('Sinais ao Vivo'));
         await tester.pumpAndSettle();
@@ -238,5 +291,35 @@ void main() {
         expect(vm.signalHistory.last.gyroX, equals(0.33));
       },
     );
+
+    testWidgets('SensoresScreen usa cores compatíveis com o tema escuro', (
+      tester,
+    ) async {
+      SharedPreferences.setMockInitialValues({});
+      final vm = NivelBolhaViewModel(autoStart: false);
+      addTearDown(vm.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.light,
+          darkTheme: AppTheme.dark,
+          themeMode: ThemeMode.dark,
+          home: SensoresScreen(viewModel: vm),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final modeLabel = tester.widget<Text>(
+        find.textContaining('Visualização:'),
+      );
+      expect(
+        Theme.of(
+          tester.element(find.text('Sensores & Nivelamento')),
+        ).brightness,
+        Brightness.dark,
+      );
+      expect(modeLabel.style?.color, AppTheme.dark.colorScheme.primary);
+      await tester.pumpWidget(const SizedBox());
+    });
   });
 }

@@ -30,6 +30,7 @@ class NivelBolhaViewModel extends ChangeNotifier {
   StreamSubscription<OrientationReading>? _orientationSubscription;
   StreamSubscription<Position>? _gpsSubscription;
   Timer? _telemetryHeartbeatTimer;
+  Timer? _sensorUiNotificationTimer;
   DateTime _lastHardwareSampleAt = DateTime.fromMillisecondsSinceEpoch(0);
   bool _disposed = false;
 
@@ -117,7 +118,7 @@ class NivelBolhaViewModel extends ChangeNotifier {
       );
       _lastHardwareSampleAt = DateTime.now();
       _pushSignalSample();
-      _notify();
+      _scheduleSensorUiNotification();
     });
 
     _orientationService.startListening(allowMockFallback: true);
@@ -132,7 +133,7 @@ class NivelBolhaViewModel extends ChangeNotifier {
             .inMilliseconds;
         if (elapsedMs >= 30) {
           _pushSignalSample();
-          _notify();
+          _scheduleSensorUiNotification();
         }
       },
     );
@@ -188,6 +189,14 @@ class NivelBolhaViewModel extends ChangeNotifier {
       gpsLongitude: -49.2733,
       hasGpsSignal: false,
     );
+  }
+
+  void _scheduleSensorUiNotification() {
+    if (_sensorUiNotificationTimer?.isActive == true) return;
+    _sensorUiNotificationTimer = Timer(const Duration(milliseconds: 100), () {
+      _sensorUiNotificationTimer = null;
+      _notify();
+    });
   }
 
   void _pushSignalSample() {
@@ -375,6 +384,7 @@ class NivelBolhaViewModel extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _telemetryHeartbeatTimer?.cancel();
+    _sensorUiNotificationTimer?.cancel();
     _orientationSubscription?.cancel();
     _gpsSubscription?.cancel();
     _orientationService.dispose();

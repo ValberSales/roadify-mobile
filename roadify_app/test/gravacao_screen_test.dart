@@ -1,3 +1,4 @@
+import 'package:camera/camera.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -38,7 +39,6 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: CameraCaptureControls(
-            controller: null,
             mediaType: CameraMediaType.photosAndVideos,
             isVideoRecording: true,
             isBusy: false,
@@ -72,7 +72,44 @@ void main() {
             ),
           )
           .onPressed,
-      isNull,
+      isNotNull,
+    );
+  });
+
+  testWidgets('exibe apenas controles sem preview ativo da câmera', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        home: Scaffold(
+          body: CameraCaptureControls(
+            mediaType: CameraMediaType.photosAndVideos,
+            isVideoRecording: false,
+            isBusy: false,
+            videoElapsed: Duration.zero,
+            videoDurationSeconds: 30,
+            errorMessage: null,
+            onTakePhoto: () {},
+            onToggleVideo: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byType(CameraPreview), findsNothing);
+    expect(find.byKey(const ValueKey('botao-capturar-foto')), findsOneWidget);
+    expect(find.byKey(const ValueKey('botao-gravar-video')), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(
+            find.descendant(
+              of: find.byKey(const ValueKey('botao-capturar-foto')),
+              matching: find.byType(FilledButton),
+            ),
+          )
+          .onPressed,
+      isNotNull,
     );
   });
 
@@ -119,13 +156,29 @@ void main() {
     expect(find.text('Coleta em Andamento'), findsOneWidget);
     expect(find.text('GRAVANDO'), findsOneWidget);
     expect(find.text('TEMPO DECORRIDO'), findsOneWidget);
-    expect(find.text('200 Hz'), findsOneWidget);
-    expect(find.textContaining('10 Hz • mínimo'), findsOneWidget);
-    expect(find.textContaining('25 m entre pontos'), findsOneWidget);
-    expect(find.textContaining('25 m'), findsOneWidget);
+    expect(find.byKey(const ValueKey('recording-info-button')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('recording-parameters-card')),
+      findsNothing,
+    );
     expect(find.text('Amostras'), findsOneWidget);
     expect(find.text('Pontos GPS'), findsOneWidget);
     expect(find.text('Acelerômetro ao Vivo'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('recording-sample-metrics')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('live-chart-accelerometer')),
+      findsOneWidget,
+    );
+    final monitorChart = tester.getRect(
+      find.byKey(const ValueKey('live-chart-accelerometer')),
+    );
+    final monitorViewport = tester.getRect(
+      find.byKey(const ValueKey('recording-content-scroll')),
+    );
+    expect(monitorChart.bottom, lessThanOrEqualTo(monitorViewport.bottom));
     expect(
       find.byKey(const ValueKey('sticky-recording-telemetry')),
       findsOneWidget,
@@ -133,12 +186,28 @@ void main() {
     expect(find.byKey(const ValueKey('elapsed-time-sticky')), findsOneWidget);
     expect(tester.takeException(), isNull);
 
+    await tester.tap(find.byKey(const ValueKey('recording-info-button')));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('Informações da coleta'), findsOneWidget);
+    expect(find.text('Acelerômetro'), findsOneWidget);
+    expect(find.text('200 Hz'), findsOneWidget);
+    expect(
+      find.text('10 Hz • intervalo mínimo de gravação 25 m'),
+      findsOneWidget,
+    );
+    await tester.tap(find.byKey(const ValueKey('close-recording-info')));
+    await tester.pump(const Duration(milliseconds: 300));
+
     final finalizar = find.text('Finalizar Coleta');
     await tester.ensureVisible(finalizar);
     await tester.tap(finalizar);
-    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
 
-    expect(find.text('Finalizar Coleta?'), findsOneWidget);
+    expect(find.text('Resumo da coleta'), findsOneWidget);
+    expect(find.text('Resumo do que será salvo'), findsOneWidget);
+    expect(find.text('Amostras inerciais'), findsOneWidget);
+    expect(find.text('Pontos GPS'), findsNWidgets(2));
+    expect(find.text('Sensores configurados'), findsOneWidget);
     expect(find.text('Finalizar e Salvar'), findsOneWidget);
     await tester.tap(find.text('Finalizar e Salvar'));
     await tester.pumpAndSettle();
@@ -206,15 +275,26 @@ void main() {
     );
     await waitForRecording(tester);
 
+    await tester.tap(find.byKey(const ValueKey('recording-info-button')));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.text('250 Hz'), findsOneWidget);
+    await tester.drag(
+      find.byKey(const ValueKey('recording-info-list')),
+      const Offset(0, -300),
+    );
+    await tester.pump();
     expect(
       find.text(
-        'Giroscópio 250 Hz • Câmera frontal: vídeos • vídeo até 120s • '
-        'automático a cada 5 km • Áudio: a cada 2 h, 45s',
+        'vídeos • câmera frontal • automática a cada 5 km • vídeo até 120s',
       ),
       findsOneWidget,
     );
-    expect(find.textContaining('Áudio: a cada 2 h, 45s'), findsOneWidget);
-    expect(find.byKey(const ValueKey('botao-gravar-video')), findsOneWidget);
+    expect(find.text('Automático a cada 2 h • até 45s'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('close-recording-info')));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    expect(find.byKey(const ValueKey('floating-video-action')), findsOneWidget);
+    expect(find.byKey(const ValueKey('floating-audio-action')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('audio-recording-indicator')),
       findsOneWidget,
@@ -258,16 +338,32 @@ void main() {
       ),
     );
     await waitForRecording(tester);
-
-    expect(find.byKey(const ValueKey('botao-capturar-foto')), findsOneWidget);
-    expect(find.byKey(const ValueKey('botao-gravar-video')), findsOneWidget);
+    expect(find.byKey(const ValueKey('floating-photo-action')), findsOneWidget);
+    expect(find.byKey(const ValueKey('floating-video-action')), findsOneWidget);
+    final chartBottom = tester
+        .getRect(find.byKey(const ValueKey('live-chart-accelerometer')))
+        .bottom;
+    final contentBottom = tester
+        .getRect(find.byKey(const ValueKey('recording-content-scroll')))
+        .bottom;
+    expect(chartBottom, lessThanOrEqualTo(contentBottom));
+    final actionDockTop = tester
+        .getRect(find.byKey(const ValueKey('recording-action-dock')))
+        .top;
+    await tester.drag(
+      find.byKey(const ValueKey('recording-content-scroll')),
+      const Offset(0, -300),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      tester.getRect(find.byKey(const ValueKey('recording-action-dock'))).top,
+      actionDockTop,
+    );
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox());
   });
 
-  testWidgets('mantém o HUD escuro e mostra cronômetro e captura rápida', (
-    tester,
-  ) async {
+  testWidgets('respeita o tema escolhido e exibe o cronômetro', (tester) async {
     final configuration = ConfiguracaoColeta(
       sensoresSelecionados: {
         SensorColeta.acelerometro,
@@ -304,7 +400,19 @@ void main() {
     final elapsedContext = tester.element(
       find.byKey(const ValueKey('elapsed-time-sticky')),
     );
-    expect(Theme.of(elapsedContext).brightness, Brightness.dark);
+    expect(Theme.of(elapsedContext).brightness, Brightness.light);
+    expect(
+      find.byKey(const ValueKey('recording-parameters-card')),
+      findsNothing,
+    );
+    await tester.tap(find.byKey(const ValueKey('recording-info-button')));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      Theme.of(tester.element(find.text('Informações da coleta'))).brightness,
+      Brightness.light,
+    );
+    await tester.tap(find.byKey(const ValueKey('close-recording-info')));
+    await tester.pump(const Duration(milliseconds: 300));
     expect(
       tester
           .widget<Text>(find.byKey(const ValueKey('elapsed-time-sticky')))
@@ -315,14 +423,37 @@ void main() {
       tester.widget<Text>(find.byKey(const ValueKey('speedometer-value'))).data,
       '-- km/h',
     );
-    expect(find.byKey(const ValueKey('quick-capture-photo')), findsOneWidget);
-    expect(
-      tester
-          .widget<IconButton>(find.byKey(const ValueKey('quick-capture-photo')))
-          .tooltip,
-      'Foto rápida da via',
-    );
+    expect(find.byKey(const ValueKey('quick-capture-photo')), findsNothing);
     expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.light,
+        darkTheme: AppTheme.dark,
+        themeMode: ThemeMode.dark,
+        home: GravacaoScreen(
+          key: const ValueKey('dark-theme-recording'),
+          configuracao: configuration,
+          repository: repository,
+          captureDeviceSensors: false,
+        ),
+      ),
+    );
+    await waitForRecording(tester);
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final darkElapsedContext = tester.element(
+      find.byKey(const ValueKey('elapsed-time-sticky')),
+    );
+    expect(Theme.of(darkElapsedContext).brightness, Brightness.dark);
+    await tester.tap(find.byKey(const ValueKey('recording-info-button')));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      Theme.of(tester.element(find.text('Informações da coleta'))).brightness,
+      Brightness.dark,
+    );
+    await tester.tap(find.byKey(const ValueKey('close-recording-info')));
+    await tester.pump(const Duration(milliseconds: 300));
     await tester.pumpWidget(const SizedBox());
   });
 

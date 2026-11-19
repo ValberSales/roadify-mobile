@@ -2,6 +2,7 @@ import 'package:roadify_app/l10n/app_localizations.dart';
 import 'package:flutter/material.dart';
 import 'package:roadify_app/core/database/daos/run_dao.dart';
 import 'package:roadify_app/core/di/setup_locator.dart';
+import 'package:roadify_app/core/widgets/app_loading_indicator.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_dimensions.dart';
 import '../../../core/theme/theme_extensions.dart';
@@ -153,7 +154,7 @@ class _DadosScreenState extends State<DadosScreen> {
     final qualityColors = context.roadQualityColors;
 
     if (_viewModel.isLoading) {
-      return const Center(child: CircularProgressIndicator());
+      return const AppLoadingIndicator();
     }
     if (_viewModel.error != null) {
       return Center(
