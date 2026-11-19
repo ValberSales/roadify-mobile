@@ -5,6 +5,9 @@ class SensorSignalSample {
   final double accelX;
   final double accelY;
   final double accelZ;
+  final double gyroX;
+  final double gyroY;
+  final double gyroZ;
   final double roll;
   final double pitch;
 
@@ -12,6 +15,9 @@ class SensorSignalSample {
     required this.accelX,
     required this.accelY,
     required this.accelZ,
+    this.gyroX = 0.0,
+    this.gyroY = 0.0,
+    this.gyroZ = 0.0,
     required this.roll,
     required this.pitch,
   });
@@ -44,7 +50,7 @@ enum DeviceOrientationMode {
   const DeviceOrientationMode(this.label);
 }
 
-/// Estado imutável dos dados do Nível Bolha.
+/// Estado imutável dos dados do Nível Bolha e Sensores em Tempo Real.
 class NivelBolhaState {
   /// Inclinação no eixo X (Roll / lateral) em graus (-90° a +90°).
   final double angleX;
@@ -76,6 +82,33 @@ class NivelBolhaState {
   /// Valor da aceleração do eixo Z (em m/s²), usado para detecção de postura.
   final double accelZ;
 
+  /// Leitura do giroscópio no eixo X (rad/s ou deg/s).
+  final double gyroX;
+
+  /// Leitura do giroscópio no eixo Y (rad/s ou deg/s).
+  final double gyroY;
+
+  /// Leitura do giroscópio no eixo Z (rad/s ou deg/s).
+  final double gyroZ;
+
+  /// Velocidade instantânea do GPS (em km/h).
+  final double gpsSpeed;
+
+  /// Precisão estimada do sinal GPS (em metros).
+  final double gpsAccuracy;
+
+  /// Altitude do GPS (em metros).
+  final double gpsAltitude;
+
+  /// Latitude geográfica atual do GPS.
+  final double gpsLatitude;
+
+  /// Longitude geográfica atual do GPS.
+  final double gpsLongitude;
+
+  /// Indica se o sinal do GPS está ativo e recebendo dados válidos.
+  final bool hasGpsSignal;
+
   /// Indica se os dados estão vindo do hardware real (sensors_plus) ou simulação mockada.
   final bool isReadingFromHardware;
 
@@ -90,6 +123,15 @@ class NivelBolhaState {
     this.accelX = 0.0,
     this.accelY = 0.0,
     this.accelZ = 9.81,
+    this.gyroX = 0.0,
+    this.gyroY = 0.0,
+    this.gyroZ = 0.0,
+    this.gpsSpeed = 0.0,
+    this.gpsAccuracy = 0.0,
+    this.gpsAltitude = 0.0,
+    this.gpsLatitude = 0.0,
+    this.gpsLongitude = 0.0,
+    this.hasGpsSignal = false,
     this.isReadingFromHardware = false,
   });
 
@@ -139,6 +181,15 @@ class NivelBolhaState {
     double? accelX,
     double? accelY,
     double? accelZ,
+    double? gyroX,
+    double? gyroY,
+    double? gyroZ,
+    double? gpsSpeed,
+    double? gpsAccuracy,
+    double? gpsAltitude,
+    double? gpsLatitude,
+    double? gpsLongitude,
+    bool? hasGpsSignal,
     bool? isReadingFromHardware,
   }) {
     return NivelBolhaState(
@@ -152,6 +203,15 @@ class NivelBolhaState {
       accelX: accelX ?? this.accelX,
       accelY: accelY ?? this.accelY,
       accelZ: accelZ ?? this.accelZ,
+      gyroX: gyroX ?? this.gyroX,
+      gyroY: gyroY ?? this.gyroY,
+      gyroZ: gyroZ ?? this.gyroZ,
+      gpsSpeed: gpsSpeed ?? this.gpsSpeed,
+      gpsAccuracy: gpsAccuracy ?? this.gpsAccuracy,
+      gpsAltitude: gpsAltitude ?? this.gpsAltitude,
+      gpsLatitude: gpsLatitude ?? this.gpsLatitude,
+      gpsLongitude: gpsLongitude ?? this.gpsLongitude,
+      hasGpsSignal: hasGpsSignal ?? this.hasGpsSignal,
       isReadingFromHardware:
           isReadingFromHardware ?? this.isReadingFromHardware,
     );

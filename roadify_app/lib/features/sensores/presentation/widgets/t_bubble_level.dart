@@ -5,7 +5,7 @@ import '../../models/nivel_bolha_state.dart';
 
 /// Widget de Nível Tubular em Formato T (Modo Smartphone em Pé / Suporte Veicular).
 ///
-/// Apresenta dois níveis de tubo de bolha de precisão:
+/// Apresenta dois níveis de tubo de bolha de precisão com física de amortecimento fluido:
 /// 1. Tubo Horizontal Superior: Mede o Roll (inclinação lateral do suporte/veículo).
 /// 2. Tubo Vertical Central: Mede o Pitch (inclinação frontal/longitudinal da via).
 class TBubbleLevel extends StatelessWidget {
@@ -132,8 +132,8 @@ class _HorizontalTubeWidget extends StatelessWidget {
     const double bubbleWidth = 44.0;
     const double maxOffset = (tubeWidth / 2) - (bubbleWidth / 2) - 6.0;
 
-    // Sensibilidade: deslocamento da bolha por grau
-    const double pixelsPerDegree = 14.0;
+    // Sensibilidade visual: pixels por grau (amortecimento fluido natural)
+    const double pixelsPerDegree = 8.0;
     double offset = -angle * pixelsPerDegree;
     offset = offset.clamp(-maxOffset, maxOffset);
 
@@ -185,20 +185,20 @@ class _HorizontalTubeWidget extends StatelessWidget {
                   top: 2,
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
-                    children: [
+                    children: const [
                       _GraduationMark(label: '-5°'),
-                      const SizedBox(width: 60),
+                      SizedBox(width: 60),
                       _GraduationMark(label: '0°', isCenter: true),
-                      const SizedBox(width: 60),
+                      SizedBox(width: 60),
                       _GraduationMark(label: '+5°'),
                     ],
                   ),
                 ),
 
-                // Bolha cilíndrica horizontal
+                // Bolha cilíndrica horizontal fluida
                 AnimatedPositioned(
-                  duration: const Duration(milliseconds: 90),
-                  curve: Curves.easeOutQuad,
+                  duration: const Duration(milliseconds: 280),
+                  curve: Curves.easeOutCubic,
                   left: (tubeWidth / 2) - (bubbleWidth / 2) + offset,
                   child: Container(
                     width: bubbleWidth,
@@ -272,8 +272,8 @@ class _VerticalTubeWidget extends StatelessWidget {
     const double bubbleHeight = 44.0;
     const double maxOffset = (tubeHeight / 2) - (bubbleHeight / 2) - 6.0;
 
-    // Sensibilidade: deslocamento da bolha por grau
-    const double pixelsPerDegree = 14.0;
+    // Sensibilidade visual: pixels por grau (amortecimento fluido natural)
+    const double pixelsPerDegree = 8.0;
     double offset = angle * pixelsPerDegree;
     offset = offset.clamp(-maxOffset, maxOffset);
 
@@ -333,10 +333,10 @@ class _VerticalTubeWidget extends StatelessWidget {
               ),
             ),
 
-            // Bolha cilíndrica vertical
+            // Bolha cilíndrica vertical fluida
             AnimatedPositioned(
-              duration: const Duration(milliseconds: 90),
-              curve: Curves.easeOutQuad,
+              duration: const Duration(milliseconds: 280),
+              curve: Curves.easeOutCubic,
               top: (tubeHeight / 2) - (bubbleHeight / 2) + offset,
               child: Container(
                 width: 28,

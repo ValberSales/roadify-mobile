@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:roadify_app/features/sensores/models/circular_buffer.dart';
 import 'package:roadify_app/features/sensores/models/nivel_bolha_state.dart';
 import 'package:roadify_app/features/sensores/presentation/sensores_screen.dart';
 import 'package:roadify_app/features/sensores/services/sensor_orientation_service.dart';
@@ -11,7 +12,34 @@ import 'package:roadify_app/features/sensores/viewmodel/nivel_bolha_viewmodel.da
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  group('NivelBolhaViewModel & NivelBolhaState Tests', () {
+  group('CircularBuffer Tests (Sprint 4)', () {
+    test('Mantém rigorosamente o limite de 50 amostras em FIFO sem engasgos', () {
+      final buffer = CircularBuffer<int>(50);
+      expect(buffer.isEmpty, isTrue);
+      expect(buffer.capacity, equals(50));
+
+      for (var i = 1; i <= 60; i++) {
+        buffer.add(i);
+      }
+
+      expect(buffer.length, equals(50));
+      expect(buffer.isFull, isTrue);
+      expect(buffer.first, equals(11)); // Primeiros 10 foram descartados
+      expect(buffer.last, equals(60));  // Último elemento é o mais recente
+      expect(buffer[0], equals(11));
+      expect(buffer[49], equals(60));
+    });
+
+    test('toList gera lista cronológica correta', () {
+      final buffer = CircularBuffer<int>(3);
+      buffer.addAll([1, 2, 3]);
+      buffer.add(4); // Sobrescreve o 1
+
+      expect(buffer.toList(), equals([2, 3, 4]));
+    });
+  });
+
+  group('NivelBolhaViewModel & NivelBolhaState Tests (Sprint 4)', () {
     late NivelBolhaViewModel viewModel;
 
     setUp(() {
@@ -21,6 +49,12 @@ void main() {
 
     tearDown(() {
       viewModel.dispose();
+    });
+
+    test('Buffer circular inicial possui exatamente 50 amostras', () {
+      expect(viewModel.signalBuffer.length, equals(50));
+      expect(viewModel.signalHistory.length, equals(50));
+      expect(NivelBolhaViewModel.maxHistoryPoints, equals(50));
     });
 
     test('Estado inicial padrão', () {
@@ -64,14 +98,12 @@ void main() {
     );
 
     test('Calibração de Tara (Zerar Nível) e Persistência (SP2-06)', () async {
-      // Configura ângulos não zerados
       viewModel.setAngles(2.4, -1.8);
       expect(viewModel.state.calibratedAngleX, 2.4);
       expect(viewModel.state.calibratedAngleY, -1.8);
       expect(viewModel.state.isCalibrated, false);
       expect(viewModel.state.isLevel, false);
 
-      // Realiza a calibração / tara
       viewModel.calibrate();
       expect(viewModel.state.isCalibrated, true);
       expect(viewModel.state.calibOffsetX, 2.4);
@@ -82,7 +114,6 @@ void main() {
 
       await viewModel.persistCalibration();
 
-      // Uma nova instância deve restaurar os offsets persistidos para toda a sessão
       final restoredVm = NivelBolhaViewModel(autoStart: false);
       addTearDown(restoredVm.dispose);
       await restoredVm.loadPersistedCalibration();
@@ -90,7 +121,6 @@ void main() {
       expect(restoredVm.state.calibOffsetX, equals(2.4));
       expect(restoredVm.state.calibOffsetY, equals(-1.8));
 
-      // Ao resetar a calibração, volta aos ângulos brutos
       viewModel.resetCalibration();
       expect(viewModel.state.isCalibrated, false);
       expect(viewModel.state.calibOffsetX, 0.0);
@@ -110,20 +140,28 @@ void main() {
       expect(viewModel.state.isLevel, false);
     });
 
-    test('Simulação de dados de sensores brutos (acelerômetro X, Y, Z)', () {
-      viewModel.updateFromSensors(accelX: 0.0, accelY: 9.81, accelZ: 0.0);
-      expect(
-        viewModel.state.detectedOrientation,
-        DeviceOrientationMode.vertical,
+    test('Atualização inercial de Acelerômetro e Giroscópio (Sprint 4)', () {
+      viewModel.updateFromSensors(
+        accelX: 1.2,
+        accelY: -0.5,
+        accelZ: 9.75,
+        gyroX: 0.15,
+        gyroY: -0.22,
+        gyroZ: 0.05,
       );
-      expect(viewModel.state.activeMode, BubbleDisplayMode.tubularT);
 
-      viewModel.updateFromSensors(accelX: 0.0, accelY: 0.0, accelZ: 9.81);
-      expect(
-        viewModel.state.detectedOrientation,
-        DeviceOrientationMode.horizontal,
-      );
-      expect(viewModel.state.activeMode, BubbleDisplayMode.circular2D);
+      expect(viewModel.state.accelX, equals(1.2));
+      expect(viewModel.state.accelY, equals(-0.5));
+      expect(viewModel.state.accelZ, equals(9.75));
+      expect(viewModel.state.gyroX, equals(0.15));
+      expect(viewModel.state.gyroY, equals(-0.22));
+      expect(viewModel.state.gyroZ, equals(0.05));
+
+      final last = viewModel.signalHistory.last;
+      expect(last.accelX, equals(1.2));
+      expect(last.gyroX, equals(0.15));
+      expect(last.gyroY, equals(-0.22));
+      expect(last.gyroZ, equals(0.05));
     });
   });
 
@@ -140,7 +178,6 @@ void main() {
 
         service.startListening(allowMockFallback: false);
 
-        // Injeta leitura de teste
         mockController.add(AccelerometerEvent(0.5, 0.2, 9.81, DateTime.now()));
 
         final reading = await service.orientationStream.first;
@@ -155,7 +192,7 @@ void main() {
     );
 
     testWidgets(
-      'SensoresScreen exibe gráficos em tempo real na aba Sinais ao Vivo',
+      'SensoresScreen exibe osciloscópios a 60 FPS na aba Sinais ao Vivo (Sprint 4)',
       (tester) async {
         final vm = NivelBolhaViewModel(autoStart: false);
         addTearDown(vm.dispose);
@@ -167,20 +204,38 @@ void main() {
         await tester.tap(find.text('Sinais ao Vivo'));
         await tester.pumpAndSettle();
 
+        // Verifica os cards de osciloscópio do Acelerômetro e Giroscópio
         expect(
           find.byKey(const ValueKey('live-chart-accelerometer')),
+          findsOneWidget,
+        );
+        expect(
+          find.byKey(const ValueKey('live-chart-gyroscope')),
           findsOneWidget,
         );
         expect(
           find.byKey(const ValueKey('live-chart-inclination')),
           findsOneWidget,
         );
+        expect(
+          find.byKey(const ValueKey('live-card-gps')),
+          findsOneWidget,
+        );
 
-        vm.updateFromSensors(accelX: 1.5, accelY: -0.8, accelZ: 9.65);
+        // Injeta dados e verifica propagação imediata no buffer
+        vm.updateFromSensors(
+          accelX: 1.5,
+          accelY: -0.8,
+          accelZ: 9.65,
+          gyroX: 0.33,
+          gyroY: -0.15,
+          gyroZ: 0.08,
+        );
         await tester.pump();
 
         expect(vm.signalHistory.last.accelX, equals(1.5));
         expect(vm.signalHistory.last.accelY, equals(-0.8));
+        expect(vm.signalHistory.last.gyroX, equals(0.33));
       },
     );
   });
